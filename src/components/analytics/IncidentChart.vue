@@ -11,7 +11,7 @@ import { supabase } from '@/services/supabase'
 
 Chart.register(...registerables)
 
-const props = defineProps(['period'])
+const props = defineProps(['period', 'branchId'])
 const chartRef = ref(null)
 let chartInstance = null
 
@@ -25,11 +25,16 @@ const fetchData = async () => {
   else if (props.period === 'Month') startDate.setMonth(now.getMonth() - 1)
   else if (props.period === 'Year') startDate.setFullYear(now.getFullYear() - 1)
 
-  // Fetch reports within the date range
-  const { data, error } = await supabase
+  let query = supabase
     .from('reports')
     .select(`created_at, report_types(name)`)
     .gte('created_at', startDate.toISOString())
+
+  if (props.branchId) {
+    query = query.eq('branch_id', props.branchId)
+  }
+
+  const { data, error } = await query
 
   if (error) return
 
@@ -73,7 +78,7 @@ const updateChart = (counts) => {
   })
 }
 
-watch(() => props.period, fetchData)
+watch(() => [props.period, props.branchId], fetchData)
 onMounted(fetchData)
 </script>
 

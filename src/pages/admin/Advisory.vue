@@ -23,17 +23,6 @@
               <div><label>END TIME</label><input type="time" v-model="endTime" /></div>
             </div>
           </section>
-
-          <section class="card">
-            <h3>Public Notice Preview</h3>
-            <div class="preview-box">
-              <p>
-                ISELCO-1 ALERT: Scheduled power interruption on
-                {{ outageDate || 'YYYY-MM-DD' }} from {{ startTime || '--:--' }} to
-                {{ endTime || '--:--' }} affecting selected areas.
-              </p>
-            </div>
-          </section>
         </div>
 
         <section class="card">
@@ -53,7 +42,6 @@
       </div>
 
       <footer class="action-bar">
-        <span>Draft saved automatically</span>
         <button @click="broadcastOutage" :disabled="loading" class="btn-broadcast">
           {{ loading ? 'BROADCASTING...' : 'Schedule & Broadcast Notice' }}
         </button>
@@ -71,9 +59,9 @@ const loading = ref(false)
 const municipalities = ref([])
 const barangays = ref([])
 const selectedBarangays = ref([])
-const outageDate = ref('')
-const startTime = ref('')
-const endTime = ref('')
+const outageDate = ref(''),
+  startTime = ref(''),
+  endTime = ref('')
 
 const fetchData = async () => {
   const { data: mData } = await supabase.from('municipalities').select('id, name')
@@ -84,32 +72,34 @@ const fetchData = async () => {
 
 const getBarangaysByMun = (munId) => barangays.value.filter((b) => b.municipality_id === munId)
 
-onMounted(fetchData)
-
 const broadcastOutage = async () => {
   if (selectedBarangays.value.length === 0) return alert('Select at least one area')
+
+  // Derive municipality_id from the first selected barangay
+  const firstBarangay = barangays.value.find((b) => b.id === selectedBarangays.value[0])
+  const targetMunId = firstBarangay ? firstBarangay.municipality_id : null
+
+  if (!targetMunId) return alert('Could not determine Municipality ID')
+
   loading.value = true
 
   try {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-
-    // Fetch numeric ID from users table to match int8 column
-    const { data: adminProfile, error: userError } = await supabase
+    const { data: adminProfile } = await supabase
       .from('users')
       .select('id')
       .eq('email', user.email)
       .maybeSingle()
-
-    if (userError || !adminProfile) throw new Error('Admin profile not found.')
 
     // Insert Advisory
     const { error: advError } = await supabase.from('power_advisories').insert([
       {
         title: 'SCHEDULED MAINTENANCE',
         content: `Power interruption scheduled for ${outageDate.value} from ${startTime.value} to ${endTime.value}`,
-        affected_areas: selectedBarangays.value.join(', '),
+        affected_barangay_ids: selectedBarangays.value,
+        municipality_id: targetMunId, // FIXED: Now sending the ID
         schedule_start: `${outageDate.value}T${startTime.value}:00`,
         schedule_end: `${outageDate.value}T${endTime.value}:00`,
         created_by_admin_id: adminProfile.id,
@@ -122,13 +112,12 @@ const broadcastOutage = async () => {
       .from('users')
       .select('id')
       .in('barangay_id', selectedBarangays.value)
-
     if (residents?.length > 0) {
       await supabase.from('notifications').insert(
         residents.map((r) => ({
           residents_id: r.id,
           title: 'Power Advisory',
-          message: `Scheduled maintenance in your area on ${outageDate.value}.`,
+          message: `Scheduled maintenance on ${outageDate.value}.`,
           is_read: false,
         })),
       )
@@ -140,9 +129,12 @@ const broadcastOutage = async () => {
   }
   loading.value = false
 }
+
+onMounted(fetchData)
 </script>
 
 <style scoped>
+/* Ensure you have these styles or link to your stylesheet */
 .dashboard-root {
   display: flex;
   min-height: 100vh;
@@ -166,12 +158,6 @@ const broadcastOutage = async () => {
   border-radius: 8px;
   margin-bottom: 20px;
 }
-.mun-accordion {
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  margin-bottom: 10px;
-  background: #f8fafc;
-}
 .mun-accordion summary {
   padding: 12px;
   font-weight: 600;
@@ -184,12 +170,6 @@ const broadcastOutage = async () => {
   gap: 10px;
   padding: 15px;
 }
-.checkbox-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 30px;
-}
 .btn-broadcast {
   background: #1e3a8a;
   color: #fff;
@@ -198,22 +178,5 @@ const broadcastOutage = async () => {
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
-}
-input {
-  width: 100%;
-  padding: 8px;
-  margin: 5px 0 15px 0;
-  border: 1px solid #ccc;
-  color: #000;
-}
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.preview-box {
-  background: #f1f5f9;
-  padding: 15px;
-  font-size: 0.9rem;
 }
 </style>

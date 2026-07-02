@@ -1,8 +1,8 @@
 <template>
   <div class="dashboard-root">
-    <Sidebar />
+    <BranchSidebar />
     <main class="content">
-      <router-link to="/admin/linemen" class="back-link">← Back to Directory</router-link>
+      <router-link to="/branch/linemen" class="back-link">← Back to Directory</router-link>
 
       <div v-if="lineman" class="profile-container">
         <header class="profile-header">
@@ -60,7 +60,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
-import Sidebar from '@/components/Sidebar.vue'
+import BranchSidebar from '@/components/BranchSidebar.vue'
 
 const route = useRoute()
 const lineman = ref(null)
@@ -80,22 +80,42 @@ const getStatusClass = (statusId) => {
 const fetchProfile = async () => {
   const linemanId = route.params.id
 
-  // 1. Fetch Lineman Info with Branch join
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) return
+
+  const { data: userData, error: branchError } = await supabase
+    .from('users')
+    .select('branch_id')
+    .eq('id', user.id)
+    .single()
+
+  if (branchError) {
+    console.error('Error fetching branch:', branchError)
+    return
+  }
+
   const { data: emp, error } = await supabase
     .from('employees')
     .select(
       `
+      id,
       user_id,
       employee_id_no,
       is_available,
       users(
         first_name,
         last_name,
+        branch_id,
         iselco_branch(branch_name)
       )
     `,
     )
     .eq('id', linemanId)
+    .eq('users.branch_id', userData.branch_id)
     .single()
 
   if (error) {
@@ -105,7 +125,6 @@ const fetchProfile = async () => {
 
   lineman.value = emp
 
-  // 2. Fetch Assignments
   const { data: history } = await supabase
     .from('assignments')
     .select(`assigned_at, reports(description, status_id, report_statuses(name))`)
@@ -114,7 +133,9 @@ const fetchProfile = async () => {
 
   assignments.value = history || []
   stats.value.totalAssigned = assignments.value.length
-  stats.value.totalResolved = assignments.value.filter((a) => a.reports?.status_id === 3).length
+  stats.value.totalResolved = assignments.value.filter(
+    (item) => item.reports?.status_id === 3,
+  ).length
 }
 
 onMounted(fetchProfile)

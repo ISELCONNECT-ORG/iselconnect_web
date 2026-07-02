@@ -48,6 +48,24 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/branch/incident',
+      name: 'BranchIncidentQueue',
+      component: () => import('../pages/branch/BranchIncidentQueue.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/linemen',
+      name: 'BranchLinemanMonitoring',
+      component: () => import('../pages/branch/BranchLinemanMonitoring.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/lineman/:id',
+      name: 'BranchLinemanProfile',
+      component: () => import('../pages/branch/BranchLinemanProfile.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin/analytics',
       name: 'AdminAnalytics',
       component: () => import('../pages/admin/Analytics.vue'),
@@ -78,15 +96,22 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/admin/settings',
-      name: 'AdminSettings',
-      component: () => import('@/pages/admin/Settings.vue'),
+      path: '/admin/user-management',
+      name: 'UserManagement',
+      // Matches your folder structure in src/pages/Settings/UserManagement.vue
+      component: () => import('@/pages/Settings/UserManagement.vue'),
       meta: { requiresAuth: true },
     },
     {
       path: '/admin/support',
       name: 'AdminSupport',
       component: () => import('@/pages/admin/Support.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/settings', // This must match the URL path exactly
+      name: 'AdminSettings',
+      component: () => import('@/pages/Settings/Settings.vue'),
       meta: { requiresAuth: true },
     },
   ],

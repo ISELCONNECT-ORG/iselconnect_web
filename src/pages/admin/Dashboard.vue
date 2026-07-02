@@ -49,6 +49,10 @@
           </aside>
         </div>
 
+        <div class="full-width-analytics" style="margin-top: 8px">
+          <TopBarangaysChart />
+        </div>
+
         <section class="table-container">
           <h2>Active Consumer Reports</h2>
           <table class="data-table">
@@ -129,6 +133,7 @@ import { FileText, Zap, CheckCircle, AlertTriangle } from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import IncidentChart from '@/components/analytics/IncidentChart.vue'
+import TopBarangaysChart from '@/components/analytics/TopBarangaysChart.vue'
 import { supabase } from '@/services/supabase'
 
 import '@/assets/style/dashboard.css'
@@ -137,7 +142,7 @@ const reports = ref([])
 const availableLinemen = ref([])
 const showModal = ref(false)
 const selectedReport = ref(null)
-const newLinemanIds = ref([]) // Holds an array of selected IDs
+const newLinemanIds = ref([])
 const currentPeriod = ref('Day')
 
 const stats = ref([
@@ -169,7 +174,6 @@ const fetchReports = async () => {
   }
 
   reports.value = (data || []).map((r) => {
-    // 1. Extract all names into an array
     const names =
       r.assignments?.length > 0
         ? r.assignments.map((a) => `${a.users.first_name} ${a.users.last_name}`)
@@ -177,7 +181,6 @@ const fetchReports = async () => {
 
     return {
       ...r,
-      // 2. Use a Set to strip out any duplicate names, then join them with a comma
       lineman_names: names.length > 0 ? [...new Set(names)].join(', ') : 'Unassigned',
     }
   })
@@ -221,7 +224,6 @@ const fetchLinemen = async () => {
 
 const openReassignModal = (report) => {
   selectedReport.value = report
-  // Pre-populate the checkboxes with linemen already assigned to this report
   newLinemanIds.value = report.assignments
     ? [...new Set(report.assignments.map((a) => a.lineman_id))]
     : []
@@ -232,7 +234,6 @@ const confirmReassign = async () => {
   if (!selectedReport.value) return
 
   try {
-    // 1. Clear out all existing assignments for this specific report
     const { error: deleteError } = await supabase
       .from('assignments')
       .delete()
@@ -240,9 +241,7 @@ const confirmReassign = async () => {
 
     if (deleteError) throw deleteError
 
-    // 2. Insert the new selections as multiple rows
     if (newLinemanIds.value.length > 0) {
-      // Ensure we don't try to insert duplicate IDs in one go
       const uniqueIds = [...new Set(newLinemanIds.value)]
       const assignmentsToInsert = uniqueIds.map((id) => ({
         report_id: selectedReport.value.id,

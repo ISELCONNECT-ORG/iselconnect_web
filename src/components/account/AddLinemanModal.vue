@@ -48,6 +48,13 @@
           class="input-field"
           autocomplete="off"
         />
+
+        <select v-model="form.branchId" class="input-field">
+          <option value="" disabled selected>Select Branch</option>
+          <option v-for="branch in branches" :key="branch.branch_id" :value="branch.branch_id">
+            {{ branch.branch_name }}
+          </option>
+        </select>
       </div>
 
       <div class="modal-actions">
@@ -59,7 +66,7 @@
 </template>
 
 <script setup>
-import { reactive, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
 
 const emit = defineEmits(['close', 'refresh'])
@@ -72,14 +79,36 @@ const form = reactive({
   mobileNumber: '',
   password: '',
   employeeId: '',
+  branchId: '',
 })
 
+const branches = ref([])
+
+// Fetch branches from Supabase on mount
+const fetchBranches = async () => {
+  const { data, error } = await supabase
+    .from('iselco_branch')
+    .select('branch_id, branch_name')
+    .order('branch_name')
+
+  if (error) {
+    console.error('Error fetching branches:', error)
+  } else {
+    branches.value = data
+  }
+}
+
 onMounted(() => {
-  // Clear the form fields when the modal is mounted
-  Object.keys(form).forEach((key) => (form[key] = ''))
+  fetchBranches()
 })
 
 const createLinemanAccount = async () => {
+  // Simple validation
+  if (!form.branchId) {
+    alert('Please select a branch.')
+    return
+  }
+
   try {
     // 1. Create Auth User
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -90,7 +119,7 @@ const createLinemanAccount = async () => {
 
     const userId = authData.user.id
 
-    // 2. Insert into public.users
+    // 2. Insert into public.users with branch_id
     const { error: userError } = await supabase.from('users').insert({
       id: userId,
       first_name: form.firstName,
@@ -98,7 +127,8 @@ const createLinemanAccount = async () => {
       last_name: form.lastName,
       email: form.email,
       mobile_number: form.mobileNumber,
-      role_id: 9, // Enforced Lineman role
+      role_id: 9,
+      branch_id: form.branchId, // Link user to branch
     })
     if (userError) throw userError
 
