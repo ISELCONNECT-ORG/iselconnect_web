@@ -16,7 +16,6 @@ const chartRef = ref(null)
 let chartInstance = null
 
 const fetchData = async () => {
-  // Calculate the date range based on the period
   const now = new Date()
   let startDate = new Date()
 
@@ -35,10 +34,8 @@ const fetchData = async () => {
   }
 
   const { data, error } = await query
-
   if (error) return
 
-  // Aggregate counts by type
   const counts = {
     'Leaning Pole': 0,
     'Fallen Wire': 0,
@@ -46,6 +43,7 @@ const fetchData = async () => {
     'Overgrown Grass': 0,
     'Insect Infestations': 0,
   }
+
   data.forEach((item) => {
     const typeName = item.report_types?.name
     if (typeName && counts.hasOwnProperty(typeName)) counts[typeName]++
@@ -65,7 +63,7 @@ const updateChart = (counts) => {
         {
           label: 'Reports',
           data: Object.values(counts),
-          backgroundColor: '#3b82f6',
+          backgroundColor: '#1f3056', // dark blue bar color
           borderRadius: 6,
         },
       ],
@@ -73,7 +71,9 @@ const updateChart = (counts) => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+      },
     },
   })
 }

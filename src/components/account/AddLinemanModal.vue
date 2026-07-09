@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay">
+  <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content">
       <h3>Add New Lineman</h3>
 
@@ -68,6 +68,7 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
+import { sendNotification } from '@/utils/notifications.js'
 
 const emit = defineEmits(['close', 'refresh'])
 
@@ -84,7 +85,6 @@ const form = reactive({
 
 const branches = ref([])
 
-// Fetch branches from Supabase on mount
 const fetchBranches = async () => {
   const { data, error } = await supabase
     .from('iselco_branch')
@@ -103,14 +103,12 @@ onMounted(() => {
 })
 
 const createLinemanAccount = async () => {
-  // Simple validation
   if (!form.branchId) {
     alert('Please select a branch.')
     return
   }
 
   try {
-    // 1. Create Auth User
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
@@ -119,7 +117,6 @@ const createLinemanAccount = async () => {
 
     const userId = authData.user.id
 
-    // 2. Insert into public.users with branch_id
     const { error: userError } = await supabase.from('users').insert({
       id: userId,
       first_name: form.firstName,
@@ -128,11 +125,10 @@ const createLinemanAccount = async () => {
       email: form.email,
       mobile_number: form.mobileNumber,
       role_id: 9,
-      branch_id: form.branchId, // Link user to branch
+      branch_id: form.branchId,
     })
     if (userError) throw userError
 
-    // 3. Insert into public.employees
     const { error: empError } = await supabase.from('employees').insert({
       user_id: userId,
       employee_id_no: form.employeeId,
@@ -142,6 +138,11 @@ const createLinemanAccount = async () => {
     if (empError) throw empError
 
     alert('Lineman account created successfully!')
+    await sendNotification(
+      'Welcome, Lineman',
+      'Your lineman account has been created and is ready for assignments.',
+      userId,
+    )
     emit('refresh')
     emit('close')
   } catch (err) {
@@ -151,55 +152,83 @@ const createLinemanAccount = async () => {
 </script>
 
 <style scoped>
+/* Dark overlay behind the glass modal */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55); /* darker backdrop so blur is visible */
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
 }
+
+/* Glassmorphism modal card */
 .modal-content {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  width: 400px;
-  color: #000;
+  width: min(420px, 90vw);
+  padding: 22px 24px;
+  border-radius: 20px;
+
+  /* GLASS EFFECT */
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
+
+  color: #0f172a;
 }
+
+.modal-content h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  color: #0f172a;
+}
+
+/* Form layout inside glass card */
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 20px;
+  margin: 12px 0 20px;
 }
+
 .input-field {
   padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  outline: none;
+  background: rgba(255, 255, 255, 0.9);
 }
+
+/* Actions */
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 }
+
 .btn-confirm {
-  background: #2563eb;
+  background: #1f3056;
   color: white;
   padding: 10px 20px;
   border: none;
-  border-radius: 5px;
+  border-radius: 999px;
   cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: 0 4px 10px rgba(31, 48, 86, 0.35);
 }
+
 .btn-cancel {
-  background: #e2e8f0;
+  background: rgba(255, 255, 255, 0.85);
   color: #475569;
   padding: 10px 20px;
   border: none;
-  border-radius: 5px;
+  border-radius: 999px;
   cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 </style>

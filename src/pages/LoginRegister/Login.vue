@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 
@@ -11,14 +11,13 @@ const errorMsg = ref('')
 
 const router = useRouter()
 const route = useRoute()
-// Determines which portal is being accessed
-const portalRole = route.query.role || 'admin'
+
+const portalRole = computed(() => route.query.role || 'admin')
 
 const handleLogin = async () => {
   loading.value = true
   errorMsg.value = ''
 
-  // 1. Authenticate with Supabase Auth
   const { error: authError } = await supabase.auth.signInWithPassword({
     email: email.value,
     password: password.value,
@@ -30,7 +29,6 @@ const handleLogin = async () => {
     return
   }
 
-  // 2. Fetch User Profile and Role from 'users' table
   const { data: userData, error: userError } = await supabase
     .from('users')
     .select('roles(name)')
@@ -44,15 +42,14 @@ const handleLogin = async () => {
     return
   }
 
-  const userRole = userData.roles.name // Expected: 'admin' or 'branch'
+  const userRole = userData.roles?.name
 
-  // 3. Strict Portal Validation
-  if (portalRole === 'admin' && userRole === 'admin') {
+  if (portalRole.value === 'admin' && userRole === 'admin') {
     router.push('/admin/dashboard')
-  } else if (portalRole === 'branch' && userRole === 'branch') {
+  } else if (portalRole.value === 'branch' && userRole === 'branch') {
     router.push('/branch/dashboard')
   } else {
-    errorMsg.value = `Access Denied: Your account is '${userRole}', not authorized for '${portalRole}' portal.`
+    errorMsg.value = `Access Denied: Your account is '${userRole}', not authorized for '${portalRole.value}' portal.`
     await supabase.auth.signOut()
   }
 
@@ -61,15 +58,29 @@ const handleLogin = async () => {
 </script>
 
 <template>
-  <div class="login-container">
-    <div class="login-box">
-      <h2>{{ portalRole === 'admin' ? 'Admin' : 'Branch' }} Login</h2>
-      <p class="subtitle">Secure authentication portal</p>
+  <div class="login-page">
+    <div class="overlay"></div>
+
+    <div v-if="errorMsg" class="access-banner">
+      <h3>Access Denied</h3>
+      <p>{{ errorMsg }}</p>
+    </div>
+
+    <div class="brand-wrap">
+      <img
+        src="@/assets/Background/iselconnectlogo.png"
+        alt="ISEL Connect Logo"
+        class="brand-logo"
+      />
+    </div>
+
+    <div class="login-card">
+      <h2>{{ portalRole === 'admin' ? 'ADMIN LOGIN' : 'BRANCH LOGIN' }}</h2>
 
       <form @submit.prevent="handleLogin">
         <div class="field">
-          <label>Email Address</label>
-          <input v-model="email" type="email" placeholder="user@iselconnect.com" required />
+          <label>Email</label>
+          <input v-model="email" type="email" placeholder="username@gmail.com" required />
         </div>
 
         <div class="field">
@@ -78,7 +89,7 @@ const handleLogin = async () => {
             <input
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
-              placeholder="••••••••"
+              placeholder="Password"
               required
             />
             <button type="button" class="toggle-btn" @click="showPassword = !showPassword">
@@ -87,123 +98,170 @@ const handleLogin = async () => {
           </div>
         </div>
 
-        <button type="submit" :disabled="loading" class="submit-btn">
-          {{ loading ? 'Verifying...' : 'Sign In' }}
+        <button type="submit" class="submit-btn" :disabled="loading">
+          {{ loading ? 'Verifying...' : 'Sign in' }}
         </button>
       </form>
-
-      <div class="footer-links">
-        <p>
-          Don't have an account?
-          <router-link to="/register">Create an account</router-link>
-        </p>
-        <router-link to="/">Back to Home</router-link>
-      </div>
-
-      <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
     </div>
+
+    <router-link to="/" class="home-btn">BACK TO HOME</router-link>
   </div>
 </template>
 
 <style scoped>
-.login-container {
+.login-page {
   min-height: 100vh;
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #f8fafc;
-  padding: 20px;
+  background: url('@/assets/Background/HomeBackground.jpg') center/cover no-repeat;
+  overflow: hidden;
+  padding: 24px;
 }
 
-.login-box {
-  background: white;
-  padding: 2.5rem;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 400px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 30, 50, 0.35);
+  backdrop-filter: blur(3px);
 }
 
-h2 {
-  color: #1e3a8a;
+.access-banner {
+  position: absolute;
+  top: 30px;
+  z-index: 3;
+  width: min(520px, 90%);
+  padding: 18px 24px;
+  border-radius: 24px;
   text-align: center;
-  margin-bottom: 0.5rem;
+  background: rgba(90, 120, 170, 0.45);
+  color: #fff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(8px);
 }
-.subtitle {
-  color: #64748b;
+
+.access-banner h3 {
+  margin: 0 0 6px;
+  font-size: 1.3rem;
+}
+
+.access-banner p {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.brand-wrap {
+  position: relative;
+  z-index: 2;
+  margin-bottom: 26px;
+}
+
+.brand-logo {
+  width: 280px;
+  max-width: 75vw;
+  object-fit: contain;
+}
+
+.login-card {
+  position: relative;
+  z-index: 2;
+  width: min(520px, 92%);
+  padding: 34px 42px;
+  border-radius: 26px;
+  background: rgba(140, 170, 210, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+.login-card h2 {
+  margin: 0 0 28px;
   text-align: center;
-  margin-bottom: 2rem;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
 }
 
 .field {
-  margin-bottom: 1.25rem;
+  margin-bottom: 18px;
 }
+
 label {
   display: block;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #334155;
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
 }
 
 input {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 6px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 0.95rem;
   box-sizing: border-box;
-  font-size: 1rem;
 }
 
 .password-wrapper {
   position: relative;
-  display: flex;
-  align-items: center;
 }
+
 .toggle-btn {
   position: absolute;
   right: 10px;
-  background: none;
+  top: 50%;
+  transform: translateY(-50%);
   border: none;
-  font-size: 0.75rem;
+  background: transparent;
   color: #64748b;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 
 .submit-btn {
   width: 100%;
-  padding: 0.75rem;
-  background: #1e3a8a;
-  color: white;
+  margin-top: 10px;
+  padding: 12px;
   border: none;
   border-radius: 8px;
-  font-weight: 600;
+  background: #083a6d;
+  color: white;
+  font-weight: 700;
   cursor: pointer;
-  margin-top: 1rem;
-  transition: background 0.2s;
+  transition: 0.2s;
 }
 
 .submit-btn:hover {
-  background: #1e40af;
+  background: #0b4a88;
 }
 
-.footer-links {
-  margin-top: 1.5rem;
-  text-align: center;
-  font-size: 0.85rem;
+.submit-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
 }
 
-.footer-links a {
-  color: #1e3a8a;
+.home-btn {
+  position: relative;
+  z-index: 2;
+  margin-top: 34px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  background: rgba(120, 120, 120, 0.45);
+  color: #fff;
   text-decoration: none;
-  font-weight: 600;
-  display: block;
-  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(8px);
 }
-.error-msg {
-  color: #dc2626;
-  font-size: 0.85rem;
-  text-align: center;
-  margin-top: 1rem;
+
+.home-btn:hover {
+  background: rgba(120, 120, 120, 0.6);
 }
 </style>

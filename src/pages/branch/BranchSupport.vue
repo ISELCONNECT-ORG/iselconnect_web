@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard-root">
-    <Sidebar />
+    <BranchSidebar />
     <main class="content">
       <h1>Support & About</h1>
 
@@ -20,38 +20,17 @@
 
       <section class="card">
         <h3>System Credits</h3>
-        <p>
-          ISELCONNECT is a capstone project developed by the senior IT students of Isabela State
-          University.
-        </p>
-        <div class="developers-list">
-          <div class="dev-item">
-            <strong>Allysa B. Reyes</strong>
-            <span>Developer</span>
-          </div>
-          <div class="dev-item">
-            <strong>Mark Justin F. Balisacan</strong>
-            <span>Web Developer</span>
-          </div>
-          <div class="dev-item">
-            <strong>John Lloyd A. Binuya</strong>
-            <span>Mobile Developer</span>
-          </div>
-        </div>
-        <p class="copyright">
-          © 2026 Isabela State University - Web and Mobile Application Development
-        </p>
+        <p>ISELCONNECT is developed by the Isabela State University team.</p>
       </section>
     </main>
   </div>
 </template>
 
 <script setup>
-import Sidebar from '@/components/Sidebar.vue'
+import BranchSidebar from '@/components/BranchSidebar.vue'
 </script>
 
 <style scoped>
-/* Force all text to black within this component */
 .content,
 .card,
 h1,

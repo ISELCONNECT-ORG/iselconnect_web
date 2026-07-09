@@ -1,24 +1,36 @@
 <template>
-  <div class="dashboard-wrapper">
+  <div class="dashboard-shell">
     <Sidebar />
-    <div class="main-container">
-      <Topbar />
-      <main class="content-area">
-        <div class="layout-grid">
-          <section class="map-wrapper">
-            <IncidentMap :reports="reports" :filter="currentFilter" />
-          </section>
 
-          <aside class="sidebar-panels">
-            <div class="glass-card">
-              <h3>GRID HEALTH</h3>
-              <div class="health-val">{{ gridHealth }}%</div>
-              <div class="progress-bar">
-                <div class="fill" :style="{ width: gridHealth + '%' }"></div>
+    <div class="main-area">
+      <Topbar />
+
+      <main class="content-area">
+        <div class="map-stage">
+          <!-- FULL MAP -->
+          <IncidentMap :reports="reports" :filter="currentFilter" />
+
+          <!-- RIGHT OVERLAY PANEL STACK -->
+          <div class="overlay-stack">
+            <!-- LEGEND (NO PRIMARY FEEDER) -->
+            <div class="glass-card legend-card">
+              <h4>LEGEND</h4>
+              <div class="legend-row">
+                <span class="legend-dot resolved"></span>
+                <span class="legend-label">Resolved</span>
+              </div>
+              <div class="legend-row">
+                <span class="legend-dot pending"></span>
+                <span class="legend-label">Pending</span>
+              </div>
+              <div class="legend-row">
+                <span class="legend-dot inprogress"></span>
+                <span class="legend-label">In Progress</span>
               </div>
             </div>
 
-            <div class="glass-card">
+            <!-- GRID OPERATIONS STATUS (MINIMAL) -->
+            <div class="glass-card ops-card">
               <h3>GRID OPERATIONS STATUS</h3>
               <div class="stats-row">
                 <div class="stat-box">
@@ -36,6 +48,7 @@
               </div>
             </div>
 
+            <!-- FILTER BAR (SOLID, NON-GLASS BUTTONS) -->
             <div class="filter-bar">
               <button @click="currentFilter = 'all'" :class="{ active: currentFilter === 'all' }">
                 All
@@ -60,16 +73,25 @@
               </button>
             </div>
 
-            <div class="glass-card reports-list">
-              <div class="list-header"><span>REPORT</span><span>STATUS</span></div>
-              <div v-for="r in filteredReports" :key="r.id" class="report-item">
-                <div class="report-info">
-                  <strong>{{ r.landmark }}</strong>
+            <!-- REPORTS LIST (COMPACT, MINIMAL) -->
+            <div class="glass-card reports-card">
+              <div class="list-header">
+                <span>REPORT</span>
+                <span>STATUS</span>
+              </div>
+
+              <div class="reports-list">
+                <div v-for="r in filteredReports" :key="r.id" class="report-item">
+                  <div class="report-info">
+                    <strong>{{ r.landmark }}</strong>
+                  </div>
+                  <span :class="['badge', r.statusClass]">
+                    {{ r.statusLabel }}
+                  </span>
                 </div>
-                <span :class="['badge', r.statusClass]">{{ r.statusLabel }}</span>
               </div>
             </div>
-          </aside>
+          </div>
         </div>
       </main>
     </div>
@@ -88,7 +110,7 @@ const reports = ref([])
 const currentFilter = ref('all')
 
 onMounted(async () => {
-  const { data: all } = await supabase.from('reports').select('*')
+  const { data: all = [] } = await supabase.from('reports').select('*')
 
   stats.value = {
     pending: all.filter((r) => r.status_id === 1).length,
@@ -107,133 +129,249 @@ const filteredReports = computed(() => {
   if (currentFilter.value === 'all') return reports.value
   return reports.value.filter((r) => r.statusLabel === currentFilter.value)
 })
-
-const gridHealth = computed(() => {
-  const total = stats.value.resolved + stats.value.pending + stats.value.inProgress
-  return total === 0 ? 0 : ((stats.value.resolved / total) * 100).toFixed(1)
-})
 </script>
 
 <style scoped>
-.dashboard-wrapper {
+/* OUTER SHELL: SIDEBAR + MAIN */
+.dashboard-shell {
   display: flex;
   width: 100vw;
   height: 100vh;
-  background: #f8fafc;
-  color: #000;
   overflow: hidden;
+  background: #ffffff;
 }
-.main-container {
+
+.main-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  min-width: 0;
 }
+
 .content-area {
   flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-}
-.layout-grid {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 20px;
-  align-items: start;
-  height: calc(100vh - 100px);
-}
-.map-wrapper {
-  background: #e2e8f0;
-  border-radius: 12px;
+  padding: 16px;
   overflow: hidden;
+}
+
+/* FULL MAP STAGE */
+.map-stage {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 96px);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
+  background: #0f172a;
+}
+
+/* Make IncidentMap fill this container */
+.map-stage .map-wrapper,
+.map-stage #map,
+.map-stage .map-component {
+  width: 100%;
   height: 100%;
 }
-.sidebar-panels {
+
+/* RIGHT OVERLAY STACK (RESIZED, MINIMAL) */
+.overlay-stack {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 300px; /* narrower sidebar */
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  width: 360px;
+  gap: 12px;
+  z-index: 500;
 }
+
+/* GLASS CARDS (subtle, similar to Login.vue but lighter) */
 .glass-card {
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  background: rgba(71, 116, 174, 0.26);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(53, 47, 130, 0.524);
 }
-.reports-list {
-  max-height: 400px;
-  overflow-y: auto;
+
+.glass-card h3,
+.glass-card h4 {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #ffffff;
+  letter-spacing: 0.3px;
 }
-.filter-bar {
+
+/* LEGEND */
+.legend-card {
+  padding-top: 10px;
+  padding-bottom: 12px;
+}
+
+.legend-card h4 {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.legend-row {
   display: flex;
+  align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  margin-bottom: 4px;
 }
-.filter-bar button {
-  flex: 1;
-  padding: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.7rem;
-  font-weight: bold;
+
+.legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
 }
-.filter-bar button.active {
+
+.legend-dot.resolved {
+  background: #22c55e;
+}
+
+.legend-dot.pending {
+  background: #eab308;
+}
+
+.legend-dot.inprogress {
   background: #3b82f6;
-  color: white;
-  border-color: #3b82f6;
 }
-.stats-row {
+
+.legend-label {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* GRID OPS STATS (minimal) */
+.ops-card .stats-row {
   display: flex;
   justify-content: space-between;
+  gap: 8px;
+}
+
+.stat-box {
+  flex: 1;
   text-align: center;
-  margin-top: 15px;
+  background: rgba(68, 112, 213, 0.32);
+  border-radius: 10px;
+  padding: 8px 6px;
 }
+
 .stat-box span {
-  font-size: 0.6rem;
-  color: #64748b;
+  display: block;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 600;
 }
+
 .stat-box p {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin: 5px 0 0 0;
+  margin: 4px 0 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
 }
+
+/* FILTER BAR – solid, non-glass, minimalist */
+.filter-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.filter-bar button {
+  padding: 7px 6px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #0f172a;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.filter-bar button:hover {
+  background: #e5edf5;
+}
+
+.filter-bar button.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+/* REPORTS LIST CARD (compact, minimalist) */
+.reports-card {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 6px;
+}
+
+/* scroll area */
+.reports-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.reports-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.reports-list::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+}
+
 .report-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 8px 6px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  background: rgba(48, 60, 87, 0.32);
 }
+
+.report-info strong {
+  color: #ffffff;
+  font-size: 0.86rem;
+}
+
+/* STATUS BADGES */
 .badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 0.65rem;
-  font-weight: bold;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 800;
 }
+
 .blue {
-  background: #dcfce7;
-  color: #166534;
+  background: #dbeafe;
+  color: #1d4ed8;
 }
+
 .red {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.orange {
   background: #fef3c7;
   color: #92400e;
-}
-.orange {
-  background: #dbeafe;
-  color: #1e40af;
-}
-.progress-bar {
-  height: 6px;
-  background: #e2e8f0;
-  border-radius: 3px;
-  margin-top: 8px;
-}
-.fill {
-  height: 100%;
-  background: #3b82f6;
-  border-radius: 3px;
-  transition: width 0.3s ease;
 }
 </style>

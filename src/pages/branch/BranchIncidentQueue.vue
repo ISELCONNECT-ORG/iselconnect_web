@@ -172,6 +172,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
+import { sendNotification } from '@/utils/notifications.js'
 import BranchSidebar from '@/components/BranchSidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import '@/assets/style/IncidentQueue.css'
@@ -307,6 +308,10 @@ const submitManualReport = async () => {
     alert('Error: ' + error.message)
   } else {
     alert('Report Added!')
+    await sendNotification(
+      'New Report Received',
+      `A new report has been added for barangay ${manualReport.value.barangay_id}.`,
+    )
     showManualModal.value = false
     manualReport.value = { type_id: null, barangay_id: null, purok: '', description: '' }
     fetchAll()
@@ -346,7 +351,18 @@ const submitAssignment = async () => {
       lineman_id: userId,
       assigned_at: new Date().toISOString(),
     }))
-    await supabase.from('assignments').insert(assignmentsToInsert)
+    const { error: assignError } = await supabase.from('assignments').insert(assignmentsToInsert)
+    if (!assignError) {
+      await Promise.all(
+        selectedLinemanIds.value.map((userId) =>
+          sendNotification(
+            'Lineman Assigned',
+            `You have been assigned to report ${selectedReport.value.id}.`,
+            userId,
+          ),
+        ),
+      )
+    }
   }
 
   showAssignModal.value = false

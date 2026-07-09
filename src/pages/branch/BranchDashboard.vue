@@ -134,6 +134,7 @@ import BranchSidebar from '@/components/BranchSidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import IncidentChart from '@/components/analytics/IncidentChart.vue'
 import { supabase } from '@/services/supabase'
+import { sendNotification } from '@/utils/notifications.js'
 
 import '@/assets/style/dashboard.css'
 
@@ -298,6 +299,16 @@ const confirmReassign = async () => {
 
       const { error: insertError } = await supabase.from('assignments').insert(assignmentsToInsert)
       if (insertError) throw insertError
+
+      await Promise.all(
+        uniqueIds.map((id) =>
+          sendNotification(
+            'Lineman Assigned',
+            `You have been assigned to report ${selectedReport.value.id}.`,
+            id,
+          ),
+        ),
+      )
     }
 
     showModal.value = false
@@ -311,6 +322,11 @@ const confirmReassign = async () => {
 const handleStatusChange = async (report, newStatusId) => {
   report.status_id = parseInt(newStatusId)
   await supabase.from('reports').update({ status_id: report.status_id }).eq('id', report.id)
+
+  if (report.status_id === 3) {
+    await sendNotification('Report Resolved', `Report ${report.id} has been marked as resolved.`)
+  }
+
   await fetchReports()
 }
 

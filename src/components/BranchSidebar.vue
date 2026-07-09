@@ -18,6 +18,9 @@
       <router-link to="/branch/linemen" class="nav-link" active-class="active">
         <Users :size="20" /> Lineman Monitoring
       </router-link>
+      <router-link to="/branch/analytics" class="nav-link" active-class="active">
+        <LayoutDashboard :size="20" /> Analytics
+      </router-link>
     </nav>
 
     <div class="footer-nav">

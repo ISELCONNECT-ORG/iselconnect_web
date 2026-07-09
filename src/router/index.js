@@ -33,6 +33,54 @@ const router = createRouter({
       component: () => import('../pages/branch/BranchDashboard.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/branch/analytics',
+      name: 'BranchAnalytics',
+      component: () => import('../pages/branch/BranchAnalytics.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/map',
+      name: 'BranchMap',
+      component: () => import('../pages/branch/BranchMapView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/notification',
+      name: 'BranchNotification',
+      component: () => import('../pages/branch/BranchNotification.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/profile',
+      name: 'BranchProfile',
+      component: () => import('../pages/branch/BranchProfile.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/support',
+      name: 'BranchSupport',
+      component: () => import('../pages/branch/BranchSupport.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/settings',
+      name: 'BranchSettings',
+      component: () => import('../pages/branch/BranchSettings.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/user-management',
+      name: 'BranchUserManagement',
+      component: () => import('../pages/Settings/UserManagement.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/audit-log',
+      name: 'BranchAuditLog',
+      component: () => import('../pages/Settings/AuditLog.vue'),
+      meta: { requiresAuth: true },
+    },
     // Branch Routes (Ensure these files exist in your folders)
     // {
     //   path: '/branch/dashboard',
@@ -113,6 +161,24 @@ const router = createRouter({
       name: 'AdminSettings',
       component: () => import('@/pages/Settings/Settings.vue'),
       meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/profile',
+      name: 'AdminProfile',
+      component: () => import('@/pages/admin/Profile.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/notifications',
+      name: 'Notifications',
+      component: () => import('@/pages/admin/Notification.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/reports/:id',
+      name: 'ReportDetails',
+      component: () => import('@/pages/admin/ReportDetails.vue'),
+      props: true,
     },
   ],
 })

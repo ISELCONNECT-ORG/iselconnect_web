@@ -103,12 +103,12 @@ const fetchSupabaseAnalytics = async () => {
       const counts = data.map((item) => item.total_reports)
 
       chartData.value = {
-        labels: labels,
+        labels,
         datasets: [
           {
             label: 'Active Reports',
-            backgroundColor: '#3b82f6',
-            hoverBackgroundColor: '#2563eb',
+            backgroundColor: '#1f3056', // bar color here
+            hoverBackgroundColor: '#1f3056', // same on hover; adjust if you want a lighter shade
             borderRadius: 6,
             barThickness: 24,
             data: counts,
@@ -185,7 +185,7 @@ onMounted(() => {
   width: 28px;
   height: 28px;
   border: 3px solid #e2e8f0;
-  border-top-color: #3b82f6;
+  border-top-color: #1f3056; /* match bar color if you want */
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

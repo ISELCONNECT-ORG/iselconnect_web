@@ -1,26 +1,27 @@
 <template>
   <header class="topbar">
-    <div class="search-container">
-      <Search :size="18" color="#94a3b8" />
-      <input type="text" placeholder="Search reports, grids, or linemen..." class="search-input" />
+    <div class="logo">
+      <h3>ISELCONNECT</h3>
     </div>
 
     <div class="user-area">
-      <button class="icon-btn"><Bell :size="20" /></button>
-      <button class="icon-btn"><Settings :size="20" /></button>
-      <div class="profile-box">
+      <router-link to="/notifications" class="icon-btn">
+        <Bell :size="20" />
+      </router-link>
+
+      <router-link to="/admin/profile" class="profile-box">
         <div class="profile-text">
           <span class="name">Admin Profile</span>
           <span class="role">Main Supervisor</span>
         </div>
         <div class="avatar"></div>
-      </div>
+      </router-link>
     </div>
   </header>
 </template>
 
 <script setup>
-import { Search, Bell, Settings } from 'lucide-vue-next'
+import { Bell } from 'lucide-vue-next'
 </script>
 
 <style scoped>
@@ -33,21 +34,6 @@ import { Search, Bell, Settings } from 'lucide-vue-next'
   padding: 0 30px;
   border-bottom: 1px solid #e5e7eb;
 }
-.search-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #f8fafc;
-  padding: 8px 15px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-}
-.search-input {
-  border: none;
-  background: transparent;
-  width: 300px;
-  outline: none;
-}
 .user-area {
   display: flex;
   align-items: center;
@@ -57,6 +43,8 @@ import { Search, Bell, Settings } from 'lucide-vue-next'
   display: flex;
   align-items: center;
   gap: 12px;
+  text-decoration: none; /* Removes default underline */
+  cursor: pointer;
 }
 .profile-text {
   display: flex;
@@ -83,5 +71,7 @@ import { Search, Bell, Settings } from 'lucide-vue-next'
   background: none;
   cursor: pointer;
   color: #64748b;
+  display: flex;
+  align-items: center;
 }
 </style>

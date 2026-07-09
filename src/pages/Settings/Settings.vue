@@ -50,6 +50,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
+import { sendNotification } from '@/utils/notifications.js'
 import Sidebar from '@/components/Sidebar.vue'
 import UserManagement from './UserManagement.vue'
 import AuditLog from './AuditLog.vue'
@@ -94,8 +95,16 @@ const updateProfile = async () => {
     })
     .eq('id', user.id)
 
-  if (error) alert('Error: ' + error.message)
-  else alert('Profile updated successfully!')
+  if (error) {
+    alert('Error: ' + error.message)
+  } else {
+    alert('Profile updated successfully!')
+    await sendNotification(
+      'Profile Updated',
+      'Your profile details were successfully updated.',
+      user.id,
+    )
+  }
   loading.value = false
 }
 
