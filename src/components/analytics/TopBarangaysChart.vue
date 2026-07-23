@@ -49,6 +49,13 @@ import {
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 
+const props = defineProps({
+  branchId: {
+    type: [Number, String],
+    default: null,
+  },
+})
+
 const loading = ref(true)
 const currentPeriod = ref('Day')
 const chartData = ref({ labels: [], datasets: [] })
@@ -92,26 +99,53 @@ const fetchSupabaseAnalytics = async () => {
     loading.value = true
     chartData.value = { labels: [], datasets: [] }
 
-    const { data, error } = await supabase.rpc('get_top_problematic_barangays', {
-      p_period: currentPeriod.value,
-    })
+    const now = new Date()
+    let startDate = new Date()
+
+    if (currentPeriod.value === 'Day') startDate.setDate(now.getDate() - 1)
+    else if (currentPeriod.value === 'Week') startDate.setDate(now.getDate() - 7)
+    else if (currentPeriod.value === 'Month') startDate.setMonth(now.getMonth() - 1)
+    else if (currentPeriod.value === 'Year') startDate.setFullYear(now.getFullYear() - 1)
+
+    let query = supabase
+      .from('reports')
+      .select('barangay_id, barangays(name)')
+      .gte('created_at', startDate.toISOString())
+
+    if (props.branchId) {
+      query = query.eq('branch_id', props.branchId)
+    }
+
+    const { data, error } = await query
 
     if (error) throw error
 
+    const counts = {}
+    const labels = []
+
     if (data && data.length > 0) {
-      const labels = data.map((item) => item.barangay_name)
-      const counts = data.map((item) => item.total_reports)
+      data.forEach((item) => {
+        const name = item.barangays?.name || 'Unknown Barangay'
+        counts[name] = (counts[name] || 0) + 1
+      })
+
+      const sorted = Object.entries(counts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+
+      const topLabels = sorted.map(([label]) => label)
+      const topCounts = sorted.map(([, count]) => count)
 
       chartData.value = {
-        labels,
+        labels: topLabels,
         datasets: [
           {
             label: 'Active Reports',
-            backgroundColor: '#1f3056', // bar color here
-            hoverBackgroundColor: '#1f3056', // same on hover; adjust if you want a lighter shade
+            backgroundColor: '#1f3056',
+            hoverBackgroundColor: '#1f3056',
             borderRadius: 6,
             barThickness: 24,
-            data: counts,
+            data: topCounts,
           },
         ],
       }

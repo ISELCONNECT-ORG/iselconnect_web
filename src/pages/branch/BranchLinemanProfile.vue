@@ -2,6 +2,7 @@
   <div class="dashboard-root">
     <BranchSidebar />
     <main class="content">
+      <Topbar />
       <router-link to="/branch/linemen" class="back-link">← Back to Directory</router-link>
 
       <div v-if="lineman" class="profile-container">
@@ -61,6 +62,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import BranchSidebar from '@/components/BranchSidebar.vue'
+import Topbar from '@/components/BranchTopbar.vue'
 
 const route = useRoute()
 const lineman = ref(null)

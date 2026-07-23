@@ -7,7 +7,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'MainPage',
-      component: () => import('../pages/LoginRegister/MainPageView.vue'),
+      component: () => import('../pages/LoginRegister/Login.vue'),
     },
     {
       path: '/login',
@@ -49,6 +49,13 @@ const router = createRouter({
       path: '/branch/notification',
       name: 'BranchNotification',
       component: () => import('../pages/branch/BranchNotification.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/reports/:id',
+      name: 'BranchReportDetails',
+      component: () => import('../pages/branch/BranchReportDetails.vue'),
+      props: true,
       meta: { requiresAuth: true },
     },
     {

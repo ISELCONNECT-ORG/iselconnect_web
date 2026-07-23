@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from '@/services/supabase'
 
 const email = ref('')
@@ -10,9 +10,6 @@ const loading = ref(false)
 const errorMsg = ref('')
 
 const router = useRouter()
-const route = useRoute()
-
-const portalRole = computed(() => route.query.role || 'admin')
 
 const handleLogin = async () => {
   loading.value = true
@@ -31,7 +28,7 @@ const handleLogin = async () => {
 
   const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('roles(name)')
+    .select('role_id')
     .eq('email', email.value)
     .single()
 
@@ -42,14 +39,12 @@ const handleLogin = async () => {
     return
   }
 
-  const userRole = userData.roles?.name
-
-  if (portalRole.value === 'admin' && userRole === 'admin') {
+  if (userData.role_id === 8) {
     router.push('/admin/dashboard')
-  } else if (portalRole.value === 'branch' && userRole === 'branch') {
+  } else if (userData.role_id === 6) {
     router.push('/branch/dashboard')
   } else {
-    errorMsg.value = `Access Denied: Your account is '${userRole}', not authorized for '${portalRole.value}' portal.`
+    errorMsg.value = 'Access denied.'
     await supabase.auth.signOut()
   }
 
@@ -75,7 +70,7 @@ const handleLogin = async () => {
     </div>
 
     <div class="login-card">
-      <h2>{{ portalRole === 'admin' ? 'ADMIN LOGIN' : 'BRANCH LOGIN' }}</h2>
+      <h2>LOGIN</h2>
 
       <form @submit.prevent="handleLogin">
         <div class="field">

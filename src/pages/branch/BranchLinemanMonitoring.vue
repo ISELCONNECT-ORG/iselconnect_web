@@ -2,6 +2,7 @@
   <div class="dashboard-root">
     <BranchSidebar />
     <main class="content">
+      <Topbar />
       <header class="header">
         <div>
           <h1>{{ branchName }} Workforce Directory</h1>
@@ -41,6 +42,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import BranchSidebar from '@/components/BranchSidebar.vue'
+import Topbar from '@/components/BranchTopbar.vue'
 import AddLinemanModal from '@/components/account/AddLinemanModal.vue'
 
 const linemen = ref([])
