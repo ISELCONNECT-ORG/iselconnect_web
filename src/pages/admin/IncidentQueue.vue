@@ -204,7 +204,7 @@ import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import '@/assets/style/IncidentQueue.css'
 
-import { ActivitySquare, UserCheck, ClipboardList, Wifi } from 'lucide-vue-next' // or '@lucide/vue' [web:219][web:236]
+import { ActivitySquare, UserCheck, ClipboardList, Wifi } from 'lucide-vue-next'
 
 const pendingReports = ref([])
 const reportTypes = ref([])
@@ -228,13 +228,38 @@ const resolvedReports = computed(() =>
   pendingReports.value.filter((r) => r.report_statuses?.name === 'Resolved'),
 )
 
-const fetchAll = async () => {
-  const { data } = await supabase.from('reports').select(`
-    *, report_statuses(name), report_types(name), users(first_name, last_name),
-    barangays(name), municipalities(name), assignments(lineman_id, users(first_name, last_name))
-  `)
+const normalizeLocalQueueReport = (r) => ({
+  ...r,
+  description: r.description || r.title || 'No description provided.',
+  report_statuses: { name: r.status || 'Pending' },
+  users: {
+    first_name: r.reporter ? r.reporter.split(' ')[0] : 'Unknown',
+    last_name: r.reporter ? r.reporter.split(' ').slice(1).join(' ') : '',
+  },
+  municipalities: { name: r.location || 'N/A' },
+  barangays: { name: r.location || 'N/A' },
+  purok_sitio: r.location || 'N/A',
+  lineman_display: r.lineman_display || 'Unassigned',
+  photo_url: r.photo_url || null,
+  created_at: r.date || new Date().toISOString(),
+  landmark: r.location || 'N/A',
+  status_id: r.status_id || 2,
+  report_types: { name: r.severity || 'General' },
+})
 
-  pendingReports.value = (data || []).map((r) => ({
+const fetchAll = async () => {
+  // Fetch only reports that have been accepted/processed (status_id > 1, ignoring waitlist status_id = 1)
+  const { data } = await supabase
+    .from('reports')
+    .select(
+      `
+      *, report_statuses(name), report_types(name), users(first_name, last_name),
+      barangays(name), municipalities(name), assignments(lineman_id, users(first_name, last_name))
+    `,
+    )
+    .gt('status_id', 1)
+
+  const supabaseReports = (data || []).map((r) => ({
     ...r,
     lineman_display:
       r.assignments?.length > 0
@@ -247,6 +272,14 @@ const fetchAll = async () => {
           ].join(', ')
         : 'Unassigned',
   }))
+
+  const localReports = (JSON.parse(localStorage.getItem('incidentQueue') || '[]') || []).map(
+    normalizeLocalQueueReport,
+  )
+
+  pendingReports.value = [...localReports, ...supabaseReports].filter(
+    (report, index, all) => all.findIndex((item) => item.id === report.id) === index,
+  )
 
   totalReportsCount.value = pendingReports.value.length
 
@@ -277,7 +310,7 @@ const submitManualReport = async () => {
       purok_sitio: manualReport.value.purok,
       latitude: 0.0,
       longitude: 0.0,
-      status_id: 1,
+      status_id: 2, // Direct manual entries can go straight to queue or 1 if they need approval
       municipality_id: 1,
     },
   ])

@@ -29,17 +29,34 @@ import { supabase } from '@/services/supabase'
 const logs = ref([])
 
 const fetchLogs = async () => {
-  // Fetching from system_logs using column names from image_53bf7a.jpg
-  const { data, error } = await supabase
-    .from('system_logs')
-    .select('id, action_type, action_details, created_at')
-    .order('created_at', { ascending: false })
-    .limit(20)
+  const localLogs = JSON.parse(localStorage.getItem('auditLogs') || '[]')
 
-  if (error) {
-    console.error('Error fetching logs:', error.message)
-  } else {
-    logs.value = data || []
+  try {
+    const { data, error } = await supabase
+      .from('system_logs')
+      .select('id, action_type, action_details, created_at')
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    if (error) {
+      console.error('Error fetching logs:', error.message)
+      logs.value = localLogs || []
+      return
+    }
+
+    const normalizedSupabaseLogs = (data || []).map((log) => ({
+      id: log.id,
+      action_type: log.action_type,
+      action_details: log.action_details,
+      created_at: log.created_at,
+    }))
+
+    logs.value = [...(localLogs || []), ...normalizedSupabaseLogs].filter(
+      (log, index, all) => all.findIndex((item) => item.id === log.id) === index,
+    )
+  } catch (error) {
+    console.error('Error fetching logs:', error)
+    logs.value = localLogs || []
   }
 }
 

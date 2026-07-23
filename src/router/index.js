@@ -103,6 +103,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/admin/incident-wait-list',
+      name: 'IncidentWaitList',
+      component: () => import('../pages/admin/IncidentWaitList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/branch/incident',
       name: 'BranchIncidentQueue',
       component: () => import('../pages/branch/BranchIncidentQueue.vue'),
@@ -161,6 +167,12 @@ const router = createRouter({
       path: '/admin/support',
       name: 'AdminSupport',
       component: () => import('@/pages/admin/Support.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/archive',
+      name: 'Archive',
+      component: () => import('@/pages/Settings/Archive.vue'),
       meta: { requiresAuth: true },
     },
     {

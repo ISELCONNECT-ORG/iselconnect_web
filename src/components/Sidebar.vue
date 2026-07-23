@@ -8,6 +8,9 @@
       <router-link to="/admin/dashboard" class="nav-link" active-class="active">
         <LayoutDashboard :size="20" /> Dashboard
       </router-link>
+      <router-link to="/admin/incident-wait-list" class="nav-link" active-class="active">
+        <AlertTriangle :size="20" /> Pending Review
+      </router-link>
       <router-link to="/admin/incident" class="nav-link" active-class="active">
         <AlertTriangle :size="20" /> Incident List
       </router-link>

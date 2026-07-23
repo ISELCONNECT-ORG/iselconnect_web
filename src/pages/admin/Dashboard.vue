@@ -4,93 +4,92 @@
     <div class="main-wrapper">
       <Topbar />
 
-      <main class="content">
-        <div class="hero-banner">
-          <h1>Good Morning, Admin</h1>
-          <p>The grid system is currently operating at {{ gridEfficiency }}% efficiency.</p>
-        </div>
+      <!-- HERO HEADER: dark blue, white text -->
+      <header class="hero-banner">
+        <h1>Good Morning, Admin</h1>
+        <p>The grid system is currently operating at {{ gridEfficiency }}% efficiency.</p>
+      </header>
 
-        <div class="stats-grid">
-          <div v-for="stat in stats" :key="stat.title" class="stat-card">
-            <div class="card-header">
-              <component :is="stat.icon" class="stat-icon" />
-              <span class="trend-badge">{{ stat.trend }}</span>
-            </div>
-            <h3>{{ stat.title }}</h3>
-            <p class="stat-value">{{ stat.value }}</p>
+      <div class="stats-grid">
+        <div v-for="stat in stats" :key="stat.title" class="stat-card">
+          <div class="card-header">
+            <component :is="stat.icon" class="stat-icon" />
+            <span class="trend-badge">{{ stat.trend }}</span>
           </div>
+          <h3>{{ stat.title }}</h3>
+          <p class="stat-value">{{ stat.value }}</p>
         </div>
+      </div>
 
-        <div class="content-grid">
-          <section class="chart-container">
-            <div class="chart-header">
-              <h3>System Load & Consumption</h3>
-              <div class="timeframe-tabs">
-                <button
-                  v-for="t in ['Day', 'Week', 'Month', 'Year']"
-                  :key="t"
-                  :class="{ active: currentPeriod === t }"
-                  @click="currentPeriod = t"
-                >
-                  {{ t }}
-                </button>
-              </div>
+      <div class="content-grid">
+        <section class="chart-container">
+          <div class="chart-header">
+            <h3>System Load & Consumption</h3>
+            <div class="timeframe-tabs">
+              <button
+                v-for="t in ['Day', 'Week', 'Month', 'Year']"
+                :key="t"
+                :class="{ active: currentPeriod === t }"
+                @click="currentPeriod = t"
+              >
+                {{ t }}
+              </button>
             </div>
-            <IncidentChart :period="currentPeriod" />
-          </section>
-
-          <aside class="efficiency-card">
-            <h3>Grid Efficiency</h3>
-            <p class="efficiency-value">{{ gridEfficiency }}%</p>
-            <div class="progress-bar">
-              <div class="fill" :style="{ width: gridEfficiency + '%' }"></div>
-            </div>
-            <p class="efficiency-label">Current average performance across all sectors.</p>
-          </aside>
-        </div>
-
-        <div class="full-width-analytics" style="margin-top: 8px">
-          <TopBarangaysChart />
-        </div>
-
-        <section class="table-container">
-          <h2>Active Consumer Reports</h2>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Report Name</th>
-                <th>Location</th>
-                <th>Lineman</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="report in reports" :key="report.id">
-                <td class="bold-text">{{ report.report_types?.name ?? 'General' }}</td>
-                <td>{{ report.landmark }}</td>
-                <td>{{ report.lineman_names }}</td>
-                <td class="muted-text">{{ report.description }}</td>
-                <td>
-                  <select
-                    :value="report.status_id"
-                    @change="(e) => handleStatusChange(report, e.target.value)"
-                    :class="['status-select', getStatusClass(report.status_id)]"
-                  >
-                    <option value="1">Pending</option>
-                    <option value="2">In Progress</option>
-                    <option value="3">Resolved</option>
-                  </select>
-                </td>
-                <td>
-                  <button @click="openReassignModal(report)" class="btn-action">Assign</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          </div>
+          <IncidentChart :period="currentPeriod" />
         </section>
-      </main>
+
+        <aside class="efficiency-card">
+          <h3>Grid Efficiency</h3>
+          <p class="efficiency-value">{{ gridEfficiency }}%</p>
+          <div class="progress-bar">
+            <div class="fill" :style="{ width: gridEfficiency + '%' }"></div>
+          </div>
+          <p class="efficiency-label">Current average performance across all sectors.</p>
+        </aside>
+      </div>
+
+      <div class="full-width-analytics" style="margin-top: 8px">
+        <TopBarangaysChart />
+      </div>
+
+      <section class="table-container">
+        <h2>Active Consumer Reports</h2>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Report Name</th>
+              <th>Location</th>
+              <th>Lineman</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="report in reports" :key="report.id">
+              <td class="bold-text">{{ report.report_types?.name ?? 'General' }}</td>
+              <td>{{ report.landmark }}</td>
+              <td>{{ report.lineman_names }}</td>
+              <td class="muted-text">{{ report.description }}</td>
+              <td>
+                <select
+                  :value="report.status_id"
+                  @change="(e) => handleStatusChange(report, e.target.value)"
+                  :class="['status-select', getStatusClass(report.status_id)]"
+                >
+                  <option value="1">Pending</option>
+                  <option value="2">In Progress</option>
+                  <option value="3">Resolved</option>
+                </select>
+              </td>
+              <td>
+                <button @click="openReassignModal(report)" class="btn-action">Assign</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </div>
 
     <!-- SEMI-GLASS ASSIGN LINEMEN MODAL -->
@@ -162,6 +161,7 @@ const fetchReports = async () => {
     .select(
       `id, landmark, description, status_id, report_types(name), assignments(lineman_id, users(first_name, last_name))`,
     )
+    .gt('status_id', 1)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -169,7 +169,7 @@ const fetchReports = async () => {
     return
   }
 
-  reports.value = (data || []).map((r) => {
+  const supabaseReports = (data || []).map((r) => {
     const names =
       r.assignments?.length > 0
         ? r.assignments.map((a) => `${a.users.first_name} ${a.users.last_name}`)
@@ -180,6 +180,22 @@ const fetchReports = async () => {
       lineman_names: names.length > 0 ? [...new Set(names)].join(', ') : 'Unassigned',
     }
   })
+
+  const localReports = (JSON.parse(localStorage.getItem('dashboardIncidents') || '[]') || []).map(
+    (r) => ({
+      ...r,
+      id: r.id,
+      landmark: r.landmark || r.location || 'N/A',
+      description: r.description || r.title || 'No description provided.',
+      status_id: r.status_id || 2,
+      report_types: { name: r.report_types?.name || r.severity || 'General' },
+      lineman_names: r.lineman_names || 'Unassigned',
+    }),
+  )
+
+  reports.value = [...localReports, ...supabaseReports].filter(
+    (report, index, all) => all.findIndex((item) => item.id === report.id) === index,
+  )
 
   stats.value[0].value = reports.value.length.toString()
   stats.value[2].value = reports.value.filter((r) => r.status_id === 3).length.toString()
@@ -229,7 +245,6 @@ const openReassignModal = (report) => {
 const confirmReassign = async () => {
   if (!selectedReport.value) return
 
-  // Formal confirmation before applying changes
   const confirmed = window.confirm(
     `Are you sure you want to reassign linemen for report ${selectedReport.value.id}? ` +
       `This will replace the current assignment with the selection shown.`,
