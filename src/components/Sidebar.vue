@@ -11,6 +11,9 @@
       <router-link to="/admin/incident-wait-list" class="nav-link" active-class="active">
         <AlertTriangle :size="20" /> Pending Review
       </router-link>
+      <router-link to="/admin/account-verification" class="nav-link" active-class="active">
+        <UserCheck :size="20" /> Account Verification
+      </router-link>
       <router-link to="/admin/incident" class="nav-link" active-class="active">
         <AlertTriangle :size="20" /> Incident List
       </router-link>
@@ -47,6 +50,7 @@ import {
   AlertTriangle,
   Users,
   Megaphone,
+  UserCheck,
   Settings,
   HelpCircle,
   LogOut,
@@ -81,15 +85,11 @@ const confirmLogout = () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 0 20px 20px; /* remove top padding */
+  padding: 0 20px 20px;
   position: sticky;
   top: 0;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-}
-
-/* Minimal fade-in, no big slide */
-.sidebar {
   animation: fadeInSidebar 0.25s ease-out;
 }
 
@@ -110,14 +110,12 @@ const confirmLogout = () => {
 }
 
 .logo-img {
-  width: 100px; /* visible size */
+  width: 100px;
   height: 100px;
   object-fit: contain;
-  border-radius: 0; /* no rounded box look */
-  box-shadow: none; /* remove shadow */
+  border-radius: 0;
+  box-shadow: none;
 }
-
-/* No pulsing animation anymore */
 
 .nav-menu {
   display: flex;

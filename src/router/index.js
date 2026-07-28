@@ -199,6 +199,12 @@ const router = createRouter({
       component: () => import('@/pages/admin/ReportDetails.vue'),
       props: true,
     },
+    {
+      path: '/admin/account-verification',
+      name: 'AccountVerification',
+      component: () => import('../pages/admin/AccountVerification.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
