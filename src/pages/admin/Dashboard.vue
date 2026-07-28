@@ -156,12 +156,14 @@ const gridEfficiency = computed(() => {
 })
 
 const fetchReports = async () => {
+  // Fetch reports excluding incoming wait-list (status_id = 1) and rejected reports (status_id = 5)
   const { data, error } = await supabase
     .from('reports')
     .select(
       `id, landmark, description, status_id, report_types(name), assignments(lineman_id, users(first_name, last_name))`,
     )
     .gt('status_id', 1)
+    .neq('status_id', 5)
     .order('created_at', { ascending: false })
 
   if (error) {

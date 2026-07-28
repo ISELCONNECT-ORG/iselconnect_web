@@ -248,7 +248,7 @@ const normalizeLocalQueueReport = (r) => ({
 })
 
 const fetchAll = async () => {
-  // Fetch only reports that have been accepted/processed (status_id > 1, ignoring waitlist status_id = 1)
+  // Fetch only processed reports, excluding waitlist (status_id = 1) and rejected reports (status_id = 5)
   const { data } = await supabase
     .from('reports')
     .select(
@@ -258,6 +258,7 @@ const fetchAll = async () => {
     `,
     )
     .gt('status_id', 1)
+    .neq('status_id', 5)
 
   const supabaseReports = (data || []).map((r) => ({
     ...r,
@@ -310,7 +311,7 @@ const submitManualReport = async () => {
       purok_sitio: manualReport.value.purok,
       latitude: 0.0,
       longitude: 0.0,
-      status_id: 2, // Direct manual entries can go straight to queue or 1 if they need approval
+      status_id: 2,
       municipality_id: 1,
     },
   ])

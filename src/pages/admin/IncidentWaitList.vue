@@ -63,7 +63,7 @@ const loadIncidentReports = async () => {
     .from('reports')
     .select('*')
     .neq('landmark', 'Walk-in Report')
-    .eq('status_id', 1)
+    .eq('status_id', 1) // 1 = Pending
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -147,7 +147,8 @@ const rejectReport = async (report) => {
   const bName = getBarangayName(report.barangay_id)
   const iType = getReportTypeName(report.report_type_id)
 
-  const { error } = await supabase.from('reports').update({ status_id: 3 }).eq('id', report.id)
+  // Updated status_id to 5 based on your report_statuses table configuration for 'Rejected'
+  const { error } = await supabase.from('reports').update({ status_id: 5 }).eq('id', report.id)
 
   if (error) {
     alert('Error rejecting report: ' + error.message)
