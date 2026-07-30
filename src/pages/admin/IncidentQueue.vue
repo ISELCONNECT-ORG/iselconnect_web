@@ -248,7 +248,6 @@ const normalizeLocalQueueReport = (r) => ({
 })
 
 const fetchAll = async () => {
-  // Fetch only processed reports, excluding waitlist (status_id = 1) and rejected reports (status_id = 5)
   const { data } = await supabase
     .from('reports')
     .select(
@@ -355,6 +354,7 @@ const submitAssignment = async () => {
       report_id: selectedReport.value.id,
       lineman_id: uid,
       assigned_at: new Date().toISOString(),
+      inprogress_at: new Date().toISOString(), // Fixed: using inprogress_at matching your schema table
     }))
     const { error: assignError } = await supabase.from('assignments').insert(assignmentsToInsert)
     if (!assignError) {
@@ -396,7 +396,6 @@ onMounted(fetchAll)
   padding: 24px 30px 40px;
 }
 
-/* Hero header matching previous theme: dark blue bar, white text */
 .hero-section {
   margin-bottom: 24px;
   padding: 0;
@@ -438,7 +437,6 @@ onMounted(fetchAll)
   box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12);
 }
 
-/* Metrics row in dashboard style */
 .metrics-container.stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -487,7 +485,6 @@ onMounted(fetchAll)
   font-weight: 700;
 }
 
-/* Queue panels */
 .queue-panel {
   margin-top: 16px;
   padding: 16px 18px;
@@ -503,7 +500,6 @@ onMounted(fetchAll)
   color: #0f172a;
 }
 
-/* Table styling */
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -547,7 +543,6 @@ onMounted(fetchAll)
   font-weight: 600;
 }
 
-/* See Details button */
 .details-btn {
   display: inline-block;
   margin-left: 6px;
@@ -566,7 +561,6 @@ onMounted(fetchAll)
   background: #f8fafc;
 }
 
-/* Modal overlay + glass card */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -577,7 +571,6 @@ onMounted(fetchAll)
   z-index: 1000;
 }
 
-/* shared glass card for both modals */
 .glass-card {
   background: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(18px);
@@ -598,7 +591,6 @@ onMounted(fetchAll)
   font-size: 1.1rem;
 }
 
-/* Modal form controls */
 .input-field {
   width: 100%;
   margin-top: 8px;
@@ -615,7 +607,6 @@ textarea.input-field {
   min-height: 80px;
 }
 
-/* Modal actions */
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -646,7 +637,6 @@ textarea.input-field {
   cursor: pointer;
 }
 
-/* Lineman list in dispatch modal */
 .lineman-checkbox-list {
   display: flex;
   flex-direction: column;
