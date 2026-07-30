@@ -14,8 +14,12 @@
       <header class="hero-section">
         <div class="hero-header-content">
           <div class="hero-text">
-            <h1>Report Details</h1>
-            <p>Comprehensive view and timeline of outage ticket #{{ report?.id || '---' }}.</p>
+            <h1>Report Details & Live Tracking</h1>
+            <p>
+              Comprehensive view and live LocationIQ road-snapped route tracking for ticket #{{
+                report?.id || '---'
+              }}.
+            </p>
           </div>
           <span v-if="report" class="status-badge" :class="getStatusClass(report?.status_id)">
             {{ getStatusName(report?.status_id) }}
@@ -34,7 +38,7 @@
 
       <!-- Main details -->
       <div v-else class="details-grid">
-        <!-- LEFT COLUMN: incident + coordinates -->
+        <!-- LEFT COLUMN: incident + live tracking map -->
         <div class="main-info-column">
           <section class="card incident-card">
             <div class="card-header-row">
@@ -88,13 +92,18 @@
             </div>
           </section>
 
+          <!-- Live Tracking Map Section -->
           <section class="card map-card-section">
             <div class="card-header-row">
-              <h2>Location Coordinates</h2>
+              <h2>Live Location Map</h2>
+              <span class="card-subtitle">LocationIQ Road-Snapped Routing</span>
             </div>
-            <div class="coordinates-display">
-              <span>Latitude: {{ report.latitude || '0.0' }}</span>
-              <span>Longitude: {{ report.longitude || '0.0' }}</span>
+            <div id="liveTrackingMap" class="map-container"></div>
+            <div class="map-legend">
+              <span class="legend-item"><span class="dot issue-dot"></span> Issue Location</span>
+              <span class="legend-item"
+                ><span class="dot lineman-dot"></span> Lineman Position</span
+              >
             </div>
           </section>
         </div>
@@ -139,7 +148,7 @@
             </div>
           </section>
 
-          <!-- Resolved Evidence Gallery (resolved_photo_url from reports table) -->
+          <!-- Resolved Evidence Gallery -->
           <section class="card evidence-card">
             <div class="card-header-row">
               <h2>Resolved Evidence (Lineman Upload)</h2>
@@ -218,10 +227,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import Sidebar from '@/components/Sidebar.vue'
+
+// Leaflet for LocationIQ map rendering
+import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
 
 const route = useRoute()
 const report = ref(null)
@@ -231,6 +244,10 @@ const barangayList = ref([])
 const reportTypes = ref([])
 const evidenceUrls = ref([])
 const resolvedPhotoUrl = ref(null)
+
+// Access token from environment variable
+const LOCATIONIQ_TOKEN = import.meta.env.VITE_LOCATIONIQ_TOKEN
+let mapInstance = null
 
 const fetchReportDetails = async () => {
   const reportId = route.params.id
@@ -264,9 +281,97 @@ const fetchReportDetails = async () => {
   }
 
   loading.value = false
+  await nextTick()
+  initLiveMap()
 }
 
-// Compute the 6 precise milestones with accurate timestamps mapping to table columns including verified_at
+// Initialize LocationIQ Live Map and Fetch Road Directions
+const initLiveMap = async () => {
+  const mapElement = document.getElementById('liveTrackingMap')
+  if (!mapElement || mapInstance || !report.value) return
+
+  const reportLat = report.value.latitude || 16.7328
+  const reportLon = report.value.longitude || 121.7161
+
+  mapInstance = L.map('liveTrackingMap').setView([reportLat, reportLon], 14)
+
+  // LocationIQ Tile Layer
+  L.tileLayer(
+    `https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_TOKEN}`,
+    {
+      maxZoom: 18,
+      attribution: '&copy; LocationIQ & OpenStreetMap',
+    },
+  ).addTo(mapInstance)
+
+  // Issue Location Marker
+  const issueIcon = L.divIcon({
+    className: 'custom-issue-marker',
+    html: '<div style="background:#1e1b4b;width:16px;height:16px;border-radius:50%;border:2px solid #fbbf24;box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>',
+    iconSize: [16, 16],
+  })
+  L.marker([reportLat, reportLon], { icon: issueIcon })
+    .addTo(mapInstance)
+    .bindPopup('<b>Issue Location</b><br>' + (report.value.landmark || 'Outage Spot'))
+
+  // Lineman Live Position Marker & Directions Routing API
+  if (assignment.value?.current_lat && assignment.value?.current_lon) {
+    const linemanLat = assignment.value.current_lat
+    const linemanLon = assignment.value.current_lon
+
+    const linemanIcon = L.divIcon({
+      className: 'custom-lineman-marker',
+      html: '<div style="background:#10b981;width:16px;height:16px;border-radius:50%;border:2px solid #ffffff;box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>',
+      iconSize: [16, 16],
+    })
+    L.marker([linemanLat, linemanLon], { icon: linemanIcon })
+      .addTo(mapInstance)
+      .bindPopup('<b>Lineman Current Location</b>')
+
+    // Fetch road-snapped geometry from LocationIQ Directions API
+    try {
+      const response = await fetch(
+        `https://us1.locationiq.com/v1/directions/driving/${linemanLon},${linemanLat};${reportLon},${reportLat}?key=${LOCATIONIQ_TOKEN}&geometries=geojson`,
+      )
+      const data = await response.json()
+      if (data.routes && data.routes.length > 0) {
+        const routeCoords = data.routes[0].geometry.coordinates.map((c) => [c[1], c[0]])
+        L.polyline(routeCoords, {
+          color: '#3b82f6',
+          weight: 4,
+          opacity: 0.8,
+        }).addTo(mapInstance)
+      } else {
+        L.polyline(
+          [
+            [linemanLat, linemanLon],
+            [reportLat, reportLon],
+          ],
+          {
+            color: '#3b82f6',
+            weight: 4,
+            opacity: 0.8,
+          },
+        ).addTo(mapInstance)
+      }
+    } catch (err) {
+      console.error('Error fetching LocationIQ Directions:', err)
+      L.polyline(
+        [
+          [linemanLat, linemanLon],
+          [reportLat, reportLon],
+        ],
+        {
+          color: '#3b82f6',
+          weight: 4,
+          opacity: 0.8,
+        },
+      ).addTo(mapInstance)
+    }
+  }
+}
+
+// Compute lifecycle milestones
 const lifecycleMilestones = computed(() => {
   const rep = report.value
   const assign = assignment.value
@@ -379,7 +484,6 @@ const validateResolution = async () => {
 
   const currentTime = new Date().toISOString()
 
-  // 1. Update assignment table with verification status and verified_at timestamp
   const { error: assignError } = await supabase
     .from('assignments')
     .update({
@@ -388,7 +492,6 @@ const validateResolution = async () => {
     })
     .eq('id', assignment.value.id)
 
-  // 2. Update reports table status_id to 6 (Admin Verified) and update timestamp
   const { error: repError } = await supabase
     .from('reports')
     .update({
@@ -474,6 +577,42 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.map-container {
+  width: 100%;
+  height: 340px;
+  border-radius: 8px;
+  z-index: 1;
+}
+.map-legend {
+  display: flex;
+  gap: 20px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #475569;
+  align-items: center;
+  justify-content: center;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.issue-dot {
+  background: #1e1b4b;
+  border: 2px solid #fbbf24;
+}
+.lineman-dot {
+  background: #10b981;
+  border: 2px solid #fff;
+}
+
 .validate-btn {
   width: 100%;
   background: #10b981;
