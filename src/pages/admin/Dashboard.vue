@@ -53,75 +53,64 @@
         <TopBarangaysChart />
       </div>
 
+      <!-- INCIDENT WAIT LIST TABLE SECTION -->
       <section class="table-container">
-        <h2>Active Consumer Reports</h2>
-        <table class="data-table">
+        <h2>Incident Wait List</h2>
+        <p class="subtitle">
+          Review new incoming reports before pushing them to the active queue or archive.
+        </p>
+
+        <div v-if="incidentReports.length === 0" class="empty-state">
+          <p>No new incident reports waiting for review.</p>
+        </div>
+
+        <table v-else class="data-table">
           <thead>
             <tr>
-              <th>Report Name</th>
+              <th>Report Details</th>
               <th>Location</th>
-              <th>Lineman</th>
               <th>Description</th>
-              <th>Status</th>
+              <th>Date Reported</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="report in reports" :key="report.id">
-              <td class="bold-text">{{ report.report_types?.name ?? 'General' }}</td>
-              <td>{{ report.landmark }}</td>
-              <td>{{ report.lineman_names }}</td>
-              <td class="muted-text">{{ report.description }}</td>
-              <td>
-                <select
-                  :value="report.status_id"
-                  @change="(e) => handleStatusChange(report, e.target.value)"
-                  :class="['status-select', getStatusClass(report.status_id)]"
+            <tr v-for="report in incidentReports" :key="report.id">
+              <td class="bold-text">
+                {{ report.report_types?.name ?? 'General Incident' }}
+                <div
+                  class="muted-text"
+                  style="font-weight: normal; font-size: 0.75rem"
+                  v-if="report.users"
                 >
-                  <option value="1">Pending</option>
-                  <option value="2">In Progress</option>
-                  <option value="3">Resolved</option>
-                </select>
+                  Reporter: {{ report.users.first_name }} {{ report.users.last_name }}
+                </div>
               </td>
               <td>
-                <button @click="openReassignModal(report)" class="btn-action">Assign</button>
+                {{ report.landmark || 'N/A' }}
+                <div class="muted-text" style="font-size: 0.75rem">
+                  Barangay: {{ report.barangays?.name ?? 'Unknown Barangay' }}
+                </div>
+              </td>
+              <td class="muted-text">{{ report.description || 'EMPTY' }}</td>
+              <td class="muted-text">{{ formatDateTime(report.created_at) }}</td>
+              <td>
+                <div class="table-action-buttons">
+                  <button class="btn-accept" @click="acceptReport(report)">Accept</button>
+                  <button class="btn-reject" @click="rejectReport(report)">Reject</button>
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
       </section>
     </div>
-
-    <!-- SEMI-GLASS ASSIGN LINEMEN MODAL -->
-    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
-      <div class="modal-content">
-        <h3>Assign Linemen</h3>
-        <p class="modal-subtitle">
-          Select one or more linemen to assign to this report. Changes will affect current
-          responsibilities.
-        </p>
-
-        <div class="checkbox-list">
-          <p v-if="availableLinemen.length === 0">
-            No linemen are currently available for assignment.
-          </p>
-          <label v-for="l in availableLinemen" :key="l.user_id">
-            <input type="checkbox" :value="l.user_id" v-model="newLinemanIds" />
-            {{ l.name }}
-          </label>
-        </div>
-
-        <div class="modal-actions">
-          <button @click="showModal = false" class="btn-cancel">Cancel</button>
-          <button @click="confirmReassign" class="btn-confirm">Confirm Assignment</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { FileText, Zap, CheckCircle, AlertTriangle } from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
@@ -132,11 +121,8 @@ import { sendNotification } from '@/utils/notifications.js'
 
 import '@/assets/style/dashboard.css'
 
-const reports = ref([])
-const availableLinemen = ref([])
-const showModal = ref(false)
-const selectedReport = ref(null)
-const newLinemanIds = ref([])
+const router = useRouter()
+const incidentReports = ref([])
 const currentPeriod = ref('Day')
 
 const stats = ref([
@@ -146,87 +132,40 @@ const stats = ref([
   { title: 'Pending', value: '0', icon: AlertTriangle, trend: 'Attention' },
 ])
 
-const getStatusClass = (id) =>
-  ({ 1: 'badge-pending', 2: 'badge-progress', 3: 'badge-resolved' })[id] || 'badge-pending'
-
 const gridEfficiency = computed(() => {
   const total = parseInt(stats.value[0].value) || 0
   const resolved = parseInt(stats.value[2].value) || 0
   return total > 0 ? ((resolved / total) * 100).toFixed(1) : 0
 })
 
-const fetchReports = async () => {
-  // Fetch reports excluding incoming wait-list (status_id = 1) and rejected reports (status_id = 5)
+const loadIncidentReports = async () => {
   const { data, error } = await supabase
     .from('reports')
     .select(
-      `id, landmark, description, status_id, report_types(name), assignments(lineman_id, users(first_name, last_name))`,
+      `
+      id,
+      landmark,
+      description,
+      created_at,
+      status_id,
+      report_types(name),
+      barangays(name),
+      users:residents_id(first_name, last_name)
+    `,
     )
-    .gt('status_id', 1)
-    .neq('status_id', 5)
+    .neq('landmark', 'Walk-in Report')
+    .eq('status_id', 1) // 1 = Pending
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching reports:', error)
-    return
+    console.error('Error fetching new reports:', error.message)
+  } else {
+    incidentReports.value = data || []
+    stats.value[3].value = incidentReports.value.length.toString()
   }
-
-  const supabaseReports = (data || []).map((r) => {
-    const names =
-      r.assignments?.length > 0
-        ? r.assignments.map((a) => `${a.users.first_name} ${a.users.last_name}`)
-        : []
-
-    return {
-      ...r,
-      lineman_names: names.length > 0 ? [...new Set(names)].join(', ') : 'Unassigned',
-    }
-  })
-
-  const localReports = (JSON.parse(localStorage.getItem('dashboardIncidents') || '[]') || []).map(
-    (r) => ({
-      ...r,
-      id: r.id,
-      landmark: r.landmark || r.location || 'N/A',
-      description: r.description || r.title || 'No description provided.',
-      status_id: r.status_id || 2,
-      report_types: { name: r.report_types?.name || r.severity || 'General' },
-      lineman_names: r.lineman_names || 'Unassigned',
-    }),
-  )
-
-  reports.value = [...localReports, ...supabaseReports].filter(
-    (report, index, all) => all.findIndex((item) => item.id === report.id) === index,
-  )
-
-  stats.value[0].value = reports.value.length.toString()
-  stats.value[2].value = reports.value.filter((r) => r.status_id === 3).length.toString()
-  stats.value[3].value = reports.value.filter((r) => r.status_id === 1).length.toString()
 }
 
-const fetchLinemen = async () => {
-  const { data, error } = await supabase
-    .from('employees')
-    .select(
-      `
-      user_id,
-      is_available,
-      users!inner(first_name, last_name, role_id)
-    `,
-    )
-    .eq('users.role_id', 9)
-    .eq('is_available', true)
-
-  if (error) {
-    console.error('Error fetching linemen:', error)
-    return
-  }
-
-  availableLinemen.value = (data || []).map((e) => ({
-    user_id: e.user_id,
-    name: `${e.users.first_name} ${e.users.last_name}`,
-  }))
-
+const fetchLinemenStats = async () => {
   const { count } = await supabase
     .from('employees')
     .select('*, users!inner(role_id)', { count: 'exact', head: true })
@@ -234,81 +173,83 @@ const fetchLinemen = async () => {
     .eq('is_available', true)
 
   stats.value[1].value = (count || 0).toString()
+
+  const { count: totalCount } = await supabase
+    .from('reports')
+    .select('*', { count: 'exact', head: true })
+  const { count: resolvedCount } = await supabase
+    .from('reports')
+    .select('*', { count: 'exact', head: true })
+    .eq('status_id', 3)
+
+  stats.value[0].value = (totalCount || 0).toString()
+  stats.value[2].value = (resolvedCount || 0).toString()
 }
 
-const openReassignModal = (report) => {
-  selectedReport.value = report
-  newLinemanIds.value = report.assignments
-    ? [...new Set(report.assignments.map((a) => a.lineman_id))]
-    : []
-  showModal.value = true
+const formatDateTime = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleString()
 }
 
-const confirmReassign = async () => {
-  if (!selectedReport.value) return
+const acceptReport = async (report) => {
+  const bName = report.barangays?.name ?? 'Unknown Barangay'
+  const iType = report.report_types?.name ?? 'General Incident'
 
-  const confirmed = window.confirm(
-    `Are you sure you want to reassign linemen for report ${selectedReport.value.id}? ` +
-      `This will replace the current assignment with the selection shown.`,
-  )
-  if (!confirmed) {
+  const { error } = await supabase.from('reports').update({ status_id: 2 }).eq('id', report.id)
+
+  if (error) {
+    alert('Error accepting report: ' + error.message)
     return
   }
 
-  try {
-    const { error: deleteError } = await supabase
-      .from('assignments')
-      .delete()
-      .eq('report_id', selectedReport.value.id)
+  await supabase.from('system_logs').insert([
+    {
+      action_type: 'CONFIRM_REPORT',
+      action_details: `Accepted report #${report.id} (${iType}) for Barangay ${bName}`,
+      created_at: new Date().toISOString(),
+    },
+  ])
 
-    if (deleteError) throw deleteError
+  await sendNotification(
+    'Report Confirmed',
+    `Your report for ${iType} at Barangay ${bName} has been accepted and queued.`,
+  )
 
-    if (newLinemanIds.value.length > 0) {
-      const uniqueIds = [...new Set(newLinemanIds.value)]
-      const assignmentsToInsert = uniqueIds.map((id) => ({
-        report_id: selectedReport.value.id,
-        lineman_id: id,
-      }))
-
-      const { error: insertError } = await supabase.from('assignments').insert(assignmentsToInsert)
-      if (insertError) throw insertError
-
-      await Promise.all(
-        uniqueIds.map((id) =>
-          sendNotification(
-            'Lineman Assignment Updated',
-            `You have been assigned to report ${selectedReport.value.id}. Please review the updated details.`,
-            id,
-          ),
-        ),
-      )
-    }
-
-    showModal.value = false
-    await fetchReports()
-  } catch (error) {
-    alert('Assignment failed. Please try again or contact system support.')
-    console.error(error)
-  }
+  loadIncidentReports()
+  fetchLinemenStats()
 }
 
-const handleStatusChange = async (report, newStatusId) => {
-  report.status_id = parseInt(newStatusId)
-  await supabase.from('reports').update({ status_id: report.status_id }).eq('id', report.id)
+const rejectReport = async (report) => {
+  const bName = report.barangays?.name ?? 'Unknown Barangay'
+  const iType = report.report_types?.name ?? 'General Incident'
 
-  if (report.status_id === 3) {
-    await sendNotification(
-      'Report Resolved',
-      `Report ${report.id} has been marked as resolved and is now closed in the system.`,
-    )
+  const { error } = await supabase.from('reports').update({ status_id: 5 }).eq('id', report.id)
+
+  if (error) {
+    alert('Error rejecting report: ' + error.message)
+    return
   }
 
-  await fetchReports()
+  await supabase.from('system_logs').insert([
+    {
+      action_type: 'REJECT_REPORT',
+      action_details: `Rejected report #${report.id} (${iType}) for Barangay ${bName}`,
+      created_at: new Date().toISOString(),
+    },
+  ])
+
+  await sendNotification(
+    'Report Rejected',
+    `Your report for ${iType} at Barangay ${bName} has been rejected and archived.`,
+  )
+
+  loadIncidentReports()
+  fetchLinemenStats()
 }
 
 onMounted(() => {
-  fetchReports()
-  fetchLinemen()
+  loadIncidentReports()
+  fetchLinemenStats()
 })
 </script>
 
@@ -323,10 +264,6 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-}
-
-.content {
-  padding: 16px 24px 24px;
 }
 
 /* Hero banner */
@@ -487,7 +424,7 @@ onMounted(() => {
   color: #64748b;
 }
 
-/* Table */
+/* Table Styles matching Source 1 */
 .table-container {
   margin-top: 18px;
   padding: 12px 14px;
@@ -497,8 +434,14 @@ onMounted(() => {
 }
 
 .table-container h2 {
-  margin: 0 0 10px;
+  margin: 0 0 4px;
   font-size: 1rem;
+}
+
+.subtitle {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin-bottom: 10px;
 }
 
 .data-table {
@@ -528,145 +471,49 @@ onMounted(() => {
   color: #64748b;
 }
 
-/* Status select as rounded pill */
-.status-select {
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #0f172a;
-  background-color: #ffffff;
-  outline: none;
-  cursor: pointer;
-  appearance: none;
+/* Table Action Buttons */
+.table-action-buttons {
+  display: flex;
+  gap: 6px;
 }
 
-/* Status colors */
-.badge-pending {
-  background-color: #fef3c7;
-  color: #92400e;
-  border-color: #fbbf24;
-}
-
-.badge-progress {
-  background-color: #e0f2fe;
-  color: #1d4ed8;
-  border-color: #60a5fa;
-}
-
-.badge-resolved {
-  background-color: #dcfce7;
-  color: #166534;
-  border-color: #22c55e;
-}
-
-/* Assign button */
-.btn-action {
-  padding: 6px 12px;
+.btn-accept {
+  padding: 5px 10px;
   border-radius: 999px;
   border: none;
-  background: #083a6d;
+  background: #10b981;
   color: #ffffff;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
 }
 
-.btn-action:hover {
-  background: #0b4a88;
+.btn-accept:hover {
+  background: #059669;
 }
 
-/* Semi-glass Assign Linemen modal */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.219);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
-}
-
-.modal-content {
-  width: min(480px, 90vw);
-  padding: 22px 24px;
-  border-radius: 24px;
-  background: rgba(178, 201, 233, 0.32);
-  border: 1px solid rgba(36, 35, 35, 0.22);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
-  color: #617096;
-}
-
-.modal-content h3 {
-  margin: 0 0 8px;
-  font-size: 1.1rem;
-  font-weight: 700;
+.btn-reject {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: none;
+  background: #ef4444;
   color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.modal-subtitle {
-  margin: 0 0 12px;
+.btn-reject:hover {
+  background: #dc2626;
+}
+
+.empty-state {
+  text-align: center;
+  color: #64748b;
+  padding: 24px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
   font-size: 0.85rem;
-  color: #e5e7eb;
-}
-
-/* Inner semi-glass list */
-.checkbox-list {
-  max-height: 220px;
-  overflow-y: auto;
-  margin: 12px 0 18px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(15, 23, 42, 0.25);
-  color: #e5e7eb;
-}
-
-.checkbox-list p {
-  margin: 0 0 8px;
-}
-
-.checkbox-list label {
-  display: block;
-  padding: 6px 0;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.checkbox-list input[type='checkbox'] {
-  margin-right: 0.5rem;
-}
-
-/* Modal actions */
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.btn-cancel,
-.btn-confirm {
-  padding: 8px 16px;
-  border-radius: 999px;
-  border: none;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-cancel {
-  background: rgba(255, 255, 255, 0.2);
-  color: #0f172a;
-}
-
-.btn-confirm {
-  background: #083a6d;
-  color: #ffffff;
-}
-
-.btn-confirm:hover {
-  background: #0b4a88;
 }
 </style>

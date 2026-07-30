@@ -537,10 +537,9 @@ const getMunicipalityName = (mId) => {
 const getStatusName = (statusId) => {
   if (statusId === 1) return 'Pending'
   if (statusId === 2) return 'In Progress'
-  if (statusId === 3) return 'Resolved'
   if (statusId === 4) return 'Pending Verification'
   if (statusId === 5) return 'Rejected'
-  if (statusId === 6) return 'Admin Verified'
+  if (statusId === 6) return 'Resolved'
   return 'Resolved'
 }
 

@@ -102,12 +102,12 @@ const router = createRouter({
       component: () => import('../pages/admin/IncidentQueue.vue'),
       meta: { requiresAuth: true },
     },
-    {
-      path: '/admin/incident-wait-list',
-      name: 'IncidentWaitList',
-      component: () => import('../pages/admin/IncidentWaitList.vue'),
-      meta: { requiresAuth: true },
-    },
+    // {
+    //   path: '/admin/incident-wait-list',
+    //   name: 'IncidentWaitList',
+    //   component: () => import('../pages/admin/IncidentWaitList.vue'),
+    //   meta: { requiresAuth: true },
+    // },
     {
       path: '/branch/incident',
       name: 'BranchIncidentQueue',

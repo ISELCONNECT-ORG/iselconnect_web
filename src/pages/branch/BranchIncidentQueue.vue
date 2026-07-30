@@ -57,13 +57,13 @@
           <thead>
             <tr>
               <th>STATUS</th>
+              <th>PRIORITY</th>
               <th>CUSTOMER</th>
               <th>DESCRIPTION</th>
               <th>MUNICIPALITY</th>
               <th>BARANGAY</th>
               <th>PUROK</th>
               <th>LINEMAN</th>
-              <th>EVIDENCE</th>
               <th>TIME</th>
               <th>ACTIONS</th>
             </tr>
@@ -72,6 +72,13 @@
             <tr v-for="report in activeReports" :key="report.id">
               <td>
                 <span class="status-pill">{{ report.report_statuses?.name }}</span>
+              </td>
+              <td>
+                <span
+                  :class="['priority-pill', getPriorityClass(report.report_types?.priority_level)]"
+                >
+                  {{ report.report_types?.priority_level || 'Normal' }}
+                </span>
               </td>
               <td>
                 <strong
@@ -83,10 +90,6 @@
               <td class="text-black">{{ report.barangays?.name }}</td>
               <td class="text-black">{{ report.purok_sitio }}</td>
               <td class="text-black">{{ report.lineman_display }}</td>
-              <td>
-                <a v-if="report.photo_url" :href="report.photo_url" target="_blank">View</a>
-                <span v-else>—</span>
-              </td>
               <td>{{ new Date(report.created_at).toLocaleTimeString() }}</td>
               <td>
                 <button @click="openAssign(report)" class="action-btn">Assign</button>
@@ -105,13 +108,13 @@
           <thead>
             <tr>
               <th>STATUS</th>
+              <th>PRIORITY</th>
               <th>CUSTOMER</th>
               <th>DESCRIPTION</th>
               <th>MUNICIPALITY</th>
               <th>BARANGAY</th>
               <th>PUROK</th>
               <th>LINEMAN</th>
-              <th>EVIDENCE</th>
               <th>TIME</th>
               <th>ACTIONS</th>
             </tr>
@@ -120,6 +123,13 @@
             <tr v-for="report in resolvedReports" :key="report.id">
               <td>
                 <span class="status-pill">{{ report.report_statuses?.name }}</span>
+              </td>
+              <td>
+                <span
+                  :class="['priority-pill', getPriorityClass(report.report_types?.priority_level)]"
+                >
+                  {{ report.report_types?.priority_level || 'Normal' }}
+                </span>
               </td>
               <td>
                 <strong
@@ -131,10 +141,6 @@
               <td class="text-black">{{ report.barangays?.name }}</td>
               <td class="text-black">{{ report.purok_sitio }}</td>
               <td class="text-black">{{ report.lineman_display }}</td>
-              <td>
-                <a v-if="report.photo_url" :href="report.photo_url" target="_blank">View</a>
-                <span v-else>—</span>
-              </td>
               <td>{{ new Date(report.created_at).toLocaleTimeString() }}</td>
               <td>
                 <button class="action-btn" disabled>Done</button>
@@ -149,7 +155,7 @@
     </main>
 
     <div v-if="showManualModal" class="modal-overlay">
-      <div class="modal-content">
+      <div class="modal-content glass-card">
         <h3>New Customer Report</h3>
         <select v-model="manualReport.barangay_id" class="input-field">
           <option :value="null" disabled>Select Barangay</option>
@@ -178,7 +184,7 @@
     </div>
 
     <div v-if="showAssignModal" class="modal-overlay">
-      <div class="modal-content">
+      <div class="modal-content glass-card">
         <h3 style="margin-bottom: 10px">Dispatch Lineman</h3>
         <div class="lineman-checkbox-list">
           <label v-for="lineman in availableLinemen" :key="lineman.user_id" class="checkbox-label">
@@ -221,12 +227,40 @@ const onlineLinemenCount = ref(0)
 const branchName = ref('Branch')
 const branchId = ref(null)
 
-const activeReports = computed(() =>
-  pendingReports.value.filter((report) => report.report_statuses?.name !== 'Resolved'),
-)
+// Sorted Active Incidents: First by Priority Level, then by Timestamp (Newest first)
+const activeReports = computed(() => {
+  const priorityRank = { Critical: 1, High: 2, Normal: 3, Low: 4 }
+
+  return pendingReports.value
+    .filter((report) => report.report_statuses?.name !== 'Resolved')
+    .sort((a, b) => {
+      const pA = priorityRank[a.report_types?.priority_level] || 3
+      const pB = priorityRank[b.report_types?.priority_level] || 3
+
+      if (pA !== pB) {
+        return pA - pB // Critical -> High -> Normal -> Low
+      }
+
+      return new Date(b.created_at) - new Date(a.created_at)
+    })
+})
+
 const resolvedReports = computed(() =>
   pendingReports.value.filter((report) => report.report_statuses?.name === 'Resolved'),
 )
+
+const getPriorityClass = (level) => {
+  switch (level) {
+    case 'Critical':
+      return 'priority-critical'
+    case 'High':
+      return 'priority-high'
+    case 'Low':
+      return 'priority-low'
+    default:
+      return 'priority-normal'
+  }
+}
 
 const getCurrentBranch = async () => {
   const {
@@ -258,15 +292,18 @@ const getCurrentBranch = async () => {
 const fetchAll = async () => {
   if (!branchId.value) return
 
+  // Fetch only reports belonging to this branch that have been accepted by admin (status_id > 1 and status_id != 5)
   const { data, error } = await supabase
     .from('reports')
     .select(
       `
-      *, report_statuses(name), report_types(name), users(first_name, last_name),
+      *, report_statuses(name), report_types(name, priority_level), users(first_name, last_name),
       barangays(name), municipalities(name), assignments(lineman_id, users(first_name, last_name))
     `,
     )
     .eq('branch_id', branchId.value)
+    .gt('status_id', 1)
+    .neq('status_id', 5)
 
   if (error) {
     console.error('Error loading branch reports:', error)
@@ -327,7 +364,7 @@ const submitManualReport = async () => {
       purok_sitio: manualReport.value.purok,
       latitude: 0.0,
       longitude: 0.0,
-      status_id: 1,
+      status_id: 2,
       municipality_id: 1,
       branch_id: branchId.value,
     },
@@ -352,20 +389,19 @@ const openAssign = async (report) => {
   selectedLinemanIds.value = report.assignments?.map((assignment) => assignment.lineman_id) || []
 
   const { data, error } = await supabase
-    .from('employees')
-    .select(`user_id, users!inner(first_name, last_name)`)
-    .eq('designation', 'Lineman')
-    .eq('is_available', true)
-    .eq('users.branch_id', branchId.value)
+    .from('users')
+    .select('id, first_name, last_name')
+    .eq('role_id', 9)
+    .eq('branch_id', branchId.value)
 
   if (!error) {
     availableLinemen.value =
       data
-        ?.map((employee) => {
-          const first = employee.users?.first_name?.trim() || ''
-          const last = employee.users?.last_name?.trim() || ''
+        ?.map((user) => {
+          const first = user.first_name?.trim() || ''
+          const last = user.last_name?.trim() || ''
           const name = [first, last].filter(Boolean).join(' ')
-          return name ? { user_id: employee.user_id, name } : null
+          return name ? { user_id: user.id, name } : null
         })
         .filter(Boolean) || []
   }
@@ -383,6 +419,7 @@ const submitAssignment = async () => {
       report_id: selectedReport.value.id,
       lineman_id: userId,
       assigned_at: new Date().toISOString(),
+      inprogress_at: new Date().toISOString(),
     }))
     const { error: assignError } = await supabase.from('assignments').insert(assignmentsToInsert)
     if (!assignError) {
@@ -412,7 +449,6 @@ onMounted(() => {
 })
 </script>
 
-\
 <style scoped>
 .dashboard-root {
   display: flex;
@@ -432,7 +468,6 @@ onMounted(() => {
   padding: 24px 30px 40px;
 }
 
-/* Hero header matching previous theme: dark blue bar, white text */
 .hero-section {
   margin-bottom: 24px;
   padding: 0;
@@ -474,7 +509,6 @@ onMounted(() => {
   box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12);
 }
 
-/* Metrics row in dashboard style */
 .metrics-container.stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -523,7 +557,6 @@ onMounted(() => {
   font-weight: 700;
 }
 
-/* Queue panels */
 .queue-panel {
   margin-top: 16px;
   padding: 16px 18px;
@@ -539,7 +572,6 @@ onMounted(() => {
   color: #0f172a;
 }
 
-/* Table styling */
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -572,6 +604,32 @@ onMounted(() => {
   font-size: 0.75rem;
 }
 
+/* Priority Badge styles */
+.priority-pill {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.priority-critical {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.priority-high {
+  background: #ffedd5;
+  color: #9a3412;
+}
+.priority-normal {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.priority-low {
+  background: #f1f5f9;
+  color: #475569;
+}
+
 .action-btn {
   background: #1f3056;
   color: #ffffff;
@@ -583,7 +641,6 @@ onMounted(() => {
   font-weight: 600;
 }
 
-/* See Details button */
 .details-btn {
   display: inline-block;
   margin-left: 6px;
@@ -602,7 +659,6 @@ onMounted(() => {
   background: #f8fafc;
 }
 
-/* Modal overlay + glass card */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -613,7 +669,6 @@ onMounted(() => {
   z-index: 1000;
 }
 
-/* shared glass card for both modals */
 .glass-card {
   background: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(18px);
@@ -634,7 +689,6 @@ onMounted(() => {
   font-size: 1.1rem;
 }
 
-/* Modal form controls */
 .input-field {
   width: 100%;
   margin-top: 8px;
@@ -651,7 +705,6 @@ textarea.input-field {
   min-height: 80px;
 }
 
-/* Modal actions */
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -682,7 +735,6 @@ textarea.input-field {
   cursor: pointer;
 }
 
-/* Lineman list in dispatch modal */
 .lineman-checkbox-list {
   display: flex;
   flex-direction: column;
