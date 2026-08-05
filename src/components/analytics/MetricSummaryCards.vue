@@ -37,25 +37,29 @@ const fetchMetrics = async () => {
 
   let query = supabase
     .from('reports')
-    .select('status_id, created_at, updated_at')
+    .select('status_id,created_at,updated_at')
     .gte('created_at', startDate.toISOString())
 
   if (props.branchId) query = query.eq('branch_id', props.branchId)
 
   const { data, error } = await query
-  if (error || !data) return
+  if (!error && data) {
+    metrics.value.pending = data.filter((i) => i.status_id === 1).length
+    metrics.value.ongoing = data.filter((i) => i.status_id === 2).length
+    metrics.value.resolvedCount = data.filter((i) => i.status_id === 3).length
+  }
 
-  metrics.value.pending = data.filter((i) => i.status_id === 1).length
-  metrics.value.ongoing = data.filter((i) => i.status_id === 2).length
-  metrics.value.resolvedCount = data.filter((i) => i.status_id === 3).length
+  const { data: assignData } = await supabase
+    .from('assignments')
+    .select('inprogress_at,completion_at')
 
-  let assignQuery = supabase.from('assignments').select('arrival_at, completion_at')
-  const { data: assignData } = await assignQuery
   if (assignData && assignData.length > 0) {
-    const completedItems = assignData.filter((i) => i.arrival_at && i.completion_at)
+    const completedItems = assignData.filter((i) => i.inprogress_at && i.completion_at)
     if (completedItems.length > 0) {
       const totalHours = completedItems.reduce((acc, curr) => {
-        return acc + (new Date(curr.completion_at) - new Date(curr.arrival_at)) / (1000 * 60 * 60)
+        return (
+          acc + (new Date(curr.completion_at) - new Date(curr.inprogress_at)) / (1000 * 60 * 60)
+        )
       }, 0)
       metrics.value.avgResolutionTime = (totalHours / completedItems.length).toFixed(1)
     }
@@ -70,26 +74,25 @@ onMounted(fetchMetrics)
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 20px;
 }
 .metric-card {
   background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  padding: 1.25rem;
-  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
+  padding: 20px;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 .label {
-  color: #64748b;
+  color: #475569;
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 .value {
-  font-size: 1.75rem;
+  font-size: 1.8rem;
   font-weight: 700;
 }
 .accent-yellow {

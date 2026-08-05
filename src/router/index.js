@@ -126,12 +126,12 @@ const router = createRouter({
       component: () => import('../pages/branch/BranchLinemanProfile.vue'),
       meta: { requiresAuth: true },
     },
-    {
-      path: '/admin/analytics',
-      name: 'AdminAnalytics',
-      component: () => import('../pages/admin/Analytics.vue'),
-      meta: { requiresAuth: true },
-    },
+    // {
+    //   path: '/admin/analytics',
+    //   name: 'AdminAnalytics',
+    //   component: () => import('../pages/admin/Analytics.vue'),
+    //   meta: { requiresAuth: true },
+    // },
     {
       path: '/admin/map',
       name: 'AdminMap',

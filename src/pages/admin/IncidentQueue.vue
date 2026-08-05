@@ -1,57 +1,64 @@
+<!-- IncidentQueue.vue -->
 <template>
   <div class="dashboard-root">
     <Sidebar />
     <main class="content">
       <Topbar />
 
-      <!-- HERO HEADER: dark blue, white text -->
+      <!-- HERO HEADER: matching exact requested design banner layout using bannerdashboard.jpg -->
       <header class="hero-section">
         <div class="hero-header-content">
           <div class="hero-text">
-            <h1>Service Interruption Queue</h1>
-            <p>Manage and assign incoming damage reports for rapid grid restoration.</p>
+            <h1>INCIDENT QUEUE</h1>
+            <p>Comprehensive profile management for the ISELCONNECT field engineering team.</p>
           </div>
           <button @click="showManualModal = true" class="manual-dispatch-btn">
-            + Manual Entry
+            <UserPlus class="btn-icon" /> MANUAL ENTRY
           </button>
         </div>
       </header>
 
-      <!-- METRICS: dashboard-style cards -->
+      <!-- METRICS & STATUS CARDS: exact layout matching the target image -->
       <section class="metrics-container stats-grid">
+        <div class="stat-card status-box-dark">
+          <h3>INCIDENT QUEUE STATUS</h3>
+          <p class="status-desc">
+            Comprehensive administration module designed for the Isabela-1 Electric Cooperative,
+            Inc. (ISELCO-I) to review resident-submitted damage reports, validate crowdsourced
+            photographic evidence, analyze precise GPS coordinates, and coordinate rapid field
+            responses.
+          </p>
+        </div>
+
         <div class="stat-card">
           <div class="card-header">
+            <h3>ONLINE LINEMAN</h3>
             <ActivitySquare class="stat-icon" />
-            <span class="trend-badge">Online</span>
           </div>
-          <h3>ONLINE LINEMAN</h3>
           <p class="stat-value">{{ onlineLinemenCount }}</p>
         </div>
 
         <div class="stat-card">
           <div class="card-header">
+            <h3>ASSIGNED</h3>
             <UserCheck class="stat-icon" />
-            <span class="trend-badge">Assigned</span>
           </div>
-          <h3>ASSIGNED</h3>
           <p class="stat-value">{{ assignedCount }}</p>
         </div>
 
         <div class="stat-card">
           <div class="card-header">
+            <h3>TOTAL REPORT</h3>
             <ClipboardList class="stat-icon" />
-            <span class="trend-badge">Reports</span>
           </div>
-          <h3>TOTAL REPORT</h3>
           <p class="stat-value">{{ totalReportsCount }}</p>
         </div>
 
         <div class="stat-card">
           <div class="card-header">
+            <h3>SYSTEM STATUS</h3>
             <Wifi class="stat-icon" />
-            <span class="trend-badge">Status</span>
           </div>
-          <h3>SYSTEM STATUS</h3>
           <p class="stat-value">ACTIVE</p>
         </div>
       </section>
@@ -208,9 +215,8 @@ import { supabase } from '@/services/supabase'
 import { sendNotification } from '@/utils/notifications.js'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
-import '@/assets/style/IncidentQueue.css'
 
-import { ActivitySquare, UserCheck, ClipboardList, Wifi } from 'lucide-vue-next'
+import { ActivitySquare, UserCheck, ClipboardList, Wifi, UserPlus } from 'lucide-vue-next'
 
 const pendingReports = ref([])
 const reportTypes = ref([])
@@ -228,7 +234,6 @@ const assignedCount = ref(0)
 const totalReportsCount = ref(0)
 const onlineLinemenCount = ref(0)
 
-// Sorted Active Incidents: First by Priority Level, then by Timestamp (Newest first)
 const activeReports = computed(() => {
   const priorityRank = { Critical: 1, High: 2, Normal: 3, Low: 4 }
 
@@ -239,10 +244,8 @@ const activeReports = computed(() => {
       const pB = priorityRank[b.report_types?.priority_level] || 3
 
       if (pA !== pB) {
-        return pA - pB // Critical -> High -> Normal -> Low
+        return pA - pB
       }
-
-      // Secondary sort by timestamp (newest first)
       return new Date(b.created_at) - new Date(a.created_at)
     })
 })
@@ -370,11 +373,9 @@ const openAssign = async (r) => {
   const now = new Date()
   const totalMinutes = now.getHours() * 60 + now.getMinutes()
 
-  // Working hours: 8:00 AM (480 mins) to 5:00 PM (1020 mins)
   isWorkingHoursModal.value = totalMinutes >= 480 && totalMinutes <= 1020
 
   if (isWorkingHoursModal.value) {
-    // Fetch users with role_id = 6 (branch)
     const { data } = await supabase
       .from('users')
       .select('id, first_name, last_name')
@@ -386,7 +387,6 @@ const openAssign = async (r) => {
         name: `${user.first_name} ${user.last_name} (Branch Account)`,
       })) || []
   } else {
-    // Fetch available linemen (role_id = 9)
     const { data } = await supabase
       .from('users')
       .select('id, first_name, last_name')
@@ -436,6 +436,18 @@ onMounted(fetchAll)
 </script>
 
 <style scoped>
+.dashboard-root,
+.dashboard-root *,
+.dashboard-root h1,
+.dashboard-root h2,
+.dashboard-root h3,
+.dashboard-root p,
+.dashboard-root th,
+.dashboard-root td,
+.dashboard-root span {
+  color: #0f172a !important;
+}
+
 .dashboard-root {
   display: flex;
   font-family:
@@ -444,9 +456,8 @@ onMounted(fetchAll)
     BlinkMacSystemFont,
     'Inter',
     sans-serif;
-  background: #ffffff;
+  background: #f1f5f9;
   min-height: 100vh;
-  color: #0f172a;
 }
 
 .content {
@@ -454,108 +465,174 @@ onMounted(fetchAll)
   padding: 24px 30px 40px;
 }
 
+/* Exact banner size & bannerdashboard.jpg background matching the reference */
 .hero-section {
-  margin-bottom: 24px;
-  padding: 0;
+  position: relative;
+  background: url('@/assets/Background/bannerdashboard.jpg') no-repeat center center;
+  background-size: cover;
+  padding: 45px 36px;
   border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(31, 48, 86, 0.3);
+  border: 1px solid #cbd5e1;
   overflow: hidden;
+  margin-bottom: 24px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(31, 48, 86, 0.72) 0%, rgba(23, 37, 84, 0.65) 100%);
+  z-index: 1;
 }
 
 .hero-header-content {
+  position: relative;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 22px;
-  border-radius: 16px;
-  background: #1f3056;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
 }
 
 .hero-text h1 {
   margin: 0 0 6px;
-  font-size: 1.5rem;
-  color: #ffffff;
+  font-size: 2.2rem;
+  color: #ffffff !important;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .hero-text p {
   margin: 0;
-  font-size: 0.9rem;
-  color: #e2e8f0;
+  font-size: 0.95rem;
+  color: #e2e8f0 !important;
 }
 
 .manual-dispatch-btn {
-  background: #ffffff;
-  color: #1f3056;
-  padding: 8px 18px;
-  border-radius: 999px;
-  border: 1px solid #cbd5e1;
-  font-size: 0.9rem;
-  font-weight: 600;
+  background: #fef08a !important;
+  color: #1f3056 !important;
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: 1px solid #fde047;
+  font-size: 0.85rem;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: background 0.2s;
 }
 
+.manual-dispatch-btn:hover {
+  background: #fde047 !important;
+}
+
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  color: #1f3056 !important;
+}
+
+/* Metrics and Status Cards Grid matching exact 5-column layout */
 .metrics-container.stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: 1.5fr repeat(4, minmax(0, 1fr));
+  gap: 16px;
   margin-bottom: 24px;
 }
 
+/* Dark Queue Status Card Style */
+.stat-card.status-box-dark {
+  background: #1f3056 !important;
+  color: #ffffff !important;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #334155;
+  box-shadow: 0 4px 12px rgba(31, 48, 86, 0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.stat-card.status-box-dark h3,
+.stat-card.status-box-dark .status-desc {
+  color: #ffffff !important;
+}
+
+.stat-card.status-box-dark h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.status-desc {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #cbd5e1 !important;
+}
+
 .stat-card {
-  padding: 12px 14px;
-  border-radius: 14px;
+  padding: 18px 20px;
+  border-radius: 16px;
   background: #ffffff;
-  box-shadow: 0 6px 18px rgba(148, 163, 184, 0.25);
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .stat-icon {
-  width: 20px;
-  height: 20px;
-  color: #0f172a;
-}
-
-.trend-badge {
-  font-size: 0.7rem;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #e0f2fe;
-  color: #1d4ed8;
-  font-weight: 600;
+  width: 24px;
+  height: 24px;
+  color: #1f3056 !important;
 }
 
 .stat-card h3 {
-  margin: 0 0 4px;
-  font-size: 0.9rem;
-  color: #0f172a;
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569 !important;
+  font-weight: 600;
 }
 
 .stat-value {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.8rem;
   font-weight: 700;
+  color: #0f172a !important;
 }
 
 .queue-panel {
   margin-top: 16px;
-  padding: 16px 18px;
+  padding: 24px;
   border-radius: 16px;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .queue-panel h3 {
-  margin: 0 0 12px;
-  font-size: 1rem;
-  color: #0f172a;
+  margin: 0 0 16px;
+  font-size: 1.15rem;
+  color: #1f3056 !important;
+  font-weight: 700;
 }
 
 .data-table {
@@ -566,15 +643,18 @@ onMounted(fetchAll)
 
 .data-table th,
 .data-table td {
-  padding: 8px 6px;
+  padding: 12px 14px;
   border-bottom: 1px solid #e2e8f0;
 }
 
 .data-table thead th {
   text-align: left;
   font-weight: 600;
-  font-size: 0.8rem;
-  color: #64748b;
+  font-size: 0.7rem;
+  color: #475569 !important;
+  background: #f8fafc;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .data-table tbody tr:hover {
@@ -585,57 +665,62 @@ onMounted(fetchAll)
   display: inline-block;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #1d4ed8;
+  background: #dbeafe;
+  color: #1e40af !important;
   font-size: 0.75rem;
+  font-weight: 600;
 }
 
-/* Priority Badge styles */
 .priority-pill {
   display: inline-block;
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
 }
 .priority-critical {
   background: #fee2e2;
-  color: #991b1b;
+  color: #991b1b !important;
 }
 .priority-high {
   background: #ffedd5;
-  color: #9a3412;
+  color: #9a3412 !important;
 }
 .priority-normal {
   background: #e0f2fe;
-  color: #0369a1;
+  color: #0369a1 !important;
 }
 .priority-low {
   background: #f1f5f9;
-  color: #475569;
+  color: #475569 !important;
 }
 
 .action-btn {
-  background: #1f3056;
-  color: #ffffff;
+  background: #2563eb;
+  color: #ffffff !important;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   border: none;
   cursor: pointer;
   font-size: 0.75rem;
   font-weight: 600;
+  transition: background 0.2s;
+}
+
+.action-btn:hover {
+  background: #1d4ed8;
 }
 
 .details-btn {
   display: inline-block;
   margin-left: 6px;
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid #cbd5e1;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #1f3056;
+  color: #0f172a !important;
   background: #ffffff;
   text-decoration: none;
   cursor: pointer;
@@ -656,7 +741,7 @@ onMounted(fetchAll)
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border: 1px solid rgba(255, 255, 255, 0.45);
@@ -665,29 +750,30 @@ onMounted(fetchAll)
 
 .modal-content {
   width: min(420px, 90vw);
-  padding: 20px 22px;
-  border-radius: 20px;
+  padding: 24px;
+  border-radius: 16px;
   color: #0f172a;
 }
 
 .modal-content h3 {
-  margin: 0 0 10px;
-  font-size: 1.1rem;
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+  color: #1f3056 !important;
 }
 
 .input-field {
   width: 100%;
-  margin-top: 8px;
-  padding: 10px;
-  border-radius: 999px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
   border: 1px solid #cbd5e1;
   font-size: 0.9rem;
   outline: none;
-  background: rgba(255, 255, 255, 0.9);
+  background: #ffffff;
 }
 
 textarea.input-field {
-  border-radius: 12px;
+  border-radius: 8px;
   min-height: 80px;
 }
 
@@ -695,26 +781,25 @@ textarea.input-field {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 .assign-btn {
-  background: #1f3056;
-  color: #ffffff;
+  background: #2563eb;
+  color: #ffffff !important;
   padding: 8px 16px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: none;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(31, 48, 86, 0.35);
 }
 
 .cancel-btn {
-  background: rgba(255, 255, 255, 0.85);
-  color: #475569;
+  background: #e2e8f0;
+  color: #475569 !important;
   padding: 8px 16px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: none;
   font-size: 0.85rem;
   font-weight: 600;
@@ -724,12 +809,18 @@ textarea.input-field {
 .lineman-checkbox-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 10px;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .checkbox-label {
   font-size: 0.85rem;
-  color: #0f172a;
+  color: #0f172a !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
 }
 </style>

@@ -12,10 +12,7 @@
         <UserCheck :size="20" /> Account Verification
       </router-link>
       <router-link to="/admin/incident" class="nav-link" active-class="active">
-        <AlertTriangle :size="20" /> Incident List
-      </router-link>
-      <router-link to="/admin/analytics" class="nav-link" active-class="active">
-        <LayoutDashboard :size="20" /> Analytics
+        <AlertTriangle :size="20" /> Incident Queue
       </router-link>
       <router-link to="/admin/map" class="nav-link" active-class="active">
         <Map :size="20" /> Map View

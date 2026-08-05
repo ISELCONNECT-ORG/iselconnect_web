@@ -34,26 +34,20 @@ const chartData = ref({
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { legend: { position: 'bottom' } },
+  plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } },
 }
 
 const getStartDate = (filter) => {
   const now = new Date()
-  if (filter === 'Day') {
-    now.setHours(0, 0, 0, 0)
-  } else if (filter === 'Week') {
-    now.setDate(now.getDate() - 7)
-  } else if (filter === 'Month') {
-    now.setMonth(now.getMonth() - 1)
-  } else if (filter === 'Year') {
-    now.setFullYear(now.getFullYear() - 1)
-  }
+  if (filter === 'Day') now.setHours(0, 0, 0, 0)
+  else if (filter === 'Week') now.setDate(now.getDate() - 7)
+  else if (filter === 'Month') now.setMonth(now.getMonth() - 1)
+  else if (filter === 'Year') now.setFullYear(now.getFullYear() - 1)
   return now.toISOString()
 }
 
 const fetchStatusCounts = async () => {
   const startDate = getStartDate(currentFilter.value)
-
   const { data, error } = await supabase
     .from('reports')
     .select('status_id, created_at')
@@ -61,9 +55,9 @@ const fetchStatusCounts = async () => {
 
   if (error || !data) return
 
-  let pending = data.filter((r) => r.status_id === 1 || r.status_id === 'Pending').length
-  let ongoing = data.filter((r) => r.status_id === 2 || r.status_id === 'Ongoing').length
-  let resolved = data.filter((r) => r.status_id === 3 || r.status_id === 'Resolved').length
+  let pending = data.filter((r) => r.status_id === 1).length
+  let ongoing = data.filter((r) => r.status_id === 2).length
+  let resolved = data.filter((r) => r.status_id === 3).length
 
   chartData.value = {
     labels: ['Pending', 'Ongoing', 'Resolved'],
@@ -78,9 +72,7 @@ const setFilter = (filter) => {
   fetchStatusCounts()
 }
 
-onMounted(() => {
-  fetchStatusCounts()
-})
+onMounted(() => fetchStatusCounts())
 </script>
 
 <style scoped>
@@ -92,28 +84,27 @@ onMounted(() => {
 .filter-controls {
   display: flex;
   justify-content: flex-end;
-  gap: 0.25rem;
-  margin-bottom: 0.5rem;
+  gap: 4px;
+  margin-bottom: 8px;
 }
 .filter-controls button {
   background-color: #f1f5f9;
   border: 1px solid #cbd5e1;
   color: #475569;
-  padding: 0.2rem 0.5rem;
+  padding: 4px 8px;
   font-size: 0.75rem;
-  border-radius: 0.25rem;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
+  font-weight: 600;
 }
 .filter-controls button.active {
-  background-color: #0284c7;
-  color: #ffffff;
-  border-color: #0284c7;
+  background-color: #fbbf24;
+  color: #0f172a;
+  border-color: #f59e0b;
 }
 .canvas-box {
   position: relative;
   flex: 1;
-  height: 180px;
+  height: 200px;
 }
 </style>
