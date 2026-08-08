@@ -5,29 +5,53 @@
     <main class="content">
       <Topbar />
 
-      <!-- HERO HEADER: matching exact requested design banner layout using bannerdashboard.jpg -->
+      <!-- HERO HEADER -->
       <header class="hero-section">
         <div class="hero-header-content">
           <div class="hero-text">
             <h1>INCIDENT QUEUE</h1>
             <p>Comprehensive profile management for the ISELCONNECT field engineering team.</p>
           </div>
-          <button @click="showManualModal = true" class="manual-dispatch-btn">
+          <button @click="openManualModal" class="manual-dispatch-btn">
             <UserPlus class="btn-icon" /> MANUAL ENTRY
           </button>
         </div>
       </header>
 
-      <!-- METRICS & STATUS CARDS: exact layout matching the target image -->
+      <!-- METRICS & STATUS CARDS -->
       <section class="metrics-container stats-grid">
-        <div class="stat-card status-box-dark">
-          <h3>INCIDENT QUEUE STATUS</h3>
-          <p class="status-desc">
-            Comprehensive administration module designed for the Isabela-1 Electric Cooperative,
-            Inc. (ISELCO-I) to review resident-submitted damage reports, validate crowdsourced
-            photographic evidence, analyze precise GPS coordinates, and coordinate rapid field
-            responses.
-          </p>
+        <div class="priority-grid-cluster">
+          <div class="stat-card priority-card-critical">
+            <div class="card-header">
+              <h3>CRITICAL</h3>
+              <AlertTriangle class="stat-icon" />
+            </div>
+            <p class="stat-value text-center">{{ criticalCount }}</p>
+          </div>
+
+          <div class="stat-card priority-card-high">
+            <div class="card-header">
+              <h3>HIGH</h3>
+              <AlertCircle class="stat-icon" />
+            </div>
+            <p class="stat-value text-center">{{ highCount }}</p>
+          </div>
+
+          <div class="stat-card priority-card-normal">
+            <div class="card-header">
+              <h3>NORMAL</h3>
+              <Info class="stat-icon" />
+            </div>
+            <p class="stat-value text-center">{{ normalCount }}</p>
+          </div>
+
+          <div class="stat-card priority-card-low">
+            <div class="card-header">
+              <h3>LOW</h3>
+              <ShieldAlert class="stat-icon" />
+            </div>
+            <p class="stat-value text-center">{{ lowCount }}</p>
+          </div>
         </div>
 
         <div class="stat-card">
@@ -35,7 +59,7 @@
             <h3>ONLINE LINEMAN</h3>
             <ActivitySquare class="stat-icon" />
           </div>
-          <p class="stat-value">{{ onlineLinemenCount }}</p>
+          <p class="stat-value text-center">{{ onlineLinemenCount }}</p>
         </div>
 
         <div class="stat-card">
@@ -43,7 +67,7 @@
             <h3>ASSIGNED</h3>
             <UserCheck class="stat-icon" />
           </div>
-          <p class="stat-value">{{ assignedCount }}</p>
+          <p class="stat-value text-center">{{ assignedCount }}</p>
         </div>
 
         <div class="stat-card">
@@ -51,7 +75,7 @@
             <h3>TOTAL REPORT</h3>
             <ClipboardList class="stat-icon" />
           </div>
-          <p class="stat-value">{{ totalReportsCount }}</p>
+          <p class="stat-value text-center">{{ totalReportsCount }}</p>
         </div>
 
         <div class="stat-card">
@@ -59,7 +83,7 @@
             <h3>SYSTEM STATUS</h3>
             <Wifi class="stat-icon" />
           </div>
-          <p class="stat-value">ACTIVE</p>
+          <p class="stat-value text-center">ACTIVE</p>
         </div>
       </section>
 
@@ -160,33 +184,112 @@
       </section>
     </main>
 
-    <!-- MANUAL ENTRY MODAL: semi-glass -->
-    <div v-if="showManualModal" class="modal-overlay">
-      <div class="modal-content glass-card">
-        <h3>New Customer Report</h3>
-        <select v-model="manualReport.barangay_id" class="input-field">
-          <option :value="null" disabled>Select Barangay</option>
-          <option v-for="b in barangays" :key="b.id" :value="b.id">{{ b.name }}</option>
-        </select>
-        <input v-model="manualReport.purok" placeholder="Purok/Sitio" class="input-field" />
-        <select v-model="manualReport.type_id" class="input-field">
-          <option :value="null" disabled>Select Issue Type</option>
-          <option v-for="t in reportTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
-        </select>
-        <textarea
-          v-model="manualReport.description"
-          placeholder="Description of incident"
-          class="input-field"
-        ></textarea>
+    <!-- MANUAL REPORT MODAL -->
+    <div v-if="showManualModal" class="modal-overlay" @click.self="closeManualModal">
+      <div class="manual-report-card">
+        <div class="modal-top-icon">
+          <FilePlus class="header-file-icon" />
+        </div>
+        <h2>MANUAL REPORT</h2>
 
-        <div class="modal-actions">
-          <button @click="submitManualReport" class="assign-btn">SUBMIT REPORT</button>
-          <button @click="showManualModal = false" class="cancel-btn">CANCEL</button>
+        <div class="manual-form">
+          <!-- SELECT BARANGAY CUSTOM DROPDOWN -->
+          <div class="custom-dropdown-container">
+            <div class="dropdown-trigger-btn" @click="toggleBarangayDropdown">
+              <span>{{
+                selectedBarangayObj ? selectedBarangayObj.name.toUpperCase() : 'SELECT BARANGAY'
+              }}</span>
+              <ChevronDown class="dropdown-chevron" />
+            </div>
+
+            <div v-if="isBarangayDropdownOpen" class="dropdown-popover">
+              <div class="popover-search-box">
+                <input
+                  v-model="barangaySearchQuery"
+                  type="text"
+                  class="search-input"
+                  placeholder=""
+                />
+                <Search class="search-input-icon" />
+              </div>
+
+              <div class="popover-scroll-list">
+                <template v-for="(bList, muniName) in groupedBarangays" :key="muniName">
+                  <div class="group-header-label">{{ muniName }}</div>
+                  <div
+                    v-for="b in bList"
+                    :key="b.id"
+                    class="group-option-box"
+                    @click="selectBarangay(b)"
+                  >
+                    {{ b.name }}
+                  </div>
+                </template>
+                <div v-if="Object.keys(groupedBarangays).length === 0" class="no-result-text">
+                  No barangays found
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PUROK INPUT -->
+          <div class="form-input-box">
+            <input v-model="manualReport.purok" placeholder="PUROK" class="manual-styled-input" />
+          </div>
+
+          <!-- SELECT ISSUE TYPE CUSTOM DROPDOWN -->
+          <div class="custom-dropdown-container">
+            <div class="dropdown-trigger-btn" @click="toggleTypeDropdown">
+              <span>{{
+                selectedTypeObj ? selectedTypeObj.name.toUpperCase() : 'SELECT ISSUE TYPE'
+              }}</span>
+              <ChevronDown class="dropdown-chevron" />
+            </div>
+
+            <div v-if="isTypeDropdownOpen" class="dropdown-popover">
+              <div class="popover-search-box">
+                <input v-model="typeSearchQuery" type="text" class="search-input" placeholder="" />
+                <Search class="search-input-icon" />
+              </div>
+
+              <div class="popover-scroll-list">
+                <template v-for="(tList, prioLevel) in groupedReportTypes" :key="prioLevel">
+                  <div class="group-header-label">{{ prioLevel }}</div>
+                  <div
+                    v-for="t in tList"
+                    :key="t.id"
+                    class="group-option-box"
+                    @click="selectReportType(t)"
+                  >
+                    {{ t.name }}
+                  </div>
+                </template>
+                <div v-if="Object.keys(groupedReportTypes).length === 0" class="no-result-text">
+                  No issue types found
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DESCRIPTION TEXTAREA -->
+          <div class="form-input-box">
+            <textarea
+              v-model="manualReport.description"
+              placeholder="DESCRIPTION OF INCIDENT"
+              class="manual-styled-textarea"
+            ></textarea>
+          </div>
+
+          <!-- ACTION BUTTONS -->
+          <div class="manual-modal-actions">
+            <button @click="closeManualModal" class="btn-grey-cancel">CANCEL</button>
+            <button @click="submitManualReport" class="btn-navy-submit">SUBMIT REPORT</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- DISPATCH MODAL: semi-glass -->
+    <!-- DISPATCH MODAL -->
     <div v-if="showAssignModal" class="modal-overlay">
       <div class="modal-content glass-card">
         <h3 style="margin-bottom: 10px">
@@ -216,13 +319,39 @@ import { sendNotification } from '@/utils/notifications.js'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 
-import { ActivitySquare, UserCheck, ClipboardList, Wifi, UserPlus } from 'lucide-vue-next'
+import {
+  ActivitySquare,
+  UserCheck,
+  ClipboardList,
+  Wifi,
+  UserPlus,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  ShieldAlert,
+  FilePlus,
+  ChevronDown,
+  Search,
+} from 'lucide-vue-next'
 
 const pendingReports = ref([])
 const reportTypes = ref([])
 const barangays = ref([])
 const showManualModal = ref(false)
-const manualReport = ref({ type_id: null, barangay_id: null, purok: '', description: '' })
+const manualReport = ref({
+  type_id: null,
+  barangay_id: null,
+  purok: '',
+  description: '',
+  municipality_id: null,
+})
+
+const isBarangayDropdownOpen = ref(false)
+const isTypeDropdownOpen = ref(false)
+const barangaySearchQuery = ref('')
+const typeSearchQuery = ref('')
+const selectedBarangayObj = ref(null)
+const selectedTypeObj = ref(null)
 
 const showAssignModal = ref(false)
 const selectedReport = ref(null)
@@ -233,6 +362,117 @@ const isWorkingHoursModal = ref(false)
 const assignedCount = ref(0)
 const totalReportsCount = ref(0)
 const onlineLinemenCount = ref(0)
+
+const criticalCount = computed(
+  () =>
+    pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'Critical')
+      .length,
+)
+
+const highCount = computed(
+  () =>
+    pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'High')
+      .length,
+)
+
+const normalCount = computed(
+  () =>
+    pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'Normal')
+      .length,
+)
+
+const lowCount = computed(
+  () =>
+    pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'Low')
+      .length,
+)
+
+const groupedBarangays = computed(() => {
+  const query = barangaySearchQuery.value.toLowerCase().trim()
+  const map = {}
+
+  barangays.value.forEach((b) => {
+    const muniName = (b.municipalities?.name || 'MUNICIPALITY').toUpperCase()
+    const matchesQuery =
+      !query || b.name.toLowerCase().includes(query) || muniName.toLowerCase().includes(query)
+
+    if (matchesQuery) {
+      if (!map[muniName]) map[muniName] = []
+      map[muniName].push(b)
+    }
+  })
+
+  return map
+})
+
+const groupedReportTypes = computed(() => {
+  const query = typeSearchQuery.value.toLowerCase().trim()
+  const map = {}
+  const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW']
+
+  reportTypes.value.forEach((t) => {
+    const prio = (t.priority_level || 'NORMAL').toUpperCase()
+    const matchesQuery =
+      !query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)
+
+    if (matchesQuery) {
+      if (!map[prio]) map[prio] = []
+      map[prio].push(t)
+    }
+  })
+
+  const sortedMap = {}
+  priorityOrder.forEach((p) => {
+    if (map[p] && map[p].length > 0) {
+      sortedMap[p] = map[p]
+    }
+  })
+
+  Object.keys(map).forEach((p) => {
+    if (!sortedMap[p] && map[p].length > 0) {
+      sortedMap[p] = map[p]
+    }
+  })
+
+  return sortedMap
+})
+
+const toggleBarangayDropdown = () => {
+  isBarangayDropdownOpen.value = !isBarangayDropdownOpen.value
+  if (isBarangayDropdownOpen.value) isTypeDropdownOpen.value = false
+}
+
+const toggleTypeDropdown = () => {
+  isTypeDropdownOpen.value = !isTypeDropdownOpen.value
+  if (isTypeDropdownOpen.value) isBarangayDropdownOpen.value = false
+}
+
+const selectBarangay = (b) => {
+  manualReport.value.barangay_id = b.id
+  manualReport.value.municipality_id = b.municipality_id
+  selectedBarangayObj.value = b
+  isBarangayDropdownOpen.value = false
+  barangaySearchQuery.value = ''
+}
+
+const selectReportType = (t) => {
+  manualReport.value.type_id = t.id
+  selectedTypeObj.value = t
+  isTypeDropdownOpen.value = false
+  typeSearchQuery.value = ''
+}
+
+const openManualModal = () => {
+  showManualModal.value = true
+}
+
+const closeManualModal = () => {
+  showManualModal.value = false
+  isBarangayDropdownOpen.value = false
+  isTypeDropdownOpen.value = false
+  barangaySearchQuery.value = ''
+  typeSearchQuery.value = ''
+}
 
 const activeReports = computed(() => {
   const priorityRank = { Critical: 1, High: 2, Normal: 3, Low: 4 }
@@ -324,8 +564,22 @@ const fetchAll = async () => {
 
   const { data: types } = await supabase.from('report_types').select('*')
   reportTypes.value = types || []
-  const { data: brgys } = await supabase.from('barangays').select('*')
-  barangays.value = brgys || []
+
+  // FIX: Fetch barangays and municipalities separately and map them client-side to avoid embedding 400 errors
+  const { data: brgys } = await supabase.from('barangays').select('id, name, municipality_id')
+  const { data: munis } = await supabase.from('municipalities').select('id, name')
+
+  const muniMap = {}
+  if (munis) {
+    munis.forEach((m) => {
+      muniMap[m.id] = m.name
+    })
+  }
+
+  barangays.value = (brgys || []).map((b) => ({
+    ...b,
+    municipalities: { name: muniMap[b.municipality_id] || 'N/A' },
+  }))
 
   const { count: aCount } = await supabase
     .from('assignments')
@@ -340,6 +594,11 @@ const fetchAll = async () => {
 }
 
 const submitManualReport = async () => {
+  if (!manualReport.value.barangay_id || !manualReport.value.type_id) {
+    alert('Please select both Barangay and Issue Type.')
+    return
+  }
+
   const { error } = await supabase.from('reports').insert([
     {
       description: manualReport.value.description || 'EMPTY',
@@ -350,18 +609,28 @@ const submitManualReport = async () => {
       latitude: 0.0,
       longitude: 0.0,
       status_id: 2,
-      municipality_id: 1,
+      municipality_id: manualReport.value.municipality_id || 1,
     },
   ])
-  if (error) alert('Error: ' + error.message)
-  else {
+
+  if (error) {
+    alert('Error: ' + error.message)
+  } else {
     alert('Report Added!')
     await sendNotification(
       'New Report Received',
-      `A new report has been added for barangay ${manualReport.value.barangay_id}.`,
+      `A new report has been added for barangay ${selectedBarangayObj.value?.name || manualReport.value.barangay_id}.`,
     )
-    showManualModal.value = false
-    manualReport.value = { type_id: null, barangay_id: null, purok: '', description: '' }
+    closeManualModal()
+    manualReport.value = {
+      type_id: null,
+      barangay_id: null,
+      purok: '',
+      description: '',
+      municipality_id: null,
+    }
+    selectedBarangayObj.value = null
+    selectedTypeObj.value = null
     fetchAll()
   }
 }
@@ -465,7 +734,6 @@ onMounted(fetchAll)
   padding: 24px 30px 40px;
 }
 
-/* Exact banner size & bannerdashboard.jpg background matching the reference */
 .hero-section {
   position: relative;
   background: url('@/assets/Background/bannerdashboard.jpg') no-repeat center center;
@@ -541,44 +809,35 @@ onMounted(fetchAll)
   color: #1f3056 !important;
 }
 
-/* Metrics and Status Cards Grid matching exact 5-column layout */
 .metrics-container.stats-grid {
   display: grid;
-  grid-template-columns: 1.5fr repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
 
-/* Dark Queue Status Card Style */
-.stat-card.status-box-dark {
-  background: #1f3056 !important;
-  color: #ffffff !important;
-  padding: 20px;
-  border-radius: 16px;
-  border: 1px solid #334155;
-  box-shadow: 0 4px 12px rgba(31, 48, 86, 0.2);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+.priority-grid-cluster {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
 }
 
-.stat-card.status-box-dark h3,
-.stat-card.status-box-dark .status-desc {
-  color: #ffffff !important;
+.priority-card-critical {
+  background: #f87171 !important;
+  border-color: #ef4444 !important;
 }
-
-.stat-card.status-box-dark h3 {
-  margin: 0 0 8px 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+.priority-card-high {
+  background: #fef08a !important;
+  border-color: #fde047 !important;
 }
-
-.status-desc {
-  margin: 0;
-  font-size: 0.72rem;
-  line-height: 1.4;
-  color: #cbd5e1 !important;
+.priority-card-normal {
+  background: #93c5fd !important;
+  border-color: #60a5fa !important;
+}
+.priority-card-low {
+  background: #cbd5e1 !important;
+  border-color: #94a3b8 !important;
 }
 
 .stat-card {
@@ -617,6 +876,10 @@ onMounted(fetchAll)
   font-size: 1.8rem;
   font-weight: 700;
   color: #0f172a !important;
+}
+
+.text-center {
+  text-align: center;
 }
 
 .queue-panel {
@@ -733,11 +996,237 @@ onMounted(fetchAll)
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+}
+
+.manual-report-card {
+  width: min(460px, 92vw);
+  background: #dce6f2;
+  border-radius: 24px;
+  padding: 28px 24px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid #3b42a4;
+}
+
+.modal-top-icon {
+  margin-bottom: 4px;
+}
+
+.header-file-icon {
+  width: 28px;
+  height: 28px;
+  color: #283593 !important;
+}
+
+.manual-report-card h2 {
+  margin: 0 0 18px 0;
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #283593 !important;
+  letter-spacing: 0.04em;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.manual-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.custom-dropdown-container {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown-trigger-btn {
+  width: 100%;
+  background: #ffffff;
+  border: 1.5px solid #283593;
+  border-radius: 12px;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.dropdown-trigger-btn span {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #283593 !important;
+  letter-spacing: 0.05em;
+}
+
+.dropdown-chevron {
+  width: 18px;
+  height: 18px;
+  color: #283593 !important;
+}
+
+.dropdown-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #dce6f2;
+  border: 1.5px solid #283593;
+  border-radius: 14px;
+  padding: 10px;
+  z-index: 1050;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.popover-search-box {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.search-input {
+  width: 100%;
+  background: #ffffff;
+  border: 1.5px solid #283593;
+  border-radius: 10px;
+  padding: 8px 36px 8px 12px;
+  font-size: 0.85rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.search-input-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: #283593 !important;
+}
+
+.popover-scroll-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.group-header-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #283593 !important;
+  text-transform: uppercase;
+  margin: 6px 0 2px 2px;
+  letter-spacing: 0.05em;
+}
+
+.group-option-box {
+  background: #ffffff;
+  border: 1px solid #283593;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #1e293b !important;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.group-option-box:hover {
+  background: #f1f5f9;
+}
+
+.no-result-text {
+  font-size: 0.8rem;
+  color: #64748b !important;
+  padding: 8px;
+  text-align: center;
+}
+
+.form-input-box {
+  width: 100%;
+}
+
+.manual-styled-input {
+  width: 100%;
+  background: #ffffff;
+  border: 1.5px solid #283593;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #283593 !important;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.manual-styled-input::placeholder {
+  color: #283593 !important;
+  opacity: 0.8;
+  letter-spacing: 0.05em;
+}
+
+.manual-styled-textarea {
+  width: 100%;
+  background: #ffffff;
+  border: 1.5px solid #283593;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #283593 !important;
+  outline: none;
+  min-height: 110px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.manual-styled-textarea::placeholder {
+  color: #283593 !important;
+  opacity: 0.8;
+  letter-spacing: 0.05em;
+}
+
+.manual-modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.btn-grey-cancel {
+  flex: 1;
+  background: #a3a3a3 !important;
+  color: #ffffff !important;
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+}
+
+.btn-navy-submit {
+  flex: 2;
+  background: #283593 !important;
+  color: #ffffff !important;
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.05em;
 }
 
 .glass-card {
@@ -759,22 +1248,6 @@ onMounted(fetchAll)
   margin: 0 0 12px;
   font-size: 1.15rem;
   color: #1f3056 !important;
-}
-
-.input-field {
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  font-size: 0.9rem;
-  outline: none;
-  background: #ffffff;
-}
-
-textarea.input-field {
-  border-radius: 8px;
-  min-height: 80px;
 }
 
 .modal-actions {

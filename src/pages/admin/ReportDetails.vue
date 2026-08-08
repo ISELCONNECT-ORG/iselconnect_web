@@ -256,7 +256,7 @@ const fetchReportDetails = async () => {
     return
   }
 
-  // Fetch Report Data
+  // Fetch Report Data[cite: 5]
   const { data, error } = await supabase.from('reports').select('*').eq('id', reportId).single()
 
   if (error) {
@@ -269,7 +269,7 @@ const fetchReportDetails = async () => {
     await fetchResolvedPhoto(data.resolved_photo_url)
   }
 
-  // Fetch Assignment Data
+  // Fetch Assignment Data[cite: 5]
   const { data: assignData, error: assignError } = await supabase
     .from('assignments')
     .select('*')
@@ -285,7 +285,7 @@ const fetchReportDetails = async () => {
   initLiveMap()
 }
 
-// Initialize LocationIQ Live Map and Fetch Road Directions
+// Initialize LocationIQ Live Map and Fetch Road Directions[cite: 5]
 const initLiveMap = async () => {
   const mapElement = document.getElementById('liveTrackingMap')
   if (!mapElement || mapInstance || !report.value) return
@@ -295,7 +295,7 @@ const initLiveMap = async () => {
 
   mapInstance = L.map('liveTrackingMap').setView([reportLat, reportLon], 14)
 
-  // LocationIQ Tile Layer
+  // LocationIQ Tile Layer[cite: 5]
   L.tileLayer(
     `https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_TOKEN}`,
     {
@@ -304,7 +304,7 @@ const initLiveMap = async () => {
     },
   ).addTo(mapInstance)
 
-  // Issue Location Marker
+  // Issue Location Marker[cite: 5]
   const issueIcon = L.divIcon({
     className: 'custom-issue-marker',
     html: '<div style="background:#1e1b4b;width:16px;height:16px;border-radius:50%;border:2px solid #fbbf24;box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>',
@@ -314,7 +314,7 @@ const initLiveMap = async () => {
     .addTo(mapInstance)
     .bindPopup('<b>Issue Location</b><br>' + (report.value.landmark || 'Outage Spot'))
 
-  // Lineman Live Position Marker & Directions Routing API
+  // Lineman Live Position Marker & Directions Routing API[cite: 5]
   if (assignment.value?.current_lat && assignment.value?.current_lon) {
     const linemanLat = assignment.value.current_lat
     const linemanLon = assignment.value.current_lon
@@ -328,7 +328,7 @@ const initLiveMap = async () => {
       .addTo(mapInstance)
       .bindPopup('<b>Lineman Current Location</b>')
 
-    // Fetch road-snapped geometry from LocationIQ Directions API
+    // Fetch road-snapped geometry from LocationIQ Directions API[cite: 5]
     try {
       const response = await fetch(
         `https://us1.locationiq.com/v1/directions/driving/${linemanLon},${linemanLat};${reportLon},${reportLat}?key=${LOCATIONIQ_TOKEN}&geometries=geojson`,
@@ -371,7 +371,7 @@ const initLiveMap = async () => {
   }
 }
 
-// Compute lifecycle milestones
+// Compute lifecycle milestones[cite: 5]
 const lifecycleMilestones = computed(() => {
   const rep = report.value
   const assign = assignment.value
@@ -576,40 +576,257 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.dashboard-root {
+  display: flex;
+  min-height: 100vh;
+  background: #f1f5f9;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Inter',
+    sans-serif;
+  color: #0f172a;
+}
+
+.content {
+  flex-grow: 1;
+  padding: 24px 30px 40px;
+  overflow-x: hidden;
+}
+
+.header-nav {
+  margin-bottom: 16px;
+}
+
+.back-link {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.hero-section {
+  background:
+    linear-gradient(135deg, rgba(31, 48, 86, 0.9) 0%, rgba(23, 37, 84, 0.95) 100%),
+    url('@/assets/Background/bannerdashboard.jpg') no-repeat center center;
+  background-size: cover;
+  padding: 30px 36px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(31, 48, 86, 0.2);
+  border: 1px solid #cbd5e1;
+  margin-bottom: 24px;
+}
+
+.hero-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hero-text h1 {
+  margin: 0 0 6px;
+  font-size: 1.8rem;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.hero-text p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #e2e8f0;
+}
+
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.badge-pending {
+  background: #fef08a;
+  color: #854d0e;
+}
+.badge-dispatched {
+  background: #bae6fd;
+  color: #0369a1;
+}
+.badge-resolved {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.state-card {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 16px;
+  text-align: center;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-weight: 600;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+}
+
+.main-info-column,
+.side-info-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #cbd5e1;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 12px;
+}
+
+.card-header-row h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1f3056;
+  font-weight: 700;
+}
+
+.card-subtitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.form-field {
+  margin-bottom: 14px;
+}
+
+.form-field label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.form-value {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.form-value-long {
+  min-height: 70px;
+  white-space: pre-wrap;
+}
+
 .map-container {
   width: 100%;
   height: 340px;
   border-radius: 8px;
   z-index: 1;
 }
+
 .map-legend {
   display: flex;
   gap: 20px;
-  margin-top: 10px;
+  margin-top: 12px;
   font-size: 0.85rem;
   font-weight: 500;
   color: #475569;
   align-items: center;
   justify-content: center;
 }
+
 .legend-item {
   display: flex;
   align-items: center;
   gap: 6px;
 }
+
 .dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
   display: inline-block;
 }
+
 .issue-dot {
   background: #1e1b4b;
   border: 2px solid #fbbf24;
 }
+
 .lineman-dot {
   background: #10b981;
   border: 2px solid #fff;
+}
+
+.evidence-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.evidence-item {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  background: #f8fafc;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.evidence-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s;
+}
+
+.evidence-img:hover {
+  transform: scale(1.05);
+}
+
+.evidence-preview-box {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+}
+
+.no-evidence-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .validate-btn {
@@ -622,9 +839,11 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
 }
+
 .validate-btn:hover {
   background: #059669;
 }
+
 .verified-badge {
   display: block;
   text-align: center;
@@ -643,23 +862,27 @@ onMounted(() => {
   padding-left: 10px;
   margin-top: 10px;
 }
+
 .timeline-item {
   display: flex;
   gap: 16px;
   position: relative;
   padding-bottom: 24px;
 }
+
 .timeline-left {
   width: 85px;
   text-align: right;
   display: flex;
   flex-direction: column;
 }
+
 .timeline-date {
   font-size: 0.8rem;
   font-weight: 600;
   color: #1e293b;
 }
+
 .timeline-time {
   font-size: 0.75rem;
   color: #64748b;
@@ -671,6 +894,7 @@ onMounted(() => {
   align-items: center;
   position: relative;
 }
+
 .node-dot {
   width: 12px;
   height: 12px;
@@ -680,14 +904,17 @@ onMounted(() => {
   box-shadow: 0 0 0 2px #cbd5e1;
   z-index: 2;
 }
+
 .node-dot.completed {
   background: #10b981;
   box-shadow: 0 0 0 2px #d1fae5;
 }
+
 .node-dot.active {
   background: #2563eb;
   box-shadow: 0 0 0 3px #bfdbfe;
 }
+
 .node-line {
   width: 2px;
   background: #e2e8f0;
@@ -696,6 +923,7 @@ onMounted(() => {
   top: 12px;
   bottom: -24px;
 }
+
 .node-line.line-active {
   background: #10b981;
 }
@@ -703,15 +931,18 @@ onMounted(() => {
 .timeline-right {
   flex-grow: 1;
 }
+
 .timeline-title {
   margin: 0 0 4px 0;
   font-size: 0.95rem;
   color: #0f172a;
   font-weight: 600;
 }
+
 .timeline-title.text-muted {
   color: #94a3b8;
 }
+
 .timeline-location {
   margin: 0;
   font-size: 0.85rem;
