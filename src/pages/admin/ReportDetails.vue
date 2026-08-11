@@ -3,31 +3,25 @@
     <Sidebar />
 
     <main class="content">
-      <!-- Back link -->
-      <div class="header-nav">
-        <router-link to="/admin/incident" class="back-link">
-          &larr; Back to Incident Queue
-        </router-link>
+      <!-- Top Hero Banner -->
+      <div class="hero-section">
+        <div class="hero-top-row">
+          <router-link to="/admin/incident" class="back-pill-btn">
+            &larr; BACK TO INCIDENT QUEUE
+          </router-link>
+        </div>
+        <div class="hero-content-row">
+          <div class="hero-texts">
+            <h1>REPORT DETAILS</h1>
+            <p>Comprehensive view and live LocationIQ road-snapped route tracking</p>
+          </div>
+          <div class="hero-actions-right">
+            <span class="hero-status-pill">{{ getStatusName(report?.status_id) }}</span>
+          </div>
+        </div>
       </div>
 
-      <!-- Hero/title bar -->
-      <header class="hero-section">
-        <div class="hero-header-content">
-          <div class="hero-text">
-            <h1>Report Details & Live Tracking</h1>
-            <p>
-              Comprehensive view and live LocationIQ road-snapped route tracking for ticket #{{
-                report?.id || '---'
-              }}.
-            </p>
-          </div>
-          <span v-if="report" class="status-badge" :class="getStatusClass(report?.status_id)">
-            {{ getStatusName(report?.status_id) }}
-          </span>
-        </div>
-      </header>
-
-      <!-- Loading / empty -->
+      <!-- Loading / empty states -->
       <div v-if="loading" class="state-card">
         <p>Loading report details...</p>
       </div>
@@ -36,186 +30,168 @@
         <p>Report not found or invalid ID.</p>
       </div>
 
-      <!-- Main details -->
-      <div v-else class="details-grid">
-        <!-- LEFT COLUMN: incident + live tracking map -->
-        <div class="main-info-column">
-          <section class="card incident-card">
-            <div class="card-header-row">
-              <h2>Incident Information</h2>
-              <span class="card-subtitle">
-                {{ getReportTypeName(report.report_type_id) }}
-              </span>
-            </div>
+      <!-- Main Layout: 3 Explicit Rows for Perfect Height Matching -->
+      <div v-else class="page-rows-container">
+        <!-- ROW 1: Report Details (Left) | Personal Info (Right) -->
+        <div class="grid-row">
+          <section class="card-box flex-col">
+            <h2 class="section-title">REPORT DETAILS</h2>
 
-            <!-- Boxed fields -->
-            <div class="form-field">
-              <label>Issue Type</label>
-              <div class="form-value">
-                {{ getReportTypeName(report.report_type_id) }}
+            <div class="form-row-2">
+              <div class="field-group">
+                <label>ISSUE TYPE</label>
+                <div class="field-value">{{ getReportTypeName(report.report_type_id) }}</div>
+              </div>
+              <div class="field-group">
+                <label>DATE</label>
+                <div class="field-value">{{ formatDateOnly(report.created_at) }}</div>
               </div>
             </div>
 
-            <div class="form-field">
-              <label>Municipality / City</label>
-              <div class="form-value">
-                {{ getMunicipalityName(report.municipality_id) }}
+            <div class="form-row-2">
+              <div class="field-group">
+                <label>MUNICIPALITY</label>
+                <div class="field-value">{{ getMunicipalityName(report.municipality_id) }}</div>
+              </div>
+              <div class="field-group">
+                <label>TIME</label>
+                <div class="field-value">{{ formatTimeOnly(report.created_at) }}</div>
               </div>
             </div>
 
-            <div class="form-field">
-              <label>Date & Time Reported</label>
-              <div class="form-value">
-                {{ formatDateTime(report.created_at) }}
+            <div class="form-row-split">
+              <div class="field-group">
+                <label>BARANGAY</label>
+                <div class="field-value">{{ getBarangayName(report.barangay_id) }}</div>
+              </div>
+              <div class="field-group flex-grow-desc">
+                <label>DESCRIPTION</label>
+                <div class="field-value desc-value">{{ report.description || 'N/A' }}</div>
               </div>
             </div>
 
-            <div class="form-field">
-              <label>Barangay</label>
-              <div class="form-value">
-                {{ getBarangayName(report.barangay_id) }}
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label>Primary Landmark / Purok</label>
-              <div class="form-value">
+            <div class="field-group" style="margin-top: 10px">
+              <label>LANDMARK</label>
+              <div class="field-value">
                 {{ report.landmark || 'N/A' }} (Purok: {{ report.purok_sitio || 'N/A' }})
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label>Technical Description</label>
-              <div class="form-value form-value-long">
-                {{ report.description || 'No additional details provided.' }}
               </div>
             </div>
           </section>
 
-          <!-- Live Tracking Map Section -->
-          <section class="card map-card-section">
-            <div class="card-header-row">
-              <h2>Live Location Map</h2>
-              <span class="card-subtitle">LocationIQ Road-Snapped Routing</span>
+          <section class="card-box consumer-dark-card flex-col">
+            <h2 class="section-title white-title center-title">PERSONAL INFORMATION</h2>
+            <div class="divider-line"></div>
+            <div class="consumer-block flex-grow-block">
+              <label class="center-label">FULL NAME</label>
+              <div class="consumer-name-box">{{ report.customer_name || 'JOHN LLOYD BINUYA' }}</div>
             </div>
-            <div id="liveTrackingMap" class="map-container"></div>
-            <div class="map-legend">
-              <span class="legend-item"><span class="dot issue-dot"></span> Issue Location</span>
-              <span class="legend-item"
-                ><span class="dot lineman-dot"></span> Lineman Position</span
-              >
+            <div class="consumer-block flex-grow-block">
+              <label class="center-label">CONTACT NUMBER</label>
+              <div class="consumer-name-box">0917-888-1234</div>
             </div>
           </section>
         </div>
 
-        <!-- RIGHT COLUMN: consumer + evidence + resolved photo + lifecycle timeline -->
-        <div class="side-info-column">
-          <section class="card consumer-card">
-            <div class="card-header-row">
-              <h2>Consumer Information</h2>
-            </div>
-
-            <div class="form-field">
-              <label>Full Name</label>
-              <div class="form-value">
-                {{ report.customer_name || 'John Lloyd Binuya' }}
+        <!-- ROW 2: Evidence (Left) | Remarks & Button (Right) -->
+        <div class="grid-row">
+          <div class="evidence-split">
+            <section class="card-box evidence-card-box">
+              <h2 class="section-title center-title">INCIDENT EVIDENCE</h2>
+              <div class="image-wrapper">
+                <div
+                  v-if="evidenceUrls.length > 0"
+                  class="image-container"
+                  @click="openImage(evidenceUrls[0])"
+                >
+                  <img :src="evidenceUrls[0]" alt="Incident Evidence" class="actual-img" />
+                </div>
+                <div v-else class="image-container placeholder-container">
+                  <span class="watermark-text">No Image Yet</span>
+                </div>
               </div>
-            </div>
+            </section>
 
-            <div class="form-field">
-              <label>Contact Number</label>
-              <div class="form-value">0917-888-1234</div>
-            </div>
-          </section>
-
-          <!-- Initial Evidence Gallery -->
-          <section class="card evidence-card">
-            <div class="card-header-row">
-              <h2>Incident Evidence</h2>
-            </div>
-            <div v-if="evidenceUrls.length > 0" class="evidence-gallery">
-              <div v-for="(url, index) in evidenceUrls" :key="index" class="evidence-item">
-                <img
-                  :src="url"
-                  alt="Report Evidence"
-                  class="evidence-img"
-                  @click="openImage(url)"
-                />
-              </div>
-            </div>
-            <div v-else class="evidence-preview-box">
-              <p class="no-evidence-text">No uploaded media attachments found.</p>
-            </div>
-          </section>
-
-          <!-- Resolved Evidence Gallery -->
-          <section class="card evidence-card">
-            <div class="card-header-row">
-              <h2>Resolved Evidence (Lineman Upload)</h2>
-            </div>
-            <div v-if="resolvedPhotoUrl" class="evidence-gallery">
-              <div class="evidence-item">
-                <img
-                  :src="resolvedPhotoUrl"
-                  alt="Resolved Evidence"
-                  class="evidence-img"
+            <section class="card-box evidence-card-box">
+              <h2 class="section-title center-title">RESOLVED EVIDENCE</h2>
+              <div class="image-wrapper">
+                <div
+                  v-if="resolvedPhotoUrl"
+                  class="image-container"
                   @click="openImage(resolvedPhotoUrl)"
-                />
+                >
+                  <img :src="resolvedPhotoUrl" alt="Resolved Evidence" class="actual-img" />
+                </div>
+                <div v-else class="image-container placeholder-container">
+                  <span class="watermark-text">No Resolved Image Yet</span>
+                </div>
               </div>
-            </div>
-            <div v-else class="evidence-preview-box">
-              <p class="no-evidence-text">No resolved photo uploaded by lineman yet.</p>
-            </div>
+            </section>
+          </div>
 
-            <!-- Admin Validation Action Button -->
-            <div
-              v-if="assignment && assignment.completion_at && !assignment.is_verified_by_admin"
-              style="margin-top: 15px"
+          <div class="remarks-split">
+            <section class="card-box remarks-card-box">
+              <h2 class="section-title center-title">REMARKS</h2>
+              <div class="remarks-container">
+                <p class="remarks-text">{{ report?.remarks || '' }}</p>
+              </div>
+            </section>
+
+            <button
+              v-if="(!assignment || !assignment.is_verified_by_admin) && report?.status_id !== 6"
+              :disabled="!resolvedPhotoUrl"
+              @click="validateResolution"
+              class="verify-report-bottom-btn"
+              :class="{ 'disabled-btn': !resolvedPhotoUrl }"
             >
-              <button @click="validateResolution" class="validate-btn">
-                Validate & Verify Resolution
-              </button>
+              VERIFY REPORT
+            </button>
+            <div v-else class="verify-report-bottom-btn verified-state">VERIFIED REPORT</div>
+          </div>
+        </div>
+
+        <!-- ROW 3: Map (Left) | Timeline (Right) -->
+        <div class="grid-row">
+          <section class="card-box map-card flex-col">
+            <h2 class="section-title">LIVE LOCATIN MAP</h2>
+            <div class="map-wrapper flex-grow-block">
+              <div id="liveTrackingMap" class="map-box"></div>
             </div>
-            <div v-else-if="assignment?.is_verified_by_admin" style="margin-top: 15px">
-              <span class="verified-badge">&#10003; Verified by Admin</span>
+            <div class="map-legend-row">
+              <span class="legend-pill"><span class="circle-dot issue-dot"></span></span>
+              <span class="legend-pill"><span class="circle-dot lineman-dot"></span></span>
             </div>
           </section>
 
-          <!-- Ticket Lifecycle Timeline Tracker -->
-          <section class="card timeline-card">
-            <div class="card-header-row">
-              <h2>Ticket Lifecycle Timeline</h2>
-              <span class="card-subtitle">Database Timestamp Tracker</span>
-            </div>
-
-            <div class="jnt-timeline">
-              <div
-                v-for="(milestone, index) in lifecycleMilestones"
-                :key="index"
-                class="timeline-item"
-              >
-                <div class="timeline-left">
-                  <span class="timeline-date">{{ milestone.date || 'Pending' }}</span>
-                  <span class="timeline-time">{{ milestone.time || '--:--' }}</span>
-                </div>
-
-                <div class="timeline-node">
-                  <div
-                    class="node-dot"
-                    :class="{ active: milestone.active, completed: milestone.done }"
-                  ></div>
-                  <div
-                    v-if="index !== lifecycleMilestones.length - 1"
-                    class="node-line"
-                    :class="{ 'line-active': milestone.done }"
-                  ></div>
-                </div>
-
-                <div class="timeline-right">
-                  <h4 class="timeline-title" :class="{ 'text-muted': !milestone.done }">
-                    {{ milestone.title }}
-                  </h4>
-                  <p class="timeline-location">{{ milestone.description }}</p>
+          <section class="timeline-outer-card">
+            <h2 class="timeline-main-title center-title">TIMELINE</h2>
+            <div class="timeline-inner-card">
+              <div class="timeline-tree">
+                <div
+                  v-for="(milestone, idx) in lifecycleMilestones"
+                  :key="idx"
+                  class="timeline-node-row"
+                >
+                  <div class="timeline-time-col">
+                    <span class="t-date">{{ milestone.date || 'PENDING' }}</span>
+                    <span class="t-time">{{ milestone.time || '--:--' }}</span>
+                  </div>
+                  <div class="timeline-center-col">
+                    <div
+                      class="node-bullet"
+                      :class="{ completed: milestone.done, active: milestone.active }"
+                    ></div>
+                    <div
+                      v-if="idx !== lifecycleMilestones.length - 1"
+                      class="node-connector"
+                      :class="{ 'connector-active': milestone.done }"
+                    ></div>
+                  </div>
+                  <div class="timeline-text-col">
+                    <h4 class="t-title" :class="{ 'text-muted': !milestone.done }">
+                      {{ milestone.title }}
+                    </h4>
+                    <p class="t-desc">{{ milestone.description }}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -227,12 +203,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import Sidebar from '@/components/Sidebar.vue'
 
-// Leaflet for LocationIQ map rendering
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 
@@ -245,9 +220,13 @@ const reportTypes = ref([])
 const evidenceUrls = ref([])
 const resolvedPhotoUrl = ref(null)
 
-// Access token from environment variable
 const LOCATIONIQ_TOKEN = import.meta.env.VITE_LOCATIONIQ_TOKEN
 let mapInstance = null
+let issueMarker = null
+let linemanMarker = null
+let routePolyline = null
+let refreshInterval = null
+let realtimeChannel = null
 
 const fetchReportDetails = async () => {
   const reportId = route.params.id
@@ -256,7 +235,6 @@ const fetchReportDetails = async () => {
     return
   }
 
-  // Fetch Report Data[cite: 5]
   const { data, error } = await supabase.from('reports').select('*').eq('id', reportId).single()
 
   if (error) {
@@ -266,184 +244,270 @@ const fetchReportDetails = async () => {
     const rawEvidence =
       data.evidence || data.image_url || data.photo_url || data.file_path || data.photo_path
     await fetchEvidenceFiles(rawEvidence)
-    await fetchResolvedPhoto(data.resolved_photo_url)
+
+    const resolvedPhotoPath =
+      data.resolved_photo_url || data.resolved_evidence || data.resolved_photo_path
+    await fetchResolvedPhoto(resolvedPhotoPath)
   }
 
-  // Fetch Assignment Data[cite: 5]
   const { data: assignData, error: assignError } = await supabase
     .from('assignments')
     .select('*')
     .eq('report_id', reportId)
+    .order('assigned_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
-  if (!assignError) {
+  if (!assignError && assignData) {
     assignment.value = assignData
+    if (!resolvedPhotoUrl.value) {
+      const assignPhotoPath =
+        assignData.resolved_photo_url || assignData.resolved_evidence || assignData.photo_url
+      if (assignPhotoPath) {
+        await fetchResolvedPhoto(assignPhotoPath)
+      }
+    }
   }
 
   loading.value = false
   await nextTick()
   initLiveMap()
+  setupRealtimeTracking()
 }
 
-// Initialize LocationIQ Live Map and Fetch Road Directions[cite: 5]
-const initLiveMap = async () => {
-  const mapElement = document.getElementById('liveTrackingMap')
-  if (!mapElement || mapInstance || !report.value) return
+const refreshLinemanLocation = async () => {
+  if (!report.value) return
+  const reportId = route.params.id
+  if (!reportId) return
 
-  const reportLat = report.value.latitude || 16.7328
-  const reportLon = report.value.longitude || 121.7161
+  const { data: assignData, error: assignError } = await supabase
+    .from('assignments')
+    .select('*')
+    .eq('report_id', reportId)
+    .order('assigned_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
-  mapInstance = L.map('liveTrackingMap').setView([reportLat, reportLon], 14)
+  if (!assignError && assignData && mapInstance) {
+    assignment.value = assignData
 
-  // LocationIQ Tile Layer[cite: 5]
-  L.tileLayer(
-    `https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_TOKEN}`,
-    {
-      maxZoom: 18,
-      attribution: '&copy; LocationIQ & OpenStreetMap',
-    },
-  ).addTo(mapInstance)
+    const reportLat = report.value.latitude ? parseFloat(report.value.latitude) : 16.716173
+    const reportLon = report.value.longitude ? parseFloat(report.value.longitude) : 121.678825
 
-  // Issue Location Marker[cite: 5]
-  const issueIcon = L.divIcon({
-    className: 'custom-issue-marker',
-    html: '<div style="background:#1e1b4b;width:16px;height:16px;border-radius:50%;border:2px solid #fbbf24;box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>',
-    iconSize: [16, 16],
-  })
-  L.marker([reportLat, reportLon], { icon: issueIcon })
-    .addTo(mapInstance)
-    .bindPopup('<b>Issue Location</b><br>' + (report.value.landmark || 'Outage Spot'))
+    const linemanLat =
+      assignData.current_lat !== null && assignData.current_lat !== undefined
+        ? parseFloat(assignData.current_lat)
+        : reportLat
 
-  // Lineman Live Position Marker & Directions Routing API[cite: 5]
-  if (assignment.value?.current_lat && assignment.value?.current_lon) {
-    const linemanLat = assignment.value.current_lat
-    const linemanLon = assignment.value.current_lon
+    const linemanLon =
+      assignData.current_lon !== null && assignData.current_lon !== undefined
+        ? parseFloat(assignData.current_lon)
+        : reportLon
 
-    const linemanIcon = L.divIcon({
-      className: 'custom-lineman-marker',
-      html: '<div style="background:#10b981;width:16px;height:16px;border-radius:50%;border:2px solid #ffffff;box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>',
-      iconSize: [16, 16],
-    })
-    L.marker([linemanLat, linemanLon], { icon: linemanIcon })
-      .addTo(mapInstance)
-      .bindPopup('<b>Lineman Current Location</b>')
+    if (issueMarker) {
+      issueMarker.setLatLng([reportLat, reportLon])
+    }
 
-    // Fetch road-snapped geometry from LocationIQ Directions API[cite: 5]
+    if (linemanMarker) {
+      linemanMarker.setLatLng([linemanLat, linemanLon])
+    } else {
+      const linemanIcon = L.divIcon({
+        className: 'custom-lineman-marker',
+        html: `<div style="background:#2e3192;width:20px;height:20px;border-radius:50%;border:2px solid #ffffff;box-shadow:0 0 8px rgba(0,0,0,0.4);"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      })
+      linemanMarker = L.marker([linemanLat, linemanLon], {
+        icon: linemanIcon,
+        zIndexOffset: 1000,
+      })
+        .addTo(mapInstance)
+        .bindPopup('<b>Lineman Current Location</b>')
+    }
+
     try {
+      if (linemanLat === reportLat && linemanLon === reportLon) throw new Error('Same coordinates')
+
       const response = await fetch(
         `https://us1.locationiq.com/v1/directions/driving/${linemanLon},${linemanLat};${reportLon},${reportLat}?key=${LOCATIONIQ_TOKEN}&geometries=geojson`,
       )
       const data = await response.json()
-      if (data.routes && data.routes.length > 0) {
+      if (data.routes && data.routes[0]) {
         const routeCoords = data.routes[0].geometry.coordinates.map((c) => [c[1], c[0]])
-        L.polyline(routeCoords, {
-          color: '#3b82f6',
-          weight: 4,
-          opacity: 0.8,
-        }).addTo(mapInstance)
-      } else {
-        L.polyline(
-          [
-            [linemanLat, linemanLon],
-            [reportLat, reportLon],
-          ],
-          {
-            color: '#3b82f6',
-            weight: 4,
+        if (routePolyline) {
+          routePolyline.setLatLngs(routeCoords)
+        } else {
+          routePolyline = L.polyline(routeCoords, {
+            color: '#2e3192',
+            weight: 5,
             opacity: 0.8,
-          },
-        ).addTo(mapInstance)
-      }
-    } catch (err) {
-      console.error('Error fetching LocationIQ Directions:', err)
-      L.polyline(
-        [
+          }).addTo(mapInstance)
+        }
+      } else {
+        const fallbackCoords = [
           [linemanLat, linemanLon],
           [reportLat, reportLon],
-        ],
-        {
-          color: '#3b82f6',
-          weight: 4,
+        ]
+        if (routePolyline) {
+          routePolyline.setLatLngs(fallbackCoords)
+        } else {
+          routePolyline = L.polyline(fallbackCoords, {
+            color: '#2e3192',
+            weight: 5,
+            dashArray: '10, 10',
+            opacity: 0.8,
+          }).addTo(mapInstance)
+        }
+      }
+    } catch (err) {
+      const fallbackCoords = [
+        [linemanLat, linemanLon],
+        [reportLat, reportLon],
+      ]
+      if (routePolyline) {
+        routePolyline.setLatLngs(fallbackCoords)
+      } else {
+        routePolyline = L.polyline(fallbackCoords, {
+          color: '#2e3192',
+          weight: 5,
+          dashArray: '10, 10',
           opacity: 0.8,
-        },
-      ).addTo(mapInstance)
+        }).addTo(mapInstance)
+      }
     }
   }
 }
 
-// Compute lifecycle milestones[cite: 5]
+const setupRealtimeTracking = () => {
+  if (!assignment.value?.id) return
+  const assignmentId = assignment.value.id
+
+  realtimeChannel = supabase
+    .channel(`tracking_${assignmentId}_${Date.now()}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'assignments',
+        filter: `id=eq.${assignmentId}`,
+      },
+      (payload) => {
+        if (payload.new.current_lat !== undefined && payload.new.current_lon !== undefined) {
+          refreshLinemanLocation()
+        }
+      },
+    )
+    .subscribe()
+}
+
+const initLiveMap = async () => {
+  const mapElement = document.getElementById('liveTrackingMap')
+  if (!mapElement || !report.value) return
+
+  const reportLat = report.value.latitude ? parseFloat(report.value.latitude) : 16.716173
+  const reportLon = report.value.longitude ? parseFloat(report.value.longitude) : 121.678825
+
+  if (!mapInstance) {
+    mapInstance = L.map('liveTrackingMap', { zoomControl: false }).setView(
+      [reportLat, reportLon],
+      16,
+    )
+
+    L.tileLayer(
+      `https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_TOKEN}`,
+      {
+        maxZoom: 19,
+        attribution: '&copy; LocationIQ & OpenStreetMap',
+      },
+    ).addTo(mapInstance)
+
+    const issueIcon = L.divIcon({
+      className: 'custom-leaflet-marker',
+      html: `<div style="background-color: #fde047; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #1e1b4b; box-shadow: 0 4px 8px rgba(0,0,0,0.4);"></div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    })
+    issueMarker = L.marker([reportLat, reportLon], { icon: issueIcon })
+      .addTo(mapInstance)
+      .bindPopup('<b>Issue Location</b>')
+  }
+
+  await refreshLinemanLocation()
+}
+
 const lifecycleMilestones = computed(() => {
   const rep = report.value
   const assign = assignment.value
 
-  const isInProgressDone = !!assign?.inprogress_at || !!assign?.completion_at
-  const isAdminVerified =
+  const hasCreated = !!rep?.created_at
+  const hasReviewed = rep?.status_id > 1 || hasCreated
+  const hasAssigned = !!assign?.assigned_at || hasReviewed
+  const hasInProgress = !!assign?.inprogress_at || hasAssigned
+  const hasResolved = !!assign?.completion_at || !!resolvedPhotoUrl.value || rep?.status_id >= 4
+  const hasVerified =
     !!assign?.is_verified_by_admin || !!assign?.verified_at || rep?.status_id === 6
+
+  const fallbackTime = rep?.updated_at || rep?.created_at
 
   return [
     {
-      title: 'Report Created',
+      title: 'REPORT CREATED',
       description: 'Incident ticket initially submitted by resident.',
-      done: !!rep?.created_at,
-      active: !!rep?.created_at && !assign?.assigned_at,
+      done: hasCreated,
+      active: hasCreated && !hasAssigned,
       date: formatDate(rep?.created_at),
       time: formatTime(rep?.created_at),
     },
     {
-      title:
-        rep?.status_id === 3
-          ? 'Report Approved'
-          : rep?.status_id === 5
-            ? 'Report Rejected'
-            : 'Review Status',
-      description:
-        rep?.status_id > 1
-          ? 'Admin evaluated and processed the outage report.'
-          : 'Awaiting administrative action.',
-      done: rep?.status_id > 1,
-      active: rep?.status_id === 1,
-      date: rep?.status_id > 1 ? formatDate(rep?.updated_at) : null,
-      time: rep?.status_id > 1 ? formatTime(rep?.updated_at) : null,
+      title: 'REVIEW STATUS',
+      description: hasReviewed
+        ? 'Admin evaluated and processed the report.'
+        : 'Awaiting administrative action.',
+      done: hasReviewed,
+      active: hasCreated && !hasReviewed,
+      date: formatDate(rep?.updated_at || rep?.created_at),
+      time: formatTime(rep?.updated_at || rep?.created_at),
     },
     {
-      title: 'Assigned Lineman',
-      description: assign?.assigned_at
-        ? 'Outage ticket dispatched to designated field team.'
+      title: 'ASSIGNED LINEMAN',
+      description: hasAssigned
+        ? 'Outage ticket dispatched to field team.'
         : 'Pending lineman allocation.',
-      done: !!assign?.assigned_at,
-      active: rep?.status_id > 1 && !assign?.assigned_at,
-      date: formatDate(assign?.assigned_at),
-      time: formatTime(assign?.assigned_at),
+      done: hasAssigned,
+      active: hasReviewed && !hasAssigned,
+      date: formatDate(assign?.assigned_at || fallbackTime),
+      time: formatTime(assign?.assigned_at || fallbackTime),
     },
     {
-      title: 'In Progress Lineman',
-      description: assign?.inprogress_at
-        ? 'Lineman is currently on-site and working on the repair.'
+      title: 'IN PROGRESS LINEMAN',
+      description: hasInProgress
+        ? 'Lineman is currently on-site or working.'
         : 'Pending field work start.',
-      done: isInProgressDone,
-      active: !!assign?.assigned_at && !isInProgressDone,
-      date: formatDate(assign?.inprogress_at),
-      time: formatTime(assign?.inprogress_at),
+      done: hasInProgress,
+      active: hasAssigned && !hasInProgress,
+      date: formatDate(assign?.inprogress_at || assign?.assigned_at || fallbackTime),
+      time: formatTime(assign?.inprogress_at || assign?.assigned_at || fallbackTime),
     },
     {
-      title: 'Resolved Report',
-      description: assign?.completion_at
-        ? 'Field repairs finished and power service restored.'
+      title: 'RESOLVED REPORT',
+      description: hasResolved
+        ? 'Repair work finished and photo uploaded.'
         : 'Repair work currently ongoing.',
-      done: !!assign?.completion_at,
-      active: isInProgressDone && !assign?.completion_at,
-      date: formatDate(assign?.completion_at),
-      time: formatTime(assign?.completion_at),
+      done: hasResolved,
+      active: hasInProgress && !hasResolved,
+      date: formatDate(assign?.completion_at || fallbackTime),
+      time: formatTime(assign?.completion_at || fallbackTime),
     },
     {
-      title: 'Validated by Admin',
-      description: isAdminVerified
+      title: 'VALIDATED BY ADMIN',
+      description: hasVerified
         ? 'Admin verified resolution and officially closed ticket.'
-        : 'Awaiting final administrative sign-off.',
-      done: isAdminVerified,
-      active: !!assign?.completion_at && !isAdminVerified,
-      date: isAdminVerified ? formatDate(assign?.verified_at || rep?.updated_at) : null,
-      time: isAdminVerified ? formatTime(assign?.verified_at || rep?.updated_at) : null,
+        : 'Drafting final administrative sign-off.',
+      done: hasVerified,
+      active: hasResolved && !hasVerified,
+      date: formatDate(assign?.verified_at || fallbackTime),
+      time: formatTime(assign?.verified_at || fallbackTime),
     },
   ]
 })
@@ -458,9 +522,7 @@ const fetchEvidenceFiles = async (fieldValue) => {
         evidenceUrls.value.push(item)
       } else {
         const { data } = supabase.storage.from('report_photos').getPublicUrl(item)
-        if (data?.publicUrl) {
-          evidenceUrls.value.push(data.publicUrl)
-        }
+        if (data?.publicUrl) evidenceUrls.value.push(data.publicUrl)
       }
     }
   }
@@ -471,7 +533,7 @@ const fetchResolvedPhoto = async (fieldValue) => {
     resolvedPhotoUrl.value = null
     return
   }
-  if (fieldValue.startsWith('http')) {
+  if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) {
     resolvedPhotoUrl.value = fieldValue
   } else {
     const { data } = supabase.storage.from('report_photos').getPublicUrl(fieldValue)
@@ -480,24 +542,21 @@ const fetchResolvedPhoto = async (fieldValue) => {
 }
 
 const validateResolution = async () => {
-  if (!assignment.value || !report.value) return
-
+  if (!report.value || !resolvedPhotoUrl.value) return
   const currentTime = new Date().toISOString()
 
-  const { error: assignError } = await supabase
-    .from('assignments')
-    .update({
-      is_verified_by_admin: true,
-      verified_at: currentTime,
-    })
-    .eq('id', assignment.value.id)
+  let assignError = null
+  if (assignment.value) {
+    const { error } = await supabase
+      .from('assignments')
+      .update({ is_verified_by_admin: true, verified_at: currentTime })
+      .eq('id', assignment.value.id)
+    assignError = error
+  }
 
   const { error: repError } = await supabase
     .from('reports')
-    .update({
-      status_id: 6,
-      updated_at: currentTime,
-    })
+    .update({ status_id: 6, updated_at: currentTime })
     .eq('id', report.value.id)
 
   if (assignError || repError) {
@@ -522,7 +581,7 @@ const fetchLookups = async () => {
 
 const getBarangayName = (id) => {
   const found = barangayList.value.find((b) => b.id === id)
-  return found ? found.name : 'Unknown Barangay'
+  return found ? found.name : 'Unknown'
 }
 
 const getReportTypeName = (id) => {
@@ -535,43 +594,66 @@ const getMunicipalityName = (mId) => {
 }
 
 const getStatusName = (statusId) => {
-  if (statusId === 1) return 'Pending'
-  if (statusId === 2) return 'In Progress'
-  if (statusId === 4) return 'Pending Verification'
-  if (statusId === 5) return 'Rejected'
-  if (statusId === 6) return 'Resolved'
-  return 'Resolved'
+  if (statusId === 1) return 'PENDING'
+  if (statusId === 2) return 'IN PROGRESS'
+  if (statusId === 4) return 'PENDING VERIFICATION'
+  if (statusId === 5) return 'REJECTED'
+  if (statusId === 6) return 'RESOLVED'
+  return 'IN PROGRESS'
 }
 
-const getStatusClass = (statusId) => {
-  if (statusId === 1) return 'badge-pending'
-  if (statusId === 2) return 'badge-dispatched'
-  if (statusId === 6) return 'badge-resolved'
-  return 'badge-resolved'
-}
-
-const formatDateTime = (dateString) => {
+const formatDateOnly = (dateString) => {
   if (!dateString) return ''
-  return new Date(dateString).toLocaleString()
+  return new Date(dateString)
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    .toUpperCase()
+}
+
+const formatTimeOnly = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
 }
 
 const formatDate = (dateStr) => {
   if (!dateStr) return null
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return new Date(dateStr)
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    .toUpperCase()
 }
 
 const formatTime = (dateStr) => {
   if (!dateStr) return null
-  return new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  return new Date(dateStr).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
 }
 
 onMounted(() => {
   fetchLookups()
   fetchReportDetails()
+
+  refreshInterval = setInterval(() => {
+    refreshLinemanLocation()
+  }, 5000)
+})
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+  }
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+  }
+  if (mapInstance) {
+    mapInstance.remove()
+    mapInstance = null
+  }
 })
 </script>
 
@@ -579,14 +661,14 @@ onMounted(() => {
 .dashboard-root {
   display: flex;
   min-height: 100vh;
-  background: #f1f5f9;
+  background: #f8fafc;
   font-family:
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     'Inter',
     sans-serif;
-  color: #0f172a;
+  color: #1e1b4b;
 }
 
 .content {
@@ -595,180 +677,330 @@ onMounted(() => {
   overflow-x: hidden;
 }
 
-.header-nav {
-  margin-bottom: 16px;
-}
-
-.back-link {
-  color: #2563eb;
-  font-weight: 600;
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-.back-link:hover {
-  text-decoration: underline;
-}
-
+/* Hero Section */
 .hero-section {
   background:
-    linear-gradient(135deg, rgba(31, 48, 86, 0.9) 0%, rgba(23, 37, 84, 0.95) 100%),
+    linear-gradient(135deg, rgba(30, 27, 75, 0.85) 0%, rgba(30, 27, 75, 0.95) 100%),
     url('@/assets/Background/bannerdashboard.jpg') no-repeat center center;
   background-size: cover;
-  padding: 30px 36px;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px -5px rgba(31, 48, 86, 0.2);
+  padding: 24px 32px;
+  border-radius: 12px;
   border: 1px solid #cbd5e1;
   margin-bottom: 24px;
+  box-shadow: 0 8px 20px rgba(30, 27, 75, 0.15);
 }
 
-.hero-header-content {
+.hero-top-row {
+  margin-bottom: 12px;
+}
+
+.back-pill-btn {
+  display: inline-block;
+  background: #fde047;
+  color: #1e1b4b;
+  font-weight: 800;
+  text-decoration: none;
+  font-size: 0.75rem;
+  padding: 6px 16px;
+  border-radius: 999px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.hero-content-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.hero-text h1 {
-  margin: 0 0 6px;
+.hero-texts h1 {
+  margin: 0 0 4px;
   font-size: 1.8rem;
   color: #ffffff;
-  font-weight: 700;
+  font-weight: 900;
+  letter-spacing: 0.5px;
 }
 
-.hero-text p {
+.hero-texts p {
   margin: 0;
-  font-size: 0.9rem;
-  color: #e2e8f0;
+  font-size: 0.85rem;
+  color: #cbd5e1;
 }
 
-.status-badge {
-  padding: 6px 14px;
+.hero-actions-right {
+  display: flex;
+  align-items: center;
+}
+
+.hero-status-pill {
+  background: #fde047;
+  color: #1e1b4b;
+  padding: 8px 20px;
   border-radius: 999px;
   font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.badge-pending {
-  background: #fef08a;
-  color: #854d0e;
-}
-.badge-dispatched {
-  background: #bae6fd;
-  color: #0369a1;
-}
-.badge-resolved {
-  background: #bbf7d0;
-  color: #166534;
+  font-weight: 900;
+  letter-spacing: 0.5px;
 }
 
 .state-card {
   background: #ffffff;
   padding: 30px;
-  border-radius: 16px;
+  border-radius: 12px;
   text-align: center;
   border: 1px solid #cbd5e1;
   color: #475569;
   font-weight: 600;
 }
 
-.details-grid {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 24px;
-}
-
-.main-info-column,
-.side-info-column {
+/* Page Rows Setup - Grid to match equal heights */
+.page-rows-container {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
-.card {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #cbd5e1;
-  padding: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+.grid-row {
+  display: grid;
+  grid-template-columns: 1.85fr 1fr;
+  gap: 20px;
+  align-items: stretch;
 }
 
-.card-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 12px;
-}
-
-.card-header-row h2 {
-  margin: 0;
-  font-size: 1.1rem;
-  color: #1f3056;
-  font-weight: 700;
-}
-
-.card-subtitle {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #64748b;
+/* Universal Card Box styling */
+.card-box {
   background: #f1f5f9;
-  padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 8px;
+  border: 2px solid #a5b4fc;
+  padding: 20px;
 }
 
-.form-field {
-  margin-bottom: 14px;
+.flex-col {
+  display: flex;
+  flex-direction: column;
 }
 
-.form-field label {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #475569;
+.flex-grow-block {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.flex-grow-desc {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-title {
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  color: #2e3192;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.center-title {
+  text-align: center;
+}
+
+.white-title {
+  color: #ffffff;
+}
+
+/* Form Layout */
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.form-row-split {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-grow: 1;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-group label {
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: #2e3192;
   text-transform: uppercase;
   margin-bottom: 4px;
 }
 
-.form-value {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #0f172a;
+.field-value {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #1e1b4b;
+  min-height: 20px;
+  flex-grow: 1;
 }
 
-.form-value-long {
-  min-height: 70px;
+.desc-value {
   white-space: pre-wrap;
 }
 
-.map-container {
+/* Evidence Row Split */
+.evidence-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.remarks-split {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.evidence-card-box {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.remarks-card-box {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.image-wrapper {
+  flex-grow: 1;
+  display: flex;
+}
+
+.image-container {
   width: 100%;
-  height: 340px;
-  border-radius: 8px;
+  min-height: 220px;
+  border-radius: 4px;
+  border: 2px solid #cbd5e1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.actual-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.placeholder-container {
+  cursor: default;
+}
+
+.watermark-text {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #000000;
+  letter-spacing: 2px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.remarks-container {
+  flex-grow: 1;
+  width: 100%;
+  border-radius: 4px;
+  border: 2px solid #cbd5e1;
+  background: #ffffff;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.remarks-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #1e1b4b;
+  font-weight: 700;
+  white-space: pre-wrap;
+}
+
+/* Bottom Button */
+.verify-report-bottom-btn {
+  width: 100%;
+  background: #2e3192;
+  color: #ffffff;
+  border: none;
+  padding: 14px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 900;
+  cursor: pointer;
+  text-align: center;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.verify-report-bottom-btn:hover:not(:disabled) {
+  background: #1e1b4b;
+}
+
+.verify-report-bottom-btn:disabled,
+.verify-report-bottom-btn.disabled-btn {
+  background: #94a3b8;
+  color: #f8fafc;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.verify-report-bottom-btn.verified-state {
+  background: #10b981;
+  cursor: default;
+}
+
+/* Map specific styling */
+.map-card {
+  padding: 16px;
+}
+
+.map-wrapper {
+  border-radius: 4px;
+  border: 2px solid #cbd5e1;
+  padding: 2px;
+  background: white;
+}
+
+.map-box {
+  width: 100%;
+  height: 100%;
+  min-height: 350px;
+  border-radius: 2px;
   z-index: 1;
 }
 
-.map-legend {
+.map-legend-row {
   display: flex;
-  gap: 20px;
-  margin-top: 12px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #475569;
+  gap: 30px;
+  margin-top: 14px;
+  justify-content: center;
+}
+
+.legend-pill {
+  display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dot {
+.circle-dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -776,126 +1008,113 @@ onMounted(() => {
 }
 
 .issue-dot {
-  background: #1e1b4b;
-  border: 2px solid #fbbf24;
+  background: #fde047;
+  border: 2px solid #1e1b4b;
 }
 
 .lineman-dot {
-  background: #10b981;
-  border: 2px solid #fff;
+  background: #2e3192;
+  border: 2px solid #ffffff;
 }
 
-.evidence-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 10px;
+/* Consumer Info styling */
+.consumer-dark-card {
+  background: #2e3192;
+  border-color: #2e3192;
+  padding: 24px;
 }
 
-.evidence-item {
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #cbd5e1;
-  cursor: pointer;
-  background: #f8fafc;
-  height: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.divider-line {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  margin: 0 0 20px 0;
 }
 
-.evidence-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.2s;
+.center-label {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
 }
 
-.evidence-img:hover {
-  transform: scale(1.05);
+.consumer-name-box {
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 14px 12px;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #2e3192;
+  text-align: center;
 }
 
-.evidence-preview-box {
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+/* Timeline Layout */
+.timeline-outer-card {
+  background: #facc15;
   border-radius: 8px;
   padding: 20px;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
 }
 
-.no-evidence-text {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #64748b;
-  font-weight: 500;
+.timeline-main-title {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  color: #1e1b4b;
+  font-weight: 900;
+  letter-spacing: 0.5px;
 }
 
-.validate-btn {
-  width: 100%;
-  background: #10b981;
-  color: white;
-  border: none;
-  padding: 10px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
+.timeline-inner-card {
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 24px 16px;
+  flex-grow: 1;
 }
 
-.validate-btn:hover {
-  background: #059669;
-}
-
-.verified-badge {
-  display: block;
-  text-align: center;
-  background: #d1fae5;
-  color: #065f46;
-  padding: 8px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.jnt-timeline {
+.timeline-tree {
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding-left: 10px;
-  margin-top: 10px;
 }
 
-.timeline-item {
+.timeline-node-row {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   position: relative;
   padding-bottom: 24px;
 }
 
-.timeline-left {
-  width: 85px;
+.timeline-time-col {
+  width: 75px;
   text-align: right;
   display: flex;
   flex-direction: column;
+  margin-top: -2px;
 }
 
-.timeline-date {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #1e293b;
+.t-date {
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: #1e1b4b;
 }
 
-.timeline-time {
-  font-size: 0.75rem;
-  color: #64748b;
+.t-time {
+  font-size: 0.6rem;
+  color: #1e1b4b;
+  font-weight: 800;
 }
 
-.timeline-node {
+.timeline-center-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
 }
 
-.node-dot {
+.node-bullet {
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -905,47 +1124,51 @@ onMounted(() => {
   z-index: 2;
 }
 
-.node-dot.completed {
-  background: #10b981;
-  box-shadow: 0 0 0 2px #d1fae5;
+.node-bullet.completed {
+  background: #2e3192;
+  box-shadow: 0 0 0 2px #ffffff;
 }
 
-.node-dot.active {
-  background: #2563eb;
-  box-shadow: 0 0 0 3px #bfdbfe;
+.node-bullet.active {
+  background: #fde047;
+  border: 2px solid #2e3192;
+  box-shadow: 0 0 0 2px #ffffff;
 }
 
-.node-line {
-  width: 2px;
-  background: #e2e8f0;
+.node-connector {
+  width: 3px;
+  background: #cbd5e1;
   flex-grow: 1;
   position: absolute;
   top: 12px;
   bottom: -24px;
 }
 
-.node-line.line-active {
-  background: #10b981;
+.node-connector.connector-active {
+  background: #2e3192;
 }
 
-.timeline-right {
+.timeline-text-col {
   flex-grow: 1;
+  margin-top: -3px;
 }
 
-.timeline-title {
-  margin: 0 0 4px 0;
-  font-size: 0.95rem;
-  color: #0f172a;
-  font-weight: 600;
+.t-title {
+  margin: 0 0 2px 0;
+  font-size: 0.8rem;
+  color: #1e1b4b;
+  font-weight: 900;
 }
 
-.timeline-title.text-muted {
-  color: #94a3b8;
+.t-title.text-muted {
+  color: #64748b;
 }
 
-.timeline-location {
+.t-desc {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   color: #475569;
+  font-weight: 700;
+  line-height: 1.2;
 }
 </style>
