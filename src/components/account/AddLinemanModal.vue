@@ -1,77 +1,151 @@
+<!-- src/components/account/AddLinemanModal.vue -->
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content">
-      <h3>Add New Lineman</h3>
-
-      <div class="form-group">
-        <input
-          v-model="form.firstName"
-          placeholder="First Name"
-          class="input-field"
-          autocomplete="off"
-        />
-        <input
-          v-model="form.middleName"
-          placeholder="Middle Name"
-          class="input-field"
-          autocomplete="off"
-        />
-        <input
-          v-model="form.lastName"
-          placeholder="Last Name"
-          class="input-field"
-          autocomplete="off"
-        />
-        <input
-          v-model="form.email"
-          type="email"
-          placeholder="Email"
-          class="input-field"
-          autocomplete="off"
-        />
-        <input
-          v-model="form.mobileNumber"
-          placeholder="Mobile Number"
-          class="input-field"
-          autocomplete="off"
-        />
-        <input
-          v-model="form.password"
-          type="password"
-          placeholder="Password"
-          class="input-field"
-          autocomplete="new-password"
-        />
-        <input
-          v-model="form.employeeId"
-          placeholder="Employee ID No."
-          class="input-field"
-          autocomplete="off"
-        />
-
-        <select v-model="form.branchId" class="input-field">
-          <option value="" disabled selected>Select Branch</option>
-          <option v-for="branch in branches" :key="branch.branch_id" :value="branch.branch_id">
-            {{ branch.branch_name }}
-          </option>
-        </select>
+    <div class="wizard-card">
+      <div class="wizard-left">
+        <h3>CREATE LINEMAN ACCOUNT</h3>
+        <div class="stepper">
+          <div class="step" :class="{ active: step === 1, done: step > 1 }">
+            <div class="circle"><Check v-if="step > 1" :size="12" /></div>
+            BRANCH
+          </div>
+          <div class="line"></div>
+          <div class="step" :class="{ active: step === 2, done: step > 2 }">
+            <div class="circle"><Check v-if="step > 2" :size="12" /></div>
+            PERSONAL INFORMATION
+          </div>
+          <div class="line"></div>
+          <div class="step" :class="{ active: step === 3, done: step > 3 }">
+            <div class="circle"><Check v-if="step > 3" :size="12" /></div>
+            SECURITY
+          </div>
+        </div>
       </div>
 
-      <div class="modal-actions">
-        <button @click="$emit('close')" class="btn-cancel">Cancel</button>
-        <button @click="createLinemanAccount" class="btn-confirm">Create Account</button>
+      <div class="wizard-right">
+        <!-- STEP 1: Branch -->
+        <div v-if="step === 1" class="step-content">
+          <h4>EMPLOYEE ID</h4>
+          <input v-model="form.employeeId" placeholder="Enter ID" class="std-input" />
+
+          <h4 style="margin-top: 20px">SELECT BRANCH</h4>
+          <select v-model="form.branchId" class="std-input">
+            <option value="" disabled selected>Select a branch...</option>
+            <option v-for="b in branches" :key="b.branch_id" :value="b.branch_id">
+              {{ b.branch_name }}
+            </option>
+          </select>
+          <div class="info-note" style="margin-top: 16px">
+            <Info :size="14" /> Please select a branch to link assignments.
+          </div>
+        </div>
+
+        <!-- STEP 2: Personal Info -->
+        <div v-if="step === 2" class="step-content">
+          <h4>PERSONAL INFORMATION</h4>
+          <p class="subtitle">
+            Please provide the lineman's full name and contact details to proceed.
+          </p>
+
+          <div class="grid-3">
+            <div><label>FIRST NAME</label><input v-model="form.firstName" class="std-input" /></div>
+            <div>
+              <label>MIDDLE NAME</label><input v-model="form.middleName" class="std-input" />
+            </div>
+            <div><label>LAST NAME</label><input v-model="form.lastName" class="std-input" /></div>
+          </div>
+          <div class="grid-2" style="margin-top: 16px">
+            <div>
+              <label>EMAIL</label><input v-model="form.email" type="email" class="std-input" />
+            </div>
+            <div>
+              <label>CONTACT NUMBER</label><input v-model="form.mobileNumber" class="std-input" />
+            </div>
+          </div>
+          <div class="grid-3" style="margin-top: 16px">
+            <div><label>PUROK</label><input class="std-input" /></div>
+            <div><label>BARANGAY</label><input class="std-input" /></div>
+            <div><label>MUNICIPALITY</label><input class="std-input" /></div>
+          </div>
+        </div>
+
+        <!-- STEP 3: Security -->
+        <div v-if="step === 3" class="step-content">
+          <h4>ACCOUNT SECURITY</h4>
+          <p class="subtitle">Set up the login credentials for this lineman account.</p>
+
+          <div style="margin-bottom: 16px">
+            <label>PASSWORD</label>
+            <input
+              v-model="form.password"
+              type="password"
+              placeholder="Enter password"
+              class="std-input"
+            />
+          </div>
+          <div>
+            <label>TYPE AGAIN THE PASSWORD</label>
+            <input
+              v-model="form.confirmPassword"
+              type="password"
+              placeholder="Confirm password"
+              class="std-input"
+              :class="{ 'input-error': passwordMismatch }"
+            />
+            <div v-if="passwordMismatch" class="error-text">Passwords do not match.</div>
+          </div>
+
+          <div class="password-reqs">
+            <div class="req-item" :class="{ met: pwdReqs.length }">
+              <div class="req-bar"></div>
+              <span>At least 12<br />characters.</span>
+            </div>
+            <div class="req-item" :class="{ met: pwdReqs.upper }">
+              <div class="req-bar"></div>
+              <span>At least one<br />capital letter.</span>
+            </div>
+            <div class="req-item" :class="{ met: pwdReqs.lower }">
+              <div class="req-bar"></div>
+              <span>At least one<br />small letter.</span>
+            </div>
+            <div class="req-item" :class="{ met: pwdReqs.number }">
+              <div class="req-bar"></div>
+              <span>At least one<br />number.</span>
+            </div>
+            <div class="req-item" :class="{ met: pwdReqs.symbol }">
+              <div class="req-bar"></div>
+              <span>At least one<br />symbol.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wizard Footer -->
+        <div class="wizard-footer">
+          <button v-if="step > 1" @click="step--" class="btn-back">BACK</button>
+          <button v-if="step < 3" @click="step++" class="btn-next">NEXT</button>
+          <button
+            v-if="step === 3"
+            @click="createLinemanAccount"
+            class="btn-next"
+            :disabled="!isFormValid"
+          >
+            CREATE ACCOUNT
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import { sendNotification } from '@/utils/notifications.js'
+import { Check, Info } from 'lucide-vue-next'
 
 const emit = defineEmits(['close', 'refresh'])
 
+const step = ref(1)
 const form = reactive({
   firstName: '',
   middleName: '',
@@ -79,32 +153,58 @@ const form = reactive({
   email: '',
   mobileNumber: '',
   password: '',
+  confirmPassword: '',
   employeeId: '',
   branchId: '',
 })
 
 const branches = ref([])
 
+// Dynamic Password Validation
+const pwdReqs = computed(() => {
+  const p = form.password
+  return {
+    length: p.length >= 12,
+    upper: /[A-Z]/.test(p),
+    lower: /[a-z]/.test(p),
+    number: /[0-9]/.test(p),
+    symbol: /[^A-Za-z0-9]/.test(p),
+  }
+})
+
+const isPasswordValid = computed(() => {
+  return Object.values(pwdReqs.value).every((val) => val)
+})
+
+const passwordMismatch = computed(() => {
+  return form.confirmPassword.length > 0 && form.password !== form.confirmPassword
+})
+
+const isFormValid = computed(() => {
+  return isPasswordValid.value && !passwordMismatch.value && form.password.length > 0
+})
+
 const fetchBranches = async () => {
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('iselco_branch')
     .select('branch_id, branch_name')
     .order('branch_name')
-
-  if (error) {
-    console.error('Error fetching branches:', error)
-  } else {
-    branches.value = data
-  }
+  if (data) branches.value = data
 }
 
-onMounted(() => {
-  fetchBranches()
-})
+onMounted(fetchBranches)
 
 const createLinemanAccount = async () => {
   if (!form.branchId) {
     alert('Please select a branch.')
+    return
+  }
+  if (!isPasswordValid.value) {
+    alert('Please ensure all password requirements are met.')
+    return
+  }
+  if (passwordMismatch.value) {
+    alert('Passwords do not match.')
     return
   }
 
@@ -116,7 +216,6 @@ const createLinemanAccount = async () => {
     if (authError) throw authError
 
     const userId = authData.user.id
-
     const { error: userError } = await supabase.from('users').insert({
       id: userId,
       first_name: form.firstName,
@@ -126,6 +225,7 @@ const createLinemanAccount = async () => {
       mobile_number: form.mobileNumber,
       role_id: 9,
       branch_id: form.branchId,
+      is_active: true,
     })
     if (userError) throw userError
 
@@ -134,15 +234,12 @@ const createLinemanAccount = async () => {
       employee_id_no: form.employeeId,
       designation: 'Lineman',
       is_available: true,
+      branch_id: form.branchId,
     })
     if (empError) throw empError
 
-    alert('Lineman account created successfully!')
-    await sendNotification(
-      'Welcome, Lineman',
-      'Your lineman account has been created and is ready for assignments.',
-      userId,
-    )
+    alert('Lineman account created!')
+    await sendNotification('Welcome, Lineman', 'Account created and ready.', userId)
     emit('refresh')
     emit('close')
   } catch (err) {
@@ -152,83 +249,248 @@ const createLinemanAccount = async () => {
 </script>
 
 <style scoped>
-/* Dark overlay behind the glass modal */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55); /* darker backdrop so blur is visible */
+  background: rgba(15, 23, 42, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
 }
 
-/* Glassmorphism modal card */
-.modal-content {
-  width: min(420px, 90vw);
-  padding: 22px 24px;
-  border-radius: 20px;
-
-  /* GLASS EFFECT */
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
-
-  color: #0f172a;
+.wizard-card {
+  display: flex;
+  width: 800px;
+  height: 500px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
 }
 
-.modal-content h3 {
-  margin: 0 0 8px;
-  font-size: 1.2rem;
-  color: #0f172a;
+.wizard-left {
+  background: #fde047;
+  width: 250px;
+  padding: 40px 24px;
+  color: #1e1b4b;
 }
 
-/* Form layout inside glass card */
-.form-group {
+.wizard-left h3 {
+  margin: 0 0 40px 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.stepper {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 12px 0 20px;
 }
 
-.input-field {
-  padding: 10px;
+.step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #a16207;
+  transition: color 0.3s;
+}
+
+.step.active {
+  color: #1e1b4b;
+}
+.step.done {
+  color: #1e1b4b;
+}
+
+.circle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ca8a04;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+.step.active .circle {
+  background: #1e1b4b;
+  border-color: #1e1b4b;
+}
+.step.done .circle {
+  background: #1e1b4b;
+  border-color: #1e1b4b;
+  color: white;
+}
+
+.line {
+  width: 2px;
+  height: 40px;
+  background: #fef08a;
+  margin-left: 8px;
+}
+
+.wizard-right {
+  flex-grow: 1;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.step-content {
+  flex-grow: 1;
+}
+
+.step-content h4 {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  color: #1e1b4b;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0 0 20px 0;
+}
+
+.std-input {
+  width: 100%;
+  padding: 10px 12px;
   border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  font-size: 0.9rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  box-sizing: border-box;
   outline: none;
-  background: rgba(255, 255, 255, 0.9);
+  transition: border-color 0.2s;
+}
+.std-input:focus {
+  border-color: #1e1b4b;
 }
 
-/* Actions */
-.modal-actions {
+.input-error {
+  border-color: #ef4444 !important;
+}
+.error-text {
+  color: #ef4444;
+  font-size: 0.7rem;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin-bottom: 4px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.info-note {
+  background: #fef9c3;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #854d0e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Dynamic Password Requirements Styling */
+.password-reqs {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  gap: 8px;
+}
+
+.req-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.req-bar {
+  width: 100%;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+
+.req-item.met .req-bar {
+  background: #1e1b4b;
+}
+
+.req-item span {
+  font-size: 0.6rem;
+  color: #94a3b8;
+  line-height: 1.2;
+  transition:
+    color 0.3s,
+    font-weight 0.3s;
+}
+
+.req-item.met span {
+  color: #1e1b4b;
+  font-weight: 700;
+}
+
+.wizard-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 20px;
 }
 
-.btn-confirm {
-  background: #1f3056;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  box-shadow: 0 4px 10px rgba(31, 48, 86, 0.35);
-}
-
-.btn-cancel {
-  background: rgba(255, 255, 255, 0.85);
+.btn-back {
+  background: #e2e8f0;
   color: #475569;
-  padding: 10px 20px;
   border: none;
-  border-radius: 999px;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.8rem;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
+  transition: background 0.2s;
+}
+.btn-back:hover {
+  background: #cbd5e1;
+}
+
+.btn-next {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-next:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+.btn-next:not(:disabled):hover {
+  opacity: 0.9;
 }
 </style>

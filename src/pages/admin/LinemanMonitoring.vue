@@ -1,3 +1,4 @@
+<!-- src/pages/admin/LinemanMonitoring.vue -->
 <template>
   <div class="dashboard-root">
     <Sidebar />
@@ -5,102 +6,138 @@
     <main class="content">
       <Topbar />
 
-      <!-- HEADER BAR: #1f3056 background, white text -->
-      <header class="header">
-        <div class="header-text">
-          <h1>Workforce Directory</h1>
+      <header class="hero-banner">
+        <div class="hero-overlay-content">
+          <h1>LINEMAN MONITORING</h1>
           <p>Comprehensive profile management for the ISELCONNECT field engineering team.</p>
         </div>
-        <button @click="showModal = true" class="btn-add">+ Add Lineman</button>
       </header>
 
-      <!-- STATS: dashboard-style cards (TOTAL / ON ROUTE / READY) -->
-      <section class="stats-container stats-grid">
-        <div class="stat-card">
-          <div class="card-header">
-            <Users class="stat-icon" />
-            <span class="trend-badge">All Linemen</span>
+      <div class="stats-card-container">
+        <button @click="showModal = true" class="add-btn">
+          <UserPlus :size="16" /> ADD LINEMAN
+        </button>
+        <div class="divider"></div>
+        <div class="stat-item">
+          <span class="label">TOTAL LINEMAN</span>
+          <h2>{{ stats.total }}</h2>
+        </div>
+        <div class="divider"></div>
+        <div class="stat-item">
+          <span class="label">ON ROUTE</span>
+          <h2>{{ stats.onRoute }}</h2>
+        </div>
+        <div class="divider"></div>
+        <div class="stat-item">
+          <span class="label">READY</span>
+          <h2>{{ stats.ready }}</h2>
+        </div>
+      </div>
+
+      <div class="table-panel">
+        <div class="panel-header">
+          <div class="tabs">
+            <button :class="{ active: activeTab === 'ALL' }" @click="activeTab = 'ALL'">ALL</button>
+            <button :class="{ active: activeTab === 'ACTIVE' }" @click="activeTab = 'ACTIVE'">
+              ACTIVE
+            </button>
+            <button :class="{ active: activeTab === 'INACTIVE' }" @click="activeTab = 'INACTIVE'">
+              INACTIVE
+            </button>
           </div>
-          <h3>TOTAL</h3>
-          <p class="stat-value">{{ stats.total }}</p>
-        </div>
 
-        <div class="stat-card">
-          <div class="card-header">
-            <Route class="stat-icon" />
-            <span class="trend-badge">In Field</span>
+          <!-- Branch Filter Dropdown opening Upward -->
+          <div class="custom-select-wrapper">
+            <select class="branch-filter upward-dropdown" v-model="selectedBranchFilter">
+              <option value="All Branches">All Branches</option>
+              <option v-for="branch in branches" :key="branch" :value="branch">{{ branch }}</option>
+            </select>
           </div>
-          <h3>ON ROUTE</h3>
-          <p class="stat-value">{{ stats.onRoute }}</p>
         </div>
 
-        <div class="stat-card">
-          <div class="card-header">
-            <CheckCircle2 class="stat-icon" />
-            <span class="trend-badge">Available</span>
-          </div>
-          <h3>READY</h3>
-          <p class="stat-value">{{ stats.ready }}</p>
-        </div>
-      </section>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>NAME</th>
+              <th>BRANCH</th>
+              <th>EMPLOYEE ID</th>
+              <th>ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="lineman in filteredLinemen" :key="lineman.id">
+              <td class="font-bold">
+                {{ lineman.users?.first_name }} {{ lineman.users?.last_name }}
+              </td>
+              <td class="muted">
+                {{ lineman.users?.iselco_branch?.branch_name || 'North District' }}
+              </td>
+              <td class="muted">{{ lineman.employee_id_no }}</td>
+              <td>
+                <router-link :to="`/admin/lineman/${lineman.id}`" class="btn-view-profile">
+                  View Profile
+                </router-link>
+              </td>
+            </tr>
+            <tr v-if="filteredLinemen.length === 0">
+              <td colspan="4" style="text-align: center; padding: 24px; color: #64748b">
+                No linemen found matching the current filters.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-      <!-- LINEMAN PROFILES -->
-      <section class="directory-grid">
-        <div v-for="lineman in linemen" :key="lineman.id" class="lineman-card">
-          <h4>{{ lineman.users?.first_name }} {{ lineman.users?.last_name }}</h4>
-          <p class="emp-id">ID: {{ lineman.employee_id_no }}</p>
-          <p class="status" :class="lineman.is_available ? 'ready-status' : 'route-status'">
-            {{ lineman.is_available ? 'Ready' : 'On Route' }}
-          </p>
-
-          <router-link :to="`/admin/lineman/${lineman.id}`" class="btn-primary">
-            View Profile
-          </router-link>
-        </div>
-      </section>
-
-      <!-- Add Lineman glass-effect modal -->
       <AddLinemanModal v-if="showModal" @close="showModal = false" @refresh="fetchAllData" />
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { supabase } from '@/services/supabase'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import AddLinemanModal from '@/components/account/AddLinemanModal.vue'
-
-import { Users, Route, CheckCircle2 } from 'lucide-vue-next' // or '@lucide/vue' [web:218][web:245]
+import { UserPlus } from 'lucide-vue-next'
 
 const linemen = ref([])
+const branches = ref([])
 const showModal = ref(false)
-
-// stats: total, onRoute, ready (no active)
 const stats = reactive({ total: 0, onRoute: 0, ready: 0 })
+
+// Filter States
+const activeTab = ref('ALL')
+const selectedBranchFilter = ref('All Branches')
 
 const fetchAllData = async () => {
   const { data } = await supabase
     .from('employees')
     .select(
-      `id, user_id, employee_id_no, is_available, users!inner(first_name, last_name, role_id)`,
+      `id, user_id, employee_id_no, is_available, users!inner(first_name, last_name, role_id, iselco_branch(branch_name))`,
     )
     .eq('users.role_id', 9)
 
   linemen.value = data || []
 
+  // Fetch unique branches for the dropdown
+  const { data: branchData } = await supabase
+    .from('iselco_branch')
+    .select('branch_name')
+    .order('branch_name')
+  if (branchData) {
+    branches.value = branchData.map((b) => b.branch_name)
+  }
+
   const { count: total } = await supabase
     .from('employees')
     .select('*, users!inner(role_id)', { count: 'exact', head: true })
     .eq('users.role_id', 9)
-
   const { count: ready } = await supabase
     .from('employees')
     .select('*, users!inner(role_id)', { count: 'exact', head: true })
     .eq('users.role_id', 9)
     .eq('is_available', true)
-
   const { count: route } = await supabase
     .from('assignments')
     .select('*', { count: 'exact', head: true })
@@ -111,177 +148,210 @@ const fetchAllData = async () => {
   stats.onRoute = route || 0
 }
 
+// Filter Logic
+const filteredLinemen = computed(() => {
+  return linemen.value.filter((lineman) => {
+    // Inactive filter relies on is_available === false
+    const isReady = lineman.is_available === true
+    const isInactive = lineman.is_available === false
+
+    const matchesTab =
+      activeTab.value === 'ALL' ||
+      (activeTab.value === 'ACTIVE' && isReady) ||
+      (activeTab.value === 'INACTIVE' && isInactive)
+
+    const linemanBranch = lineman.users?.iselco_branch?.branch_name || 'North District'
+    const matchesBranch =
+      selectedBranchFilter.value === 'All Branches' || linemanBranch === selectedBranchFilter.value
+
+    return matchesTab && matchesBranch
+  })
+})
+
 onMounted(fetchAllData)
 </script>
 
 <style scoped>
-/* White background and subtle overall shadow */
 .dashboard-root {
   display: flex;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Inter',
-    sans-serif;
-  background: #ffffff;
+  background: #f8fafc;
   min-height: 100vh;
+  font-family: 'Inter', sans-serif;
   color: #0f172a;
 }
-
 .content {
   flex-grow: 1;
-  padding: 16px 24px 24px;
+  padding: 16px 24px;
 }
 
-/* Header: dark blue background, white text */
-.header {
+.hero-banner {
+  position: relative;
+  background: url('@/assets/Background/bannerdashboard.jpg') no-repeat center center;
+  background-size: cover;
+  padding: 24px 32px;
+  border-radius: 8px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-
-  padding: 18px 22px;
-  border-radius: 16px;
-  background: #1f3056;
-  border: none;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
-
-/* Explicit white text for header */
-.header .header-text h1 {
-  margin: 0 0 6px;
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(24, 24, 50, 0.9) 0%, rgba(30, 58, 138, 0.85) 100%);
+  z-index: 1;
+}
+.hero-overlay-content {
+  position: relative;
+  z-index: 2;
+}
+.hero-overlay-content h1 {
+  margin: 0 0 4px 0;
   font-size: 1.6rem;
-  color: #ffffff !important;
+  color: white;
+  font-weight: 700;
 }
-
-.header .header-text p {
+.hero-overlay-content p {
   margin: 0;
-  font-size: 0.9rem;
-  color: #ffffff !important;
+  font-size: 0.85rem;
+  color: #cbd5e1;
 }
 
-/* Stats row – dashboard-style cards */
-.stats-container.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+.stats-card-container {
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 20px 24px;
   margin-bottom: 24px;
 }
-
-.stat-card {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 6px 18px rgba(148, 163, 184, 0.25);
+.add-btn {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.divider {
+  width: 1px;
+  height: 40px;
+  background: #e2e8f0;
+  margin: 0 32px;
+}
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.stat-item .label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 4px;
+}
+.stat-item h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1e1b4b;
+  margin: 0;
 }
 
-.card-header {
+.table-panel {
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 20px;
+}
+.panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 16px;
 }
-
-.stat-icon {
-  width: 20px;
-  height: 20px;
-  color: #0f172a;
+.tabs {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 4px;
 }
-
-.trend-badge {
-  font-size: 0.7rem;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #e0f2fe;
-  color: #1d4ed8;
-  font-weight: 600;
-}
-
-.stat-card h3 {
-  margin: 0 0 4px;
-  font-size: 0.9rem;
-  color: #0f172a;
-}
-
-.stat-value {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-/* Profile cards – white, minimal shadow */
-.directory-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-}
-
-.lineman-card {
-  padding: 18px 20px;
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-}
-
-.lineman-card h4 {
-  margin: 0 0 4px;
-  font-size: 1rem;
-  color: #0f172a;
-}
-
-.emp-id {
-  margin: 0 0 4px;
-  font-size: 0.8rem;
-  color: #64748b;
-}
-
-.status {
-  margin: 0 0 10px;
-  font-size: 0.8rem;
-}
-
-/* Buttons */
-.btn-add {
-  background: #ffffff;
-  color: #1f3056;
-  padding: 10px 20px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12);
-}
-
-.btn-add:hover {
-  background: #f8fafc;
-}
-
-.btn-primary {
-  display: inline-block;
-  background: #1f3056;
-  color: #ffffff;
-  padding: 8px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-decoration: none;
+.tabs button {
+  background: transparent;
   border: none;
-  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.18);
+  padding: 6px 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.tabs button.active {
+  background: #1e1b4b;
+  color: white;
 }
 
-/* Status colors: Ready / On Route */
-.ready-status {
-  color: #22c55e;
-  font-weight: 700;
+/* Upward dropdown styling constraint */
+.custom-select-wrapper {
+  position: relative;
+}
+.branch-filter.upward-dropdown {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #475569;
+  outline: none;
+  cursor: pointer;
+  background-color: white;
 }
 
-.route-status {
-  color: #f97316;
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th {
+  text-align: left;
   font-weight: 700;
+  font-size: 0.7rem;
+  color: #64748b;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.data-table td {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.85rem;
+}
+.font-bold {
+  font-weight: 600;
+  color: #0f172a;
+}
+.muted {
+  color: #475569;
+}
+
+.btn-view-profile {
+  background: #283593;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.btn-view-profile:hover {
+  background: #1e1b4b;
 }
 </style>
