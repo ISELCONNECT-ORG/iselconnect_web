@@ -7,83 +7,56 @@
 
       <!-- HERO HEADER -->
       <header class="hero-section">
-        <div class="hero-header-content">
-          <div class="hero-text">
-            <h1>INCIDENT QUEUE</h1>
-            <p>Comprehensive profile management for the ISELCONNECT field engineering team.</p>
-          </div>
-          <button @click="openManualModal" class="manual-dispatch-btn">
-            <UserPlus class="btn-icon" /> MANUAL ENTRY
-          </button>
+        <div class="hero-text">
+          <h1>INCIDENT QUEUE</h1>
+          <p>Comprehensive profile management for the ISELCONNECT field engineering team.</p>
         </div>
+        <button @click="openManualModal" class="manual-dispatch-btn">
+          <UserPlus class="btn-icon" /> MANUAL REPORT
+        </button>
       </header>
 
-      <!-- METRICS & STATUS CARDS -->
-      <section class="metrics-container stats-grid">
-        <div class="priority-grid-cluster">
-          <div class="stat-card priority-card-critical">
-            <div class="card-header">
-              <h3>CRITICAL</h3>
-              <AlertTriangle class="stat-icon" />
+      <!-- OPERATIONAL OVERVIEW & PRIORITY CARDS -->
+      <section class="overview-section">
+        <div class="operational-overview-card">
+          <div class="overview-header">Operational Overview</div>
+          <div class="overview-stats">
+            <div class="o-stat">
+              <span><ActivitySquare class="stat-icon" /> ONLINE LINEMAN</span>
+              <h2>{{ onlineLinemenCount }}</h2>
             </div>
-            <p class="stat-value text-center">{{ criticalCount }}</p>
-          </div>
-
-          <div class="stat-card priority-card-high">
-            <div class="card-header">
-              <h3>HIGH</h3>
-              <AlertCircle class="stat-icon" />
+            <div class="o-stat">
+              <span><UserCheck class="stat-icon" /> ASSIGNED</span>
+              <h2>{{ assignedCount }}</h2>
             </div>
-            <p class="stat-value text-center">{{ highCount }}</p>
-          </div>
-
-          <div class="stat-card priority-card-normal">
-            <div class="card-header">
-              <h3>NORMAL</h3>
-              <Info class="stat-icon" />
+            <div class="o-stat">
+              <span><ClipboardList class="stat-icon" /> TOTAL REPORT</span>
+              <h2>{{ totalReportsCount }}</h2>
             </div>
-            <p class="stat-value text-center">{{ normalCount }}</p>
-          </div>
-
-          <div class="stat-card priority-card-low">
-            <div class="card-header">
-              <h3>LOW</h3>
-              <ShieldAlert class="stat-icon" />
+            <div class="o-stat">
+              <span><Wifi class="stat-icon" /> SYSTEM STATUS</span>
+              <h2 class="active-status"><span class="dot"></span> ACTIVE</h2>
             </div>
-            <p class="stat-value text-center">{{ lowCount }}</p>
           </div>
         </div>
 
-        <div class="stat-card">
-          <div class="card-header">
-            <h3>ONLINE LINEMAN</h3>
-            <ActivitySquare class="stat-icon" />
+        <div class="priority-cards-row">
+          <div class="p-card critical">
+            <span><AlertTriangle class="p-icon" /> CRITICAL</span>
+            <h2>{{ criticalCount }}</h2>
           </div>
-          <p class="stat-value text-center">{{ onlineLinemenCount }}</p>
-        </div>
-
-        <div class="stat-card">
-          <div class="card-header">
-            <h3>ASSIGNED</h3>
-            <UserCheck class="stat-icon" />
+          <div class="p-card high">
+            <span><AlertCircle class="p-icon" /> HIGH</span>
+            <h2>{{ highCount }}</h2>
           </div>
-          <p class="stat-value text-center">{{ assignedCount }}</p>
-        </div>
-
-        <div class="stat-card">
-          <div class="card-header">
-            <h3>TOTAL REPORT</h3>
-            <ClipboardList class="stat-icon" />
+          <div class="p-card normal">
+            <span><Info class="p-icon" /> NORMAL</span>
+            <h2>{{ normalCount }}</h2>
           </div>
-          <p class="stat-value text-center">{{ totalReportsCount }}</p>
-        </div>
-
-        <div class="stat-card">
-          <div class="card-header">
-            <h3>SYSTEM STATUS</h3>
-            <Wifi class="stat-icon" />
+          <div class="p-card low">
+            <span><ShieldAlert class="p-icon" /> LOW</span>
+            <h2>{{ lowCount }}</h2>
           </div>
-          <p class="stat-value text-center">ACTIVE</p>
         </div>
       </section>
 
@@ -91,8 +64,6 @@
       <section class="queue-panel">
         <div class="panel-header-row">
           <h3>Active Incidents</h3>
-
-          <!-- PRIORITY FILTER CONTROLS -->
           <div class="filter-controls">
             <button
               :class="['filter-btn', { active: currentPriorityFilter === 'All' }]"
@@ -145,7 +116,7 @@
           <tbody>
             <tr v-for="r in activeReports" :key="r.id">
               <td>
-                <span class="status-pill">{{ r.report_statuses?.name }}</span>
+                <span class="status-pill">{{ r.report_statuses?.name || 'In Progress' }}</span>
               </td>
               <td>
                 <span :class="['priority-pill', getPriorityClass(r.report_types?.priority_level)]">
@@ -155,31 +126,35 @@
               <td>
                 <strong>{{ r.users?.first_name }} {{ r.users?.last_name || 'Walk-in' }}</strong>
               </td>
-              <td>{{ r.landmark || 'N/A' }}</td>
-              <td class="text-black">{{ r.municipalities?.name }}</td>
-              <td class="text-black">{{ r.barangays?.name }}</td>
-              <td class="text-black">{{ r.purok_sitio }}</td>
-              <td class="text-black">{{ r.lineman_display }}</td>
+              <td class="truncate">{{ r.landmark || 'N/A' }}</td>
+              <td>{{ r.municipalities?.name }}</td>
+              <td>{{ r.barangays?.name }}</td>
+              <td>{{ r.purok_sitio }}</td>
+              <td :class="{ 'muted-text': r.lineman_display === 'Unassigned' }">
+                {{ r.lineman_display }}
+              </td>
               <td>{{ formatTime(r.created_at) }}</td>
               <td>
-                <button @click="openAssign(r)" class="action-btn">Assign</button>
-                <router-link :to="`/admin/reports/${r.id}`" class="details-btn">
-                  See Details
-                </router-link>
+                <div class="action-buttons">
+                  <button @click="openAssign(r)" class="action-btn">Assign</button>
+                  <router-link :to="`/admin/reports/${r.id}`" class="details-btn"
+                    >See Details</router-link
+                  >
+                </div>
               </td>
             </tr>
             <tr v-if="activeReports.length === 0">
-              <td colspan="10" class="text-center" style="padding: 20px; color: #64748b">
-                No active incidents found for this filter.
-              </td>
+              <td colspan="10" class="text-center">No active incidents found.</td>
             </tr>
           </tbody>
         </table>
       </section>
 
       <!-- RESOLVED INCIDENTS -->
-      <section class="queue-panel" style="margin-top: 20px">
-        <h3>Resolved Incidents</h3>
+      <section class="queue-panel">
+        <div class="panel-header-row">
+          <h3>Resolved Incidents</h3>
+        </div>
         <table class="data-table">
           <thead>
             <tr>
@@ -197,9 +172,7 @@
           </thead>
           <tbody>
             <tr v-for="r in resolvedReports" :key="r.id">
-              <td>
-                <span class="status-pill">{{ r.report_statuses?.name }}</span>
-              </td>
+              <td><span class="status-pill">Resolved</span></td>
               <td>
                 <span :class="['priority-pill', getPriorityClass(r.report_types?.priority_level)]">
                   {{ r.report_types?.priority_level || 'Normal' }}
@@ -208,23 +181,25 @@
               <td>
                 <strong>{{ r.users?.first_name }} {{ r.users?.last_name || 'Walk-in' }}</strong>
               </td>
-              <td>{{ r.landmark || 'N/A' }}</td>
-              <td class="text-black">{{ r.municipalities?.name }}</td>
-              <td class="text-black">{{ r.barangays?.name }}</td>
-              <td class="text-black">{{ r.purok_sitio }}</td>
-              <td class="text-black">{{ r.lineman_display }}</td>
+              <td class="truncate">{{ r.landmark || 'N/A' }}</td>
+              <td>{{ r.municipalities?.name }}</td>
+              <td>{{ r.barangays?.name }}</td>
+              <td>{{ r.purok_sitio }}</td>
+              <td>{{ r.lineman_display }}</td>
               <td>{{ formatTime(r.created_at) }}</td>
               <td>
-                <button class="action-btn" disabled>Done</button>
-                <router-link :to="`/admin/reports/${r.id}`" class="details-btn">
-                  See Details
-                </router-link>
+                <div class="action-buttons">
+                  <button class="action-btn" disabled style="opacity: 0.6; cursor: not-allowed">
+                    Done
+                  </button>
+                  <router-link :to="`/admin/reports/${r.id}`" class="details-btn"
+                    >See Details</router-link
+                  >
+                </div>
               </td>
             </tr>
             <tr v-if="resolvedReports.length === 0">
-              <td colspan="10" class="text-center" style="padding: 20px; color: #64748b">
-                No resolved incidents found for this filter.
-              </td>
+              <td colspan="10" class="text-center">No resolved incidents found.</td>
             </tr>
           </tbody>
         </table>
@@ -233,72 +208,83 @@
 
     <!-- MANUAL REPORT MODAL -->
     <div v-if="showManualModal" class="modal-overlay" @click.self="closeManualModal">
-      <div class="manual-report-card">
-        <div class="modal-top-icon">
-          <FilePlus class="header-file-icon" />
+      <div class="manual-modal-card">
+        <div class="manual-modal-header">
+          <h2>Manual Report</h2>
+          <p>Submit a new incident report to the queue.</p>
         </div>
-        <h2>MANUAL REPORT</h2>
 
-        <div class="manual-form">
-          <!-- SELECT BARANGAY CUSTOM DROPDOWN -->
-          <div class="custom-dropdown-container">
-            <div class="dropdown-trigger-btn" @click="toggleBarangayDropdown">
-              <span>{{
-                selectedBarangayObj ? selectedBarangayObj.name.toUpperCase() : 'SELECT BARANGAY'
-              }}</span>
-              <ChevronDown class="dropdown-chevron" />
-            </div>
+        <div class="manual-modal-body">
+          <div class="section-label"><MapPin class="icon" /> LOCATION DETAILS</div>
 
-            <div v-if="isBarangayDropdownOpen" class="dropdown-popover">
-              <div class="popover-search-box">
-                <input
-                  v-model="barangaySearchQuery"
-                  type="text"
-                  class="search-input"
-                  placeholder=""
-                />
-                <Search class="search-input-icon" />
+          <div class="form-row">
+            <div class="input-group custom-dropdown-container">
+              <label>Select Barangay <span class="req">*</span></label>
+              <div class="dropdown-trigger-btn" @click="toggleBarangayDropdown">
+                <span :class="{ 'muted-trigger': !selectedBarangayObj }">
+                  {{ selectedBarangayObj ? selectedBarangayObj.name : 'Search or select...' }}
+                </span>
+                <ChevronDown :size="16" class="dropdown-chevron" />
               </div>
 
-              <div class="popover-scroll-list">
-                <template v-for="(bList, muniName) in groupedBarangays" :key="muniName">
-                  <div class="group-header-label">{{ muniName }}</div>
-                  <div
-                    v-for="b in bList"
-                    :key="b.id"
-                    class="group-option-box"
-                    @click="selectBarangay(b)"
-                  >
-                    {{ b.name }}
+              <div v-if="isBarangayDropdownOpen" class="dropdown-popover">
+                <div class="popover-search-box">
+                  <Search :size="14" class="search-input-icon" />
+                  <input
+                    v-model="barangaySearchQuery"
+                    type="text"
+                    class="search-input"
+                    placeholder="Search barangays..."
+                  />
+                </div>
+                <div class="popover-scroll-list">
+                  <template v-for="(bList, muniName) in groupedBarangays" :key="muniName">
+                    <div class="group-header-label">{{ muniName }}</div>
+                    <div
+                      v-for="b in bList"
+                      :key="b.id"
+                      class="group-option-box"
+                      @click="selectBarangay(b)"
+                    >
+                      {{ b.name }}
+                    </div>
+                  </template>
+                  <div v-if="Object.keys(groupedBarangays).length === 0" class="no-result-text">
+                    No barangays found.
                   </div>
-                </template>
-                <div v-if="Object.keys(groupedBarangays).length === 0" class="no-result-text">
-                  No barangays found
                 </div>
               </div>
             </div>
+
+            <div class="input-group">
+              <label>Purok / Street <span class="req">*</span></label>
+              <input v-model="manualReport.purok" placeholder="" class="std-input" />
+            </div>
           </div>
 
-          <!-- PUROK INPUT -->
-          <div class="form-input-box">
-            <input v-model="manualReport.purok" placeholder="PUROK" class="manual-styled-input" />
+          <div class="section-label" style="margin-top: 16px">
+            <AlertTriangle class="icon" /> ISSUE DETAILS
           </div>
 
-          <!-- SELECT ISSUE TYPE CUSTOM DROPDOWN -->
-          <div class="custom-dropdown-container">
+          <div class="input-group custom-dropdown-container" style="margin-bottom: 12px">
+            <label>Select Issue Type <span class="req">*</span></label>
             <div class="dropdown-trigger-btn" @click="toggleTypeDropdown">
-              <span>{{
-                selectedTypeObj ? selectedTypeObj.name.toUpperCase() : 'SELECT ISSUE TYPE'
-              }}</span>
-              <ChevronDown class="dropdown-chevron" />
+              <span :class="{ 'muted-trigger': !selectedTypeObj }">
+                {{ selectedTypeObj ? selectedTypeObj.name : 'Choose issue category...' }}
+              </span>
+              <ChevronDown :size="16" class="dropdown-chevron" />
             </div>
 
             <div v-if="isTypeDropdownOpen" class="dropdown-popover">
               <div class="popover-search-box">
-                <input v-model="typeSearchQuery" type="text" class="search-input" placeholder="" />
-                <Search class="search-input-icon" />
+                <Search :size="14" class="search-input-icon" />
+                <input
+                  v-model="typeSearchQuery"
+                  type="text"
+                  class="search-input"
+                  placeholder="Search issues..."
+                />
               </div>
-
               <div class="popover-scroll-list">
                 <template v-for="(tList, prioLevel) in groupedReportTypes" :key="prioLevel">
                   <div class="group-header-label">{{ prioLevel }}</div>
@@ -312,47 +298,100 @@
                   </div>
                 </template>
                 <div v-if="Object.keys(groupedReportTypes).length === 0" class="no-result-text">
-                  No issue types found
+                  No issues found.
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- DESCRIPTION TEXTAREA -->
-          <div class="form-input-box">
+          <div class="input-group">
+            <label>Description</label>
             <textarea
               v-model="manualReport.description"
-              placeholder="DESCRIPTION OF INCIDENT"
-              class="manual-styled-textarea"
+              placeholder="Provide additional details about the incident, exact landmarks, or potential hazards..."
+              class="std-textarea"
             ></textarea>
           </div>
+        </div>
 
-          <!-- ACTION BUTTONS -->
-          <div class="manual-modal-actions">
-            <button @click="closeManualModal" class="btn-grey-cancel">CANCEL</button>
-            <button @click="submitManualReport" class="btn-navy-submit">SUBMIT REPORT</button>
-          </div>
+        <div class="modal-footer">
+          <button @click="closeManualModal" class="btn-cancel">Cancel</button>
+          <button @click="submitManualReport" class="btn-submit">
+            <FilePlus :size="14" /> Submit Report
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- DISPATCH MODAL -->
-    <div v-if="showAssignModal" class="modal-overlay">
-      <div class="modal-content glass-card">
-        <h3 style="margin-bottom: 10px">
-          {{ isWorkingHoursModal ? 'Branch Dispatch' : 'Dispatch Lineman' }}
-        </h3>
-        <div class="lineman-checkbox-list">
-          <label v-for="l in availableLinemen" :key="l.id" class="checkbox-label">
-            <input type="checkbox" :value="l.id" v-model="selectedLinemanIds" />
-            {{ l.name }}
-          </label>
+    <!-- ASSIGN LINEMAN MODAL -->
+    <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
+      <div class="assign-modal-card">
+        <h3>Assign Lineman</h3>
+        <p>Select an available lineman to dispatch to this location.</p>
+
+        <div class="assign-search-row">
+          <div class="search-input-wrapper">
+            <Search class="search-icon" :size="16" />
+            <input
+              v-model="assignSearchQuery"
+              type="text"
+              placeholder="Search linemen by name or branch..."
+              class="assign-search-input"
+            />
+          </div>
+          <button class="assign-filter-btn"><Filter :size="16" /> Filter</button>
         </div>
-        <div class="modal-actions" style="margin-top: 20px">
-          <button @click="submitAssignment" class="assign-btn">
-            {{ isWorkingHoursModal ? 'ASSIGN BRANCH' : 'DISPATCH' }}
-          </button>
-          <button @click="showAssignModal = false" class="cancel-btn">CANCEL</button>
+
+        <div class="table-scroll-wrapper">
+          <table class="lineman-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Branch</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="l in filteredLinemen" :key="l.id">
+                <td>
+                  <strong>{{ l.name }}</strong>
+                </td>
+                <td class="muted-text">{{ l.branch }}</td>
+                <td>
+                  <span
+                    :class="[
+                      'lineman-status',
+                      l.status === 'Available' ? 'status-available' : 'status-on-job',
+                    ]"
+                  >
+                    {{ l.status || 'Available' }}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    class="assign-action-btn"
+                    :disabled="l.status !== 'Available' || isAssigned(l.id)"
+                    @click="assignSingleLineman(l.id)"
+                  >
+                    {{ isAssigned(l.id) ? 'Assigned' : 'Assign' }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="filteredLinemen.length === 0">
+                <td colspan="4" class="text-center" style="padding: 24px">
+                  No matching linemen found.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          class="modal-footer"
+          style="padding: 0; background: transparent; border: none; margin-top: 16px"
+        >
+          <button @click="showAssignModal = false" class="btn-close-modal">Close</button>
         </div>
       </div>
     </div>
@@ -377,13 +416,16 @@ import {
   Info,
   ShieldAlert,
   FilePlus,
-  ChevronDown,
+  MapPin,
   Search,
+  Filter,
+  ChevronDown,
 } from 'lucide-vue-next'
 
 const pendingReports = ref([])
 const reportTypes = ref([])
 const barangays = ref([])
+
 const showManualModal = ref(false)
 const manualReport = ref({
   type_id: null,
@@ -393,6 +435,7 @@ const manualReport = ref({
   municipality_id: null,
 })
 
+// Custom Dropdown States
 const isBarangayDropdownOpen = ref(false)
 const isTypeDropdownOpen = ref(false)
 const barangaySearchQuery = ref('')
@@ -402,15 +445,13 @@ const selectedTypeObj = ref(null)
 
 const showAssignModal = ref(false)
 const selectedReport = ref(null)
-const selectedLinemanIds = ref([])
 const availableLinemen = ref([])
+const assignSearchQuery = ref('')
 const isWorkingHoursModal = ref(false)
 
 const assignedCount = ref(0)
 const totalReportsCount = ref(0)
 const onlineLinemenCount = ref(0)
-
-// Filtering State
 const currentPriorityFilter = ref('All')
 let refreshIntervalId = null
 
@@ -428,40 +469,33 @@ const criticalCount = computed(
     pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'Critical')
       .length,
 )
-
 const highCount = computed(
   () =>
     pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'High')
       .length,
 )
-
 const normalCount = computed(
   () =>
     pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'Normal')
       .length,
 )
-
 const lowCount = computed(
   () =>
     pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'Low')
       .length,
 )
 
+// --- Custom Dropdown Computed Logic ---
 const groupedBarangays = computed(() => {
   const query = barangaySearchQuery.value.toLowerCase().trim()
   const map = {}
-
   barangays.value.forEach((b) => {
-    const muniName = (b.municipalities?.name || 'MUNICIPALITY').toUpperCase()
-    const matchesQuery =
-      !query || b.name.toLowerCase().includes(query) || muniName.toLowerCase().includes(query)
-
-    if (matchesQuery) {
+    const muniName = (b.municipalities?.name || 'UNKNOWN MUNICIPALITY').toUpperCase()
+    if (!query || b.name.toLowerCase().includes(query) || muniName.toLowerCase().includes(query)) {
       if (!map[muniName]) map[muniName] = []
       map[muniName].push(b)
     }
   })
-
   return map
 })
 
@@ -472,10 +506,7 @@ const groupedReportTypes = computed(() => {
 
   reportTypes.value.forEach((t) => {
     const prio = (t.priority_level || 'NORMAL').toUpperCase()
-    const matchesQuery =
-      !query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)
-
-    if (matchesQuery) {
+    if (!query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)) {
       if (!map[prio]) map[prio] = []
       map[prio].push(t)
     }
@@ -483,20 +514,12 @@ const groupedReportTypes = computed(() => {
 
   const sortedMap = {}
   priorityOrder.forEach((p) => {
-    if (map[p] && map[p].length > 0) {
-      sortedMap[p] = map[p]
-    }
+    if (map[p] && map[p].length > 0) sortedMap[p] = map[p]
   })
-
-  Object.keys(map).forEach((p) => {
-    if (!sortedMap[p] && map[p].length > 0) {
-      sortedMap[p] = map[p]
-    }
-  })
-
   return sortedMap
 })
 
+// --- Dropdown Triggers ---
 const toggleBarangayDropdown = () => {
   isBarangayDropdownOpen.value = !isBarangayDropdownOpen.value
   if (isBarangayDropdownOpen.value) isTypeDropdownOpen.value = false
@@ -525,36 +548,40 @@ const selectReportType = (t) => {
 const openManualModal = () => {
   showManualModal.value = true
 }
-
 const closeManualModal = () => {
   showManualModal.value = false
   isBarangayDropdownOpen.value = false
   isTypeDropdownOpen.value = false
   barangaySearchQuery.value = ''
   typeSearchQuery.value = ''
+  manualReport.value = {
+    type_id: null,
+    barangay_id: null,
+    purok: '',
+    description: '',
+    municipality_id: null,
+  }
+  selectedBarangayObj.value = null
+  selectedTypeObj.value = null
 }
 
 const activeReports = computed(() => {
   let filtered = pendingReports.value.filter((r) => r.report_statuses?.name !== 'Resolved')
-
   if (currentPriorityFilter.value !== 'All') {
     filtered = filtered.filter(
       (r) => (r.report_types?.priority_level || 'Normal') === currentPriorityFilter.value,
     )
   }
-
   return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 })
 
 const resolvedReports = computed(() => {
   let filtered = pendingReports.value.filter((r) => r.report_statuses?.name === 'Resolved')
-
   if (currentPriorityFilter.value !== 'All') {
     filtered = filtered.filter(
       (r) => (r.report_types?.priority_level || 'Normal') === currentPriorityFilter.value,
     )
   }
-
   return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 })
 
@@ -571,48 +598,17 @@ const getPriorityClass = (level) => {
   }
 }
 
-const normalizeLocalQueueReport = (r) => ({
-  ...r,
-  description: r.description || r.title || 'No description provided.',
-  report_statuses: { name: r.status || 'Pending' },
-  users: {
-    first_name: r.reporter ? r.reporter.split(' ')[0] : 'Unknown',
-    last_name: r.reporter ? r.reporter.split(' ').slice(1).join(' ') : '',
-  },
-  municipalities: { name: r.location || 'N/A' },
-  barangays: { name: r.location || 'N/A' },
-  purok_sitio: r.location || 'N/A',
-  lineman_display: r.lineman_display || 'Unassigned',
-  photo_url: r.photo_url || null,
-  created_at: r.date || new Date().toISOString(),
-  landmark: r.landmark || r.location || 'N/A',
-  status_id: r.status_id || 2,
-  report_types: { name: r.severity || 'General', priority_level: r.priority_level || 'Normal' },
-})
-
 const fetchAll = async () => {
   const { data, error } = await supabase
     .from('reports')
     .select(
       `
-      *,
-      report_statuses(name),
-      report_types(name, priority_level),
-      users!residents_id(first_name, last_name),
-      barangays(name),
-      municipalities(name),
-      assignments(
-        lineman_id,
-        users!lineman_id(first_name, last_name)
-      )
+      *, report_statuses(name), report_types(name, priority_level), users!residents_id(first_name, last_name),
+      barangays(name), municipalities(name), assignments(lineman_id, users!lineman_id(first_name, last_name))
     `,
     )
     .gt('status_id', 1)
     .neq('status_id', 5)
-
-  if (error) {
-    console.error('Supabase fetch error:', error.message)
-  }
 
   const supabaseReports = (data || []).map((r) => ({
     ...r,
@@ -628,22 +624,13 @@ const fetchAll = async () => {
         : 'Unassigned',
   }))
 
-  const localReports = (JSON.parse(localStorage.getItem('incidentQueue') || '[]') || []).map(
-    normalizeLocalQueueReport,
-  )
-
-  pendingReports.value = [...localReports, ...supabaseReports].filter(
-    (report, index, all) => all.findIndex((item) => item.id === report.id) === index,
-  )
-
+  pendingReports.value = supabaseReports
   totalReportsCount.value = pendingReports.value.length
 
   const { data: types } = await supabase.from('report_types').select('*')
   reportTypes.value = types || []
 
-  const { data: brgys } = await supabase.from('barangays').select('id, name, municipality_id')
   const { data: munis } = await supabase.from('municipalities').select('id, name')
-
   const muniMap = {}
   if (munis) {
     munis.forEach((m) => {
@@ -651,9 +638,10 @@ const fetchAll = async () => {
     })
   }
 
+  const { data: brgys } = await supabase.from('barangays').select('id, name, municipality_id')
   barangays.value = (brgys || []).map((b) => ({
     ...b,
-    municipalities: { name: muniMap[b.municipality_id] || 'N/A' },
+    municipalities: { name: muniMap[b.municipality_id] || 'Unknown Municipality' },
   }))
 
   const { count: aCount } = await supabase
@@ -681,438 +669,425 @@ const submitManualReport = async () => {
       landmark: 'Walk-in Report',
       barangay_id: manualReport.value.barangay_id,
       purok_sitio: manualReport.value.purok,
-      latitude: 0.0,
-      longitude: 0.0,
       status_id: 2,
       municipality_id: manualReport.value.municipality_id || 1,
+      latitude: 16.716173,
+      longitude: 121.678825,
     },
   ])
 
-  if (error) {
-    alert('Error: ' + error.message)
-  } else {
-    alert('Report Added!')
-    await sendNotification(
-      'New Report Received',
-      `A new report has been added for barangay ${selectedBarangayObj.value?.name || manualReport.value.barangay_id}.`,
-    )
+  if (error) alert('Error: ' + error.message)
+  else {
     closeManualModal()
-    manualReport.value = {
-      type_id: null,
-      barangay_id: null,
-      purok: '',
-      description: '',
-      municipality_id: null,
-    }
-    selectedBarangayObj.value = null
-    selectedTypeObj.value = null
     fetchAll()
   }
 }
 
+// Assignment Modal Logic
+const filteredLinemen = computed(() => {
+  if (!assignSearchQuery.value) return availableLinemen.value
+  const q = assignSearchQuery.value.toLowerCase()
+  return availableLinemen.value.filter(
+    (l) => l.name.toLowerCase().includes(q) || l.branch.toLowerCase().includes(q),
+  )
+})
+
+const isAssigned = (uid) => {
+  return selectedReport.value?.assignments?.some((a) => a.lineman_id === uid)
+}
+
 const openAssign = async (r) => {
   selectedReport.value = r
-  selectedLinemanIds.value = r.assignments?.map((a) => a.lineman_id) || []
+  assignSearchQuery.value = ''
 
   const now = new Date()
   const totalMinutes = now.getHours() * 60 + now.getMinutes()
-
   isWorkingHoursModal.value = totalMinutes >= 480 && totalMinutes <= 1020
 
   if (isWorkingHoursModal.value) {
     const { data } = await supabase
       .from('users')
-      .select('id, first_name, last_name')
+      .select('id, first_name, last_name, is_active')
       .eq('role_id', 6)
-
-    availableLinemen.value =
-      data?.map((user) => ({
-        id: user.id,
-        name: `${user.first_name} ${user.last_name} (Branch Account)`,
-      })) || []
-  } else {
-    const { data } = await supabase
-      .from('users')
-      .select('id, first_name, last_name')
-      .eq('role_id', 9)
-
     availableLinemen.value =
       data?.map((user) => ({
         id: user.id,
         name: `${user.first_name} ${user.last_name}`,
+        branch: 'Branch Admin',
+        status: user.is_active ? 'Available' : 'Unavailable',
       })) || []
+  } else {
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, is_active')
+      .eq('role_id', 9)
+    const { data: empData } = await supabase
+      .from('employees')
+      .select('user_id, branch_id, is_available')
+    const { data: branchData } = await supabase
+      .from('iselco_branch')
+      .select('branch_id, branch_name')
+
+    availableLinemen.value =
+      usersData?.map((user) => {
+        const emp = empData?.find((e) => e.user_id === user.id)
+        const branch = branchData?.find((b) => b.branch_id === emp?.branch_id)
+        return {
+          id: user.id,
+          name: `${user.first_name} ${user.last_name}`,
+          branch: branch?.branch_name || 'Unassigned Branch',
+          status: user.is_active ? 'Available' : 'On Job',
+        }
+      }) || []
   }
 
   showAssignModal.value = true
 }
 
-const submitAssignment = async () => {
+const assignSingleLineman = async (uid) => {
   if (!selectedReport.value) return
 
-  await supabase.from('assignments').delete().eq('report_id', selectedReport.value.id)
+  const { error } = await supabase.from('assignments').insert({
+    report_id: selectedReport.value.id,
+    lineman_id: uid,
+    assigned_at: new Date().toISOString(),
+    inprogress_at: new Date().toISOString(),
+  })
 
-  if (selectedLinemanIds.value.length > 0) {
-    const assignmentsToInsert = selectedLinemanIds.value.map((uid) => ({
-      report_id: selectedReport.value.id,
-      lineman_id: uid,
-      assigned_at: new Date().toISOString(),
-      inprogress_at: new Date().toISOString(),
-    }))
-    const { error: assignError } = await supabase.from('assignments').insert(assignmentsToInsert)
-    if (!assignError) {
-      await Promise.all(
-        selectedLinemanIds.value.map((uid) =>
-          sendNotification(
-            'Assignment Updated',
-            `You have been assigned to report ${selectedReport.value.id}.`,
-            uid,
-          ),
-        ),
-      )
-    }
+  if (!error) {
+    sendNotification('Assignment Updated', `Assigned to report ${selectedReport.value.id}`, uid)
+    if (!selectedReport.value.assignments) selectedReport.value.assignments = []
+    selectedReport.value.assignments.push({ lineman_id: uid })
   }
 
-  showAssignModal.value = false
   fetchAll()
 }
 
 onMounted(() => {
   fetchAll()
-  // Setup 5-second auto-refresh
   refreshIntervalId = setInterval(fetchAll, 5000)
 })
 
 onUnmounted(() => {
-  // Clear the interval when user leaves the component
-  if (refreshIntervalId) {
-    clearInterval(refreshIntervalId)
-  }
+  if (refreshIntervalId) clearInterval(refreshIntervalId)
 })
 </script>
 
 <style scoped>
-.dashboard-root,
-.dashboard-root *,
-.dashboard-root h1,
-.dashboard-root h2,
-.dashboard-root h3,
-.dashboard-root p,
-.dashboard-root th,
-.dashboard-root td,
-.dashboard-root span {
-  color: #0f172a !important;
-}
-
 .dashboard-root {
   display: flex;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Inter',
-    sans-serif;
-  background: #f1f5f9;
   min-height: 100vh;
+  background: #f8fafc;
+  font-family: 'Inter', sans-serif;
+  color: #0f172a;
 }
-
 .content {
   flex-grow: 1;
-  padding: 24px 30px 40px;
+  padding: 16px 24px;
+  overflow-x: hidden;
 }
 
+/* Hero Section */
 .hero-section {
-  position: relative;
-  background: url('@/assets/Background/bannerdashboard.jpg') no-repeat center center;
-  background-size: cover;
-  padding: 45px 36px;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px -5px rgba(31, 48, 86, 0.3);
-  border: 1px solid #cbd5e1;
-  overflow: hidden;
-  margin-bottom: 24px;
-  min-height: 220px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.hero-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(31, 48, 86, 0.72) 0%, rgba(23, 37, 84, 0.65) 100%);
-  z-index: 1;
-}
-
-.hero-header-content {
-  position: relative;
-  z-index: 2;
+  background: #283593;
+  padding: 20px 24px;
+  border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
-
 .hero-text h1 {
-  margin: 0 0 6px;
-  font-size: 2.2rem;
-  color: #ffffff !important;
+  margin: 0 0 4px;
+  font-size: 1.6rem;
+  color: white;
   font-weight: 700;
-  letter-spacing: -0.02em;
 }
-
 .hero-text p {
   margin: 0;
-  font-size: 0.95rem;
-  color: #e2e8f0 !important;
-}
-
-.manual-dispatch-btn {
-  background: #fef08a !important;
-  color: #1f3056 !important;
-  padding: 10px 20px;
-  border-radius: 12px;
-  border: 1px solid #fde047;
   font-size: 0.85rem;
+  color: #cbd5e1;
+}
+.manual-dispatch-btn {
+  background: #fde047;
+  color: #0f172a;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: background 0.2s;
+  gap: 6px;
+  transition: opacity 0.2s;
 }
-
 .manual-dispatch-btn:hover {
-  background: #fde047 !important;
+  opacity: 0.9;
 }
 
-.btn-icon {
-  width: 18px;
-  height: 18px;
-  color: #1f3056 !important;
+/* Operational Overview */
+.overview-section {
+  margin-bottom: 16px;
 }
-
-.metrics-container.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+.operational-overview-card {
+  background: #1e1b4b;
+  border-radius: 8px;
+  padding: 16px 24px;
+  color: white;
+  margin-bottom: 12px;
 }
-
-.priority-grid-cluster {
-  grid-column: span 2;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+.overview-header {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 12px;
 }
-
-.priority-card-critical {
-  background: #f87171 !important;
-  border-color: #ef4444 !important;
+.overview-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
-.priority-card-high {
-  background: #fef08a !important;
-  border-color: #fde047 !important;
-}
-.priority-card-normal {
-  background: #93c5fd !important;
-  border-color: #60a5fa !important;
-}
-.priority-card-low {
-  background: #cbd5e1 !important;
-  border-color: #94a3b8 !important;
-}
-
-.stat-card {
-  padding: 18px 20px;
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+.o-stat {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: flex-start;
+  position: relative;
+  padding: 0 16px;
 }
-
-.card-header {
+.o-stat:first-child {
+  padding-left: 0;
+}
+.o-stat:last-child {
+  padding-right: 0;
+}
+.o-stat:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 10%;
+  bottom: 10%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.o-stat span {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-}
-
-.stat-icon {
-  width: 24px;
-  height: 24px;
-  color: #1f3056 !important;
-}
-
-.stat-card h3 {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #475569 !important;
-  font-weight: 600;
-}
-
-.stat-value {
-  margin: 0;
-  font-size: 1.8rem;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: #cbd5e1;
+  text-transform: uppercase;
   font-weight: 700;
-  color: #0f172a !important;
+  margin-bottom: 6px;
+}
+.stat-icon {
+  width: 14px;
+  height: 14px;
+}
+.o-stat h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin: 0;
+  color: white;
+}
+.active-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  background: #4ade80;
+  border-radius: 50%;
 }
 
-.text-center {
+/* Priority Cards */
+.priority-cards-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.p-card {
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
 }
-
-.queue-panel {
-  margin-top: 16px;
-  padding: 24px;
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+.p-card span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.p-icon {
+  width: 14px;
+  height: 14px;
+}
+.p-card h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin: 0;
+}
+.p-card.critical {
+  background: #f87171;
+  color: #7f1d1d;
+  border: 1px solid #dc2626;
+}
+.p-card.high {
+  background: #fde047;
+  color: #78350f;
+  border: 1px solid #ca8a04;
+}
+.p-card.normal {
+  background: #93c5fd;
+  color: #1e3a8a;
+  border: 1px solid #2563eb;
+}
+.p-card.low {
+  background: #e2e8f0;
+  color: #334155;
+  border: 1px solid #475569;
 }
 
+/* Queue Tables */
+.queue-panel {
+  padding: 16px;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  margin-bottom: 16px;
+}
 .panel-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
-
 .queue-panel h3 {
   margin: 0;
-  font-size: 1.15rem;
-  color: #1f3056 !important;
+  font-size: 1.05rem;
+  color: #1e1b4b;
   font-weight: 700;
 }
-
 .filter-controls {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
-
 .filter-btn {
-  padding: 6px 14px;
+  padding: 4px 12px;
   border: 1px solid #cbd5e1;
-  background: #ffffff;
-  border-radius: 20px;
-  font-size: 0.75rem;
+  background: white;
+  border-radius: 999px;
+  font-size: 0.7rem;
   font-weight: 600;
-  color: #475569 !important;
+  color: #475569;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
-
-.filter-btn:hover {
-  background: #f1f5f9;
-}
-
 .filter-btn.active {
-  background: #1f3056;
-  color: #ffffff !important;
-  border-color: #1f3056;
+  background: #1e1b4b;
+  color: white;
+  border-color: #1e1b4b;
 }
-
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
 }
-
-.data-table th,
-.data-table td {
-  padding: 12px 14px;
+.data-table th {
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.65rem;
+  color: #64748b;
+  padding: 10px 12px;
   border-bottom: 1px solid #e2e8f0;
 }
-
-.data-table thead th {
-  text-align: left;
-  font-weight: 600;
-  font-size: 0.7rem;
-  color: #475569 !important;
-  background: #f8fafc;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.data-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.8rem;
 }
-
-.data-table tbody tr:hover {
-  background: #f8fafc;
+.truncate {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.muted-text {
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .status-pill {
-  display: inline-block;
+  background: #e2e8f0;
+  color: #475569;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #dbeafe;
-  color: #1e40af !important;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
 }
-
 .priority-pill {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.7rem;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
 }
 .priority-critical {
-  background: #fee2e2;
-  color: #991b1b !important;
+  background: #f87171;
+  color: white;
 }
 .priority-high {
-  background: #ffedd5;
-  color: #9a3412 !important;
+  background: #fde047;
+  color: #0f172a;
 }
 .priority-normal {
-  background: #e0f2fe;
-  color: #0369a1 !important;
+  background: #93c5fd;
+  color: #0f172a;
 }
 .priority-low {
   background: #f1f5f9;
-  color: #475569 !important;
+  color: #0f172a;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 6px;
+}
 .action-btn {
-  background: #2563eb;
-  color: #ffffff !important;
-  padding: 6px 12px;
-  border-radius: 6px;
+  background: #1e1b4b;
+  color: white;
   border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 600;
-  transition: background 0.2s;
 }
-
-.action-btn:hover {
-  background: #1d4ed8;
-}
-
 .details-btn {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 6px 10px;
-  border-radius: 6px;
+  background: white;
   border: 1px solid #cbd5e1;
-  font-size: 0.75rem;
+  color: #475569;
+  padding: 3px 12px;
+  border-radius: 4px;
+  font-size: 0.7rem;
   font-weight: 600;
-  color: #0f172a !important;
-  background: #ffffff;
   text-decoration: none;
   cursor: pointer;
 }
-
-.details-btn:hover {
-  background: #f8fafc;
+.text-center {
+  text-align: center;
+  color: #64748b;
+  padding: 24px;
 }
 
+/* MODALS */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1123,297 +1098,332 @@ onUnmounted(() => {
   z-index: 1000;
 }
 
-.manual-report-card {
-  width: min(460px, 92vw);
-  background: #dce6f2;
-  border-radius: 24px;
-  padding: 28px 24px;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.4);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border: 2px solid #3b42a4;
+/* Manual Report Modal */
+.manual-modal-card {
+  background: white;
+  border-radius: 8px;
+  width: 460px;
+  overflow: visible;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
-
-.modal-top-icon {
+.manual-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.manual-modal-header h2 {
+  margin: 0 0 4px 0;
+  font-size: 1.15rem;
+  color: #1e1b4b;
+  font-weight: 700;
+}
+.manual-modal-header p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.manual-modal-body {
+  padding: 20px;
+}
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1e1b4b;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+}
+.section-label .icon {
+  color: #d97706;
+  width: 14px;
+  height: 14px;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.input-group label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #0f172a;
   margin-bottom: 4px;
 }
-
-.header-file-icon {
-  width: 28px;
-  height: 28px;
-  color: #283593 !important;
+.input-group label span.req {
+  color: #ef4444;
 }
-
-.manual-report-card h2 {
-  margin: 0 0 18px 0;
-  font-size: 1.45rem;
-  font-weight: 900;
-  color: #283593 !important;
-  letter-spacing: 0.04em;
-  font-family: Georgia, 'Times New Roman', serif;
-}
-
-.manual-form {
+.std-input {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #0f172a;
+  background: white;
+  box-sizing: border-box;
+}
+.std-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #0f172a;
+  min-height: 70px;
+  resize: vertical;
+  box-sizing: border-box;
 }
 
+/* CUSTOM DROPDOWN STYLES */
 .custom-dropdown-container {
   position: relative;
   width: 100%;
 }
-
 .dropdown-trigger-btn {
   width: 100%;
-  background: #ffffff;
-  border: 1.5px solid #283593;
-  border-radius: 12px;
-  padding: 10px 16px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
   box-sizing: border-box;
 }
-
 .dropdown-trigger-btn span {
   font-size: 0.8rem;
-  font-weight: 800;
-  color: #283593 !important;
-  letter-spacing: 0.05em;
+  font-weight: 500;
+  color: #0f172a;
 }
-
+.dropdown-trigger-btn span.muted-trigger {
+  color: #94a3b8;
+}
 .dropdown-chevron {
-  width: 18px;
-  height: 18px;
-  color: #283593 !important;
+  color: #64748b;
 }
-
 .dropdown-popover {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
   margin-top: 4px;
-  background: #dce6f2;
-  border: 1.5px solid #283593;
-  border-radius: 14px;
-  padding: 10px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px;
   z-index: 1050;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
-
 .popover-search-box {
   position: relative;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
-
 .search-input {
   width: 100%;
-  background: #ffffff;
-  border: 1.5px solid #283593;
-  border-radius: 10px;
-  padding: 8px 36px 8px 12px;
-  font-size: 0.85rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 6px 8px 6px 28px;
+  font-size: 0.75rem;
   outline: none;
   box-sizing: border-box;
 }
-
 .search-input-icon {
   position: absolute;
-  right: 10px;
+  left: 8px;
   top: 50%;
   transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  color: #283593 !important;
+  color: #94a3b8;
 }
-
 .popover-scroll-list {
-  max-height: 200px;
+  max-height: 180px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-right: 4px;
 }
-
 .group-header-label {
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: #283593 !important;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #64748b;
   text-transform: uppercase;
-  margin: 6px 0 2px 2px;
-  letter-spacing: 0.05em;
+  margin: 4px 0 2px 4px;
 }
-
 .group-option-box {
-  background: #ffffff;
-  border: 1px solid #283593;
-  border-radius: 4px;
-  padding: 8px 12px;
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: #1e293b !important;
+  padding: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #0f172a;
   cursor: pointer;
-  transition: background 0.15s;
+  border-radius: 4px;
 }
-
 .group-option-box:hover {
   background: #f1f5f9;
 }
-
 .no-result-text {
-  font-size: 0.8rem;
-  color: #64748b !important;
-  padding: 8px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  padding: 6px;
   text-align: center;
 }
 
-.form-input-box {
-  width: 100%;
+/* Assign Lineman Modal */
+.assign-modal-card {
+  background: white;
+  border-radius: 8px;
+  width: 600px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
-
-.manual-styled-input {
-  width: 100%;
-  background: #ffffff;
-  border: 1.5px solid #283593;
-  border-radius: 12px;
-  padding: 10px 16px;
+.assign-modal-card h3 {
+  margin: 0 0 4px 0;
+  font-size: 1.1rem;
+  color: #1e1b4b;
+}
+.assign-modal-card p {
+  margin: 0 0 16px 0;
   font-size: 0.8rem;
-  font-weight: 800;
-  color: #283593 !important;
-  outline: none;
-  box-sizing: border-box;
+  color: #64748b;
 }
-
-.manual-styled-input::placeholder {
-  color: #283593 !important;
-  opacity: 0.8;
-  letter-spacing: 0.05em;
-}
-
-.manual-styled-textarea {
-  width: 100%;
-  background: #ffffff;
-  border: 1.5px solid #283593;
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: #283593 !important;
-  outline: none;
-  min-height: 110px;
-  resize: vertical;
-  box-sizing: border-box;
-}
-
-.manual-styled-textarea::placeholder {
-  color: #283593 !important;
-  opacity: 0.8;
-  letter-spacing: 0.05em;
-}
-
-.manual-modal-actions {
+.assign-search-row {
   display: flex;
-  gap: 12px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
-
-.btn-grey-cancel {
+.search-input-wrapper {
+  position: relative;
   flex: 1;
-  background: #a3a3a3 !important;
-  color: #ffffff !important;
-  border: none;
-  border-radius: 10px;
+}
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+.assign-search-input {
+  width: 100%;
+  padding: 8px 10px 8px 32px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  box-sizing: border-box;
+}
+.assign-filter-btn {
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.table-scroll-wrapper {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+.lineman-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lineman-table th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  text-align: left;
+  font-size: 0.65rem;
+  color: #64748b;
+  padding: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  z-index: 10;
+}
+.lineman-table td {
   padding: 10px;
   font-size: 0.8rem;
-  font-weight: 800;
-  cursor: pointer;
-  letter-spacing: 0.05em;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
 }
-
-.btn-navy-submit {
-  flex: 2;
-  background: #283593 !important;
-  color: #ffffff !important;
+.lineman-status {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+.status-available {
+  background: #dcfce7;
+  color: #166534;
+}
+.status-on-job {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.assign-action-btn {
+  background: #2563eb;
+  color: white;
   border: none;
-  border-radius: 10px;
-  padding: 10px;
-  font-size: 0.8rem;
-  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
   cursor: pointer;
-  letter-spacing: 0.05em;
+}
+.assign-action-btn:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
-}
-
-.modal-content {
-  width: min(420px, 90vw);
-  padding: 24px;
-  border-radius: 16px;
-  color: #0f172a;
-}
-
-.modal-content h3 {
-  margin: 0 0 12px;
-  font-size: 1.15rem;
-  color: #1f3056 !important;
-}
-
-.modal-actions {
+/* Common Modal Footer */
+.modal-footer {
+  padding: 12px 20px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 20px;
 }
-
-.assign-btn {
-  background: #2563eb;
-  color: #ffffff !important;
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: none;
-  font-size: 0.85rem;
+.btn-cancel {
+  background: white;
+  border: 1px solid #cbd5e1;
+  color: #1e1b4b;
+  padding: 6px 14px;
+  border-radius: 4px;
   font-weight: 600;
+  font-size: 0.8rem;
   cursor: pointer;
 }
-
-.cancel-btn {
-  background: #e2e8f0;
-  color: #475569 !important;
-  padding: 8px 16px;
-  border-radius: 8px;
+.btn-submit {
+  background: #1e1b4b;
+  color: white;
   border: none;
-  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 4px;
   font-weight: 600;
+  font-size: 0.8rem;
   cursor: pointer;
-}
-
-.lineman-checkbox-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.checkbox-label {
-  font-size: 0.85rem;
-  color: #0f172a !important;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+.btn-close-modal {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
   cursor: pointer;
 }
 </style>

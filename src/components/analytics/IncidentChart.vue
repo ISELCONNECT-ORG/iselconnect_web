@@ -63,16 +63,21 @@ const updateChart = (counts) => {
         {
           label: 'Reports',
           data: Object.values(counts),
-          backgroundColor: '#1f3056', // dark blue bar color
-          borderRadius: 6,
+          backgroundColor: '#283593',
+          borderRadius: 4,
+          barThickness: 30,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+      },
       scales: {
-        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } } },
+        x: { ticks: { font: { size: 10 } } },
       },
     },
   })
@@ -86,6 +91,6 @@ onMounted(fetchData)
 .chart-wrapper {
   position: relative;
   width: 100%;
-  height: 200px;
+  height: 140px; /* Reduced from 200px */
 }
 </style>

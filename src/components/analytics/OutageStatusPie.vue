@@ -34,7 +34,7 @@ const chartData = ref({
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } },
+  plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } },
 }
 
 const getStartDate = (filter) => {
@@ -57,7 +57,7 @@ const fetchStatusCounts = async () => {
 
   let pending = data.filter((r) => r.status_id === 1).length
   let ongoing = data.filter((r) => r.status_id === 2).length
-  let resolved = data.filter((r) => r.status_id === 3).length
+  let resolved = data.filter((r) => r.status_id === 3 || r.status_id === 6).length
 
   chartData.value = {
     labels: ['Pending', 'Ongoing', 'Resolved'],
@@ -85,15 +85,15 @@ onMounted(() => fetchStatusCounts())
   display: flex;
   justify-content: flex-end;
   gap: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .filter-controls button {
   background-color: #f1f5f9;
   border: 1px solid #cbd5e1;
   color: #475569;
-  padding: 4px 8px;
-  font-size: 0.75rem;
-  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  border-radius: 4px;
   cursor: pointer;
   font-weight: 600;
 }
@@ -102,9 +102,11 @@ onMounted(() => fetchStatusCounts())
   color: #0f172a;
   border-color: #f59e0b;
 }
+
+/* GREATLY REDUCED CANVAS HEIGHT */
 .canvas-box {
   position: relative;
   flex: 1;
-  height: 200px;
+  height: 130px;
 }
 </style>

@@ -50,10 +50,7 @@ import {
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 
 const props = defineProps({
-  branchId: {
-    type: [Number, String],
-    default: null,
-  },
+  branchId: { type: [Number, String], default: null },
 })
 
 const loading = ref(true)
@@ -68,27 +65,19 @@ const chartOptions = ref({
     legend: { display: false },
     tooltip: {
       backgroundColor: '#0f172a',
-      padding: 12,
-      bodyFont: { family: 'Inter, sans-serif', size: 13 },
-      callbacks: {
-        label: (context) => ` ${context.raw} Reports Filed`,
-      },
+      padding: 8,
+      bodyFont: { family: 'Inter, sans-serif', size: 11 },
+      callbacks: { label: (context) => ` ${context.raw} Reports` },
     },
   },
   scales: {
     x: {
       beginAtZero: true,
-      ticks: {
-        precision: 0,
-        color: '#64748b',
-      },
+      ticks: { precision: 0, color: '#64748b', font: { size: 10 } },
       grid: { color: '#f1f5f9' },
     },
     y: {
-      ticks: {
-        color: '#334155',
-        font: { weight: '500', size: 13 },
-      },
+      ticks: { color: '#334155', font: { weight: '500', size: 10 } },
       grid: { display: false },
     },
   },
@@ -112,17 +101,12 @@ const fetchSupabaseAnalytics = async () => {
       .select('barangay_id, barangays(name)')
       .gte('created_at', startDate.toISOString())
 
-    if (props.branchId) {
-      query = query.eq('branch_id', props.branchId)
-    }
+    if (props.branchId) query = query.eq('branch_id', props.branchId)
 
     const { data, error } = await query
-
     if (error) throw error
 
     const counts = {}
-    const labels = []
-
     if (data && data.length > 0) {
       data.forEach((item) => {
         const name = item.barangays?.name || 'Unknown Barangay'
@@ -133,46 +117,36 @@ const fetchSupabaseAnalytics = async () => {
         .sort(([, a], [, b]) => b - a)
         .slice(0, 5)
 
-      const topLabels = sorted.map(([label]) => label)
-      const topCounts = sorted.map(([, count]) => count)
-
       chartData.value = {
-        labels: topLabels,
+        labels: sorted.map(([label]) => label),
         datasets: [
           {
             label: 'Active Reports',
-            backgroundColor: '#1f3056',
-            hoverBackgroundColor: '#1f3056',
-            borderRadius: 6,
-            barThickness: 24,
-            data: topCounts,
+            backgroundColor: '#283593',
+            borderRadius: 4,
+            maxBarThickness: 32, // <--- Stops bars from expanding to massive blocks
+            data: sorted.map(([, count]) => count),
           },
         ],
       }
     }
   } catch (error) {
-    console.error('Supabase analytics load failure:', error.message)
+    console.error('Analytics load failure:', error.message)
   } finally {
     loading.value = false
   }
 }
 
-watch(currentPeriod, () => {
-  fetchSupabaseAnalytics()
-})
-
-onMounted(() => {
-  fetchSupabaseAnalytics()
-})
+watch(currentPeriod, fetchSupabaseAnalytics)
+onMounted(fetchSupabaseAnalytics)
 </script>
 
 <style scoped>
 .analytics-card {
   background: white;
-  padding: 24px;
-  border-radius: 16px;
+  padding: 16px;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
 }
@@ -181,25 +155,45 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .card-title {
-  font-size: 1.125rem;
+  font-size: 0.9rem;
   color: #000000;
-  margin: 0 0 4px 0;
-  font-weight: 600;
+  margin: 0 0 2px 0;
+  font-weight: 700;
 }
 
 .card-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #475569;
   margin: 0;
 }
 
+.timeframe-tabs {
+  display: flex;
+  gap: 4px;
+}
+.timeframe-tabs button {
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.timeframe-tabs button.active {
+  background-color: #fbbf24;
+  color: #0f172a;
+  border-color: #f59e0b;
+}
+
 .chart-container {
   position: relative;
-  height: 280px;
+  min-height: 240px; /* <--- Forces a dynamic breathable height regardless of items */
   width: 100%;
   flex-grow: 1;
 }
@@ -211,15 +205,15 @@ onMounted(() => {
   justify-content: center;
   height: 100%;
   color: #475569;
-  font-size: 0.925rem;
-  gap: 12px;
+  font-size: 0.8rem;
+  gap: 8px;
 }
 
 .spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #1f3056; /* match bar color if you want */
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #283593;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
