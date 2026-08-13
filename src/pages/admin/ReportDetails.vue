@@ -152,13 +152,19 @@
         <!-- ROW 3: Map (Left) | Timeline (Right) -->
         <div class="grid-row">
           <section class="card-box map-card flex-col">
-            <h2 class="section-title">LIVE LOCATIN MAP</h2>
+            <h2 class="section-title">LIVE LOCATION MAP</h2>
             <div class="map-wrapper flex-grow-block">
               <div id="liveTrackingMap" class="map-box"></div>
             </div>
             <div class="map-legend-row">
-              <span class="legend-pill"><span class="circle-dot issue-dot"></span></span>
-              <span class="legend-pill"><span class="circle-dot lineman-dot"></span></span>
+              <span class="legend-pill">
+                <span class="circle-dot issue-dot"></span>
+                <span class="legend-text">ISSUE LOCATION</span>
+              </span>
+              <span class="legend-pill">
+                <span class="circle-dot lineman-dot"></span>
+                <span class="legend-text">LINEMAN LOCATION</span>
+              </span>
             </div>
           </section>
 
@@ -276,20 +282,35 @@ const fetchReportDetails = async () => {
 }
 
 const refreshLinemanLocation = async () => {
-  if (!report.value) return
   const reportId = route.params.id
   if (!reportId) return
 
+  // 1. Fetch the exact report location (yellow) from the reports table
+  const { data: latestReport, error: repError } = await supabase
+    .from('reports')
+    .select('latitude, longitude')
+    .eq('id', reportId)
+    .single()
+
+  if (!repError && latestReport && report.value) {
+    report.value.latitude = latestReport.latitude
+    report.value.longitude = latestReport.longitude
+  }
+
+  // 2. Fetch the exact lineman location (blue) from the assignments table
   const { data: assignData, error: assignError } = await supabase
     .from('assignments')
-    .select('*')
+    .select('id, current_lat, current_lon')
     .eq('report_id', reportId)
     .order('assigned_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   if (!assignError && assignData && mapInstance) {
-    assignment.value = assignData
+    if (assignment.value) {
+      assignment.value.current_lat = assignData.current_lat
+      assignment.value.current_lon = assignData.current_lon
+    }
 
     const reportLat = report.value.latitude ? parseFloat(report.value.latitude) : 16.716173
     const reportLon = report.value.longitude ? parseFloat(report.value.longitude) : 121.678825
@@ -304,16 +325,18 @@ const refreshLinemanLocation = async () => {
         ? parseFloat(assignData.current_lon)
         : reportLon
 
+    // Update Issue (Yellow) Marker Position
     if (issueMarker) {
       issueMarker.setLatLng([reportLat, reportLon])
     }
 
+    // Update Lineman (Blue) Marker Position
     if (linemanMarker) {
       linemanMarker.setLatLng([linemanLat, linemanLon])
     } else {
       const linemanIcon = L.divIcon({
         className: 'custom-lineman-marker',
-        html: `<div style="background:#2e3192;width:20px;height:20px;border-radius:50%;border:2px solid #ffffff;box-shadow:0 0 8px rgba(0,0,0,0.4);"></div>`,
+        html: `<div style="background-color: #2563eb; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #ffffff; box-shadow: 0 4px 8px rgba(0,0,0,0.4);"></div>`,
         iconSize: [20, 20],
         iconAnchor: [10, 10],
       })
@@ -322,9 +345,10 @@ const refreshLinemanLocation = async () => {
         zIndexOffset: 1000,
       })
         .addTo(mapInstance)
-        .bindPopup('<b>Lineman Current Location</b>')
+        .bindPopup('<b>Lineman Location</b>')
     }
 
+    // Update routing path between the two markers
     try {
       if (linemanLat === reportLat && linemanLon === reportLon) throw new Error('Same coordinates')
 
@@ -338,7 +362,7 @@ const refreshLinemanLocation = async () => {
           routePolyline.setLatLngs(routeCoords)
         } else {
           routePolyline = L.polyline(routeCoords, {
-            color: '#2e3192',
+            color: '#2563eb',
             weight: 5,
             opacity: 0.8,
           }).addTo(mapInstance)
@@ -352,7 +376,7 @@ const refreshLinemanLocation = async () => {
           routePolyline.setLatLngs(fallbackCoords)
         } else {
           routePolyline = L.polyline(fallbackCoords, {
-            color: '#2e3192',
+            color: '#2563eb',
             weight: 5,
             dashArray: '10, 10',
             opacity: 0.8,
@@ -368,7 +392,7 @@ const refreshLinemanLocation = async () => {
         routePolyline.setLatLngs(fallbackCoords)
       } else {
         routePolyline = L.polyline(fallbackCoords, {
-          color: '#2e3192',
+          color: '#2563eb',
           weight: 5,
           dashArray: '10, 10',
           opacity: 0.8,
@@ -422,18 +446,26 @@ const initLiveMap = async () => {
       },
     ).addTo(mapInstance)
 
+    // Issue Location Marker (Yellow)
     const issueIcon = L.divIcon({
       className: 'custom-leaflet-marker',
-      html: `<div style="background-color: #fde047; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #1e1b4b; box-shadow: 0 4px 8px rgba(0,0,0,0.4);"></div>`,
+      html: `<div style="background-color: #facc15; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #1e1b4b; box-shadow: 0 4px 8px rgba(0,0,0,0.4);"></div>`,
       iconSize: [20, 20],
       iconAnchor: [10, 10],
     })
+
     issueMarker = L.marker([reportLat, reportLon], { icon: issueIcon })
       .addTo(mapInstance)
       .bindPopup('<b>Issue Location</b>')
   }
 
   await refreshLinemanLocation()
+
+  // Frame both markers on initial load if they exist
+  if (issueMarker && linemanMarker) {
+    const bounds = L.latLngBounds([issueMarker.getLatLng(), linemanMarker.getLatLng()])
+    mapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 17 })
+  }
 }
 
 const lifecycleMilestones = computed(() => {
@@ -638,6 +670,7 @@ onMounted(() => {
   fetchLookups()
   fetchReportDetails()
 
+  // Polling every 5 seconds
   refreshInterval = setInterval(() => {
     refreshLinemanLocation()
   }, 5000)
@@ -907,11 +940,12 @@ onUnmounted(() => {
   cursor: default;
 }
 
+/* REFINED MINIMAL WATERMARK */
 .watermark-text {
-  font-size: 2.2rem;
-  font-weight: 900;
-  color: #000000;
-  letter-spacing: 2px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.5px;
   line-height: 1.1;
   text-align: center;
 }
@@ -998,6 +1032,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px; /* Gap between circle and label */
+}
+
+.legend-text {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #2e3192;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .circle-dot {
@@ -1008,13 +1051,14 @@ onUnmounted(() => {
 }
 
 .issue-dot {
-  background: #fde047;
+  background: #facc15;
   border: 2px solid #1e1b4b;
 }
 
 .lineman-dot {
-  background: #2e3192;
+  background: #2563eb;
   border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #cbd5e1;
 }
 
 /* Consumer Info styling */

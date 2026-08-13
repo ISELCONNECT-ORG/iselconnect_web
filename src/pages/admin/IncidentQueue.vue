@@ -89,14 +89,51 @@
 
       <!-- ACTIVE INCIDENTS -->
       <section class="queue-panel">
-        <h3>Active Incidents</h3>
+        <div class="panel-header-row">
+          <h3>Active Incidents</h3>
+
+          <!-- PRIORITY FILTER CONTROLS -->
+          <div class="filter-controls">
+            <button
+              :class="['filter-btn', { active: currentPriorityFilter === 'All' }]"
+              @click="setFilter('All')"
+            >
+              All
+            </button>
+            <button
+              :class="['filter-btn', { active: currentPriorityFilter === 'Critical' }]"
+              @click="setFilter('Critical')"
+            >
+              Critical
+            </button>
+            <button
+              :class="['filter-btn', { active: currentPriorityFilter === 'High' }]"
+              @click="setFilter('High')"
+            >
+              High
+            </button>
+            <button
+              :class="['filter-btn', { active: currentPriorityFilter === 'Normal' }]"
+              @click="setFilter('Normal')"
+            >
+              Normal
+            </button>
+            <button
+              :class="['filter-btn', { active: currentPriorityFilter === 'Low' }]"
+              @click="setFilter('Low')"
+            >
+              Low
+            </button>
+          </div>
+        </div>
+
         <table class="data-table">
           <thead>
             <tr>
               <th>STATUS</th>
               <th>PRIORITY</th>
               <th>CUSTOMER</th>
-              <th>DESCRIPTION</th>
+              <th>LANDMARK</th>
               <th>MUNICIPALITY</th>
               <th>BARANGAY</th>
               <th>PUROK</th>
@@ -118,17 +155,22 @@
               <td>
                 <strong>{{ r.users?.first_name }} {{ r.users?.last_name || 'Walk-in' }}</strong>
               </td>
-              <td>{{ r.description }}</td>
+              <td>{{ r.landmark || 'N/A' }}</td>
               <td class="text-black">{{ r.municipalities?.name }}</td>
               <td class="text-black">{{ r.barangays?.name }}</td>
               <td class="text-black">{{ r.purok_sitio }}</td>
               <td class="text-black">{{ r.lineman_display }}</td>
-              <td>{{ new Date(r.created_at).toLocaleTimeString() }}</td>
+              <td>{{ formatTime(r.created_at) }}</td>
               <td>
                 <button @click="openAssign(r)" class="action-btn">Assign</button>
                 <router-link :to="`/admin/reports/${r.id}`" class="details-btn">
                   See Details
                 </router-link>
+              </td>
+            </tr>
+            <tr v-if="activeReports.length === 0">
+              <td colspan="10" class="text-center" style="padding: 20px; color: #64748b">
+                No active incidents found for this filter.
               </td>
             </tr>
           </tbody>
@@ -144,7 +186,7 @@
               <th>STATUS</th>
               <th>PRIORITY</th>
               <th>CUSTOMER</th>
-              <th>DESCRIPTION</th>
+              <th>LANDMARK</th>
               <th>MUNICIPALITY</th>
               <th>BARANGAY</th>
               <th>PUROK</th>
@@ -166,17 +208,22 @@
               <td>
                 <strong>{{ r.users?.first_name }} {{ r.users?.last_name || 'Walk-in' }}</strong>
               </td>
-              <td>{{ r.description }}</td>
+              <td>{{ r.landmark || 'N/A' }}</td>
               <td class="text-black">{{ r.municipalities?.name }}</td>
               <td class="text-black">{{ r.barangays?.name }}</td>
               <td class="text-black">{{ r.purok_sitio }}</td>
               <td class="text-black">{{ r.lineman_display }}</td>
-              <td>{{ new Date(r.created_at).toLocaleTimeString() }}</td>
+              <td>{{ formatTime(r.created_at) }}</td>
               <td>
                 <button class="action-btn" disabled>Done</button>
                 <router-link :to="`/admin/reports/${r.id}`" class="details-btn">
                   See Details
                 </router-link>
+              </td>
+            </tr>
+            <tr v-if="resolvedReports.length === 0">
+              <td colspan="10" class="text-center" style="padding: 20px; color: #64748b">
+                No resolved incidents found for this filter.
               </td>
             </tr>
           </tbody>
@@ -313,7 +360,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import { sendNotification } from '@/utils/notifications.js'
 import Sidebar from '@/components/Sidebar.vue'
@@ -362,6 +409,19 @@ const isWorkingHoursModal = ref(false)
 const assignedCount = ref(0)
 const totalReportsCount = ref(0)
 const onlineLinemenCount = ref(0)
+
+// Filtering State
+const currentPriorityFilter = ref('All')
+let refreshIntervalId = null
+
+const setFilter = (priority) => {
+  currentPriorityFilter.value = priority
+}
+
+const formatTime = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
 
 const criticalCount = computed(
   () =>
@@ -475,24 +535,28 @@ const closeManualModal = () => {
 }
 
 const activeReports = computed(() => {
-  const priorityRank = { Critical: 1, High: 2, Normal: 3, Low: 4 }
+  let filtered = pendingReports.value.filter((r) => r.report_statuses?.name !== 'Resolved')
 
-  return pendingReports.value
-    .filter((r) => r.report_statuses?.name !== 'Resolved')
-    .sort((a, b) => {
-      const pA = priorityRank[a.report_types?.priority_level] || 3
-      const pB = priorityRank[b.report_types?.priority_level] || 3
+  if (currentPriorityFilter.value !== 'All') {
+    filtered = filtered.filter(
+      (r) => (r.report_types?.priority_level || 'Normal') === currentPriorityFilter.value,
+    )
+  }
 
-      if (pA !== pB) {
-        return pA - pB
-      }
-      return new Date(b.created_at) - new Date(a.created_at)
-    })
+  return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 })
 
-const resolvedReports = computed(() =>
-  pendingReports.value.filter((r) => r.report_statuses?.name === 'Resolved'),
-)
+const resolvedReports = computed(() => {
+  let filtered = pendingReports.value.filter((r) => r.report_statuses?.name === 'Resolved')
+
+  if (currentPriorityFilter.value !== 'All') {
+    filtered = filtered.filter(
+      (r) => (r.report_types?.priority_level || 'Normal') === currentPriorityFilter.value,
+    )
+  }
+
+  return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+})
 
 const getPriorityClass = (level) => {
   switch (level) {
@@ -521,22 +585,34 @@ const normalizeLocalQueueReport = (r) => ({
   lineman_display: r.lineman_display || 'Unassigned',
   photo_url: r.photo_url || null,
   created_at: r.date || new Date().toISOString(),
-  landmark: r.location || 'N/A',
+  landmark: r.landmark || r.location || 'N/A',
   status_id: r.status_id || 2,
   report_types: { name: r.severity || 'General', priority_level: r.priority_level || 'Normal' },
 })
 
 const fetchAll = async () => {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('reports')
     .select(
       `
-      *, report_statuses(name), report_types(name, priority_level), users(first_name, last_name),
-      barangays(name), municipalities(name), assignments(lineman_id, users(first_name, last_name))
+      *,
+      report_statuses(name),
+      report_types(name, priority_level),
+      users!residents_id(first_name, last_name),
+      barangays(name),
+      municipalities(name),
+      assignments(
+        lineman_id,
+        users!lineman_id(first_name, last_name)
+      )
     `,
     )
     .gt('status_id', 1)
     .neq('status_id', 5)
+
+  if (error) {
+    console.error('Supabase fetch error:', error.message)
+  }
 
   const supabaseReports = (data || []).map((r) => ({
     ...r,
@@ -565,7 +641,6 @@ const fetchAll = async () => {
   const { data: types } = await supabase.from('report_types').select('*')
   reportTypes.value = types || []
 
-  // FIX: Fetch barangays and municipalities separately and map them client-side to avoid embedding 400 errors
   const { data: brgys } = await supabase.from('barangays').select('id, name, municipality_id')
   const { data: munis } = await supabase.from('municipalities').select('id, name')
 
@@ -701,7 +776,18 @@ const submitAssignment = async () => {
   fetchAll()
 }
 
-onMounted(fetchAll)
+onMounted(() => {
+  fetchAll()
+  // Setup 5-second auto-refresh
+  refreshIntervalId = setInterval(fetchAll, 5000)
+})
+
+onUnmounted(() => {
+  // Clear the interval when user leaves the component
+  if (refreshIntervalId) {
+    clearInterval(refreshIntervalId)
+  }
+})
 </script>
 
 <style scoped>
@@ -891,11 +977,45 @@ onMounted(fetchAll)
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
+.panel-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
 .queue-panel h3 {
-  margin: 0 0 16px;
+  margin: 0;
   font-size: 1.15rem;
   color: #1f3056 !important;
   font-weight: 700;
+}
+
+.filter-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-btn {
+  padding: 6px 14px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569 !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+  background: #f1f5f9;
+}
+
+.filter-btn.active {
+  background: #1f3056;
+  color: #ffffff !important;
+  border-color: #1f3056;
 }
 
 .data-table {
