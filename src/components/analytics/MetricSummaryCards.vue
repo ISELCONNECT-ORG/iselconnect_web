@@ -18,7 +18,7 @@
       <!-- Pending Reports -->
       <div class="metric-card">
         <div class="card-title">
-          <FileText :size="14" class="icon" />
+          <FileText :size="24" class="icon" />
           <span>PENDING REPORTS</span>
         </div>
         <span class="value">{{ metrics.pending }}</span>
@@ -27,7 +27,7 @@
       <!-- Ongoing Repairs -->
       <div class="metric-card">
         <div class="card-title">
-          <Wrench :size="14" class="icon" />
+          <Wrench :size="24" class="icon" />
           <span>ONGOING REPAIRS</span>
         </div>
         <span class="value">{{ metrics.ongoing }}</span>
@@ -36,7 +36,7 @@
       <!-- Resolved In Period -->
       <div class="metric-card">
         <div class="card-title">
-          <CheckCircle2 :size="14" class="icon" />
+          <CheckCircle2 :size="24" class="icon" />
           <span>RESOLVED IN PERIOD</span>
         </div>
         <span class="value">{{ metrics.totalResolved }}</span>
@@ -45,7 +45,7 @@
       <!-- Avg Resolution -->
       <div class="metric-card">
         <div class="card-title">
-          <Timer :size="14" class="icon" />
+          <Timer :size="24" class="icon" />
           <span>AVG. RESOLUTION</span>
         </div>
         <span class="value">0</span>
@@ -89,7 +89,7 @@ const fetchMetrics = async () => {
   let query = supabase
     .from('reports')
     .select('status_id,created_at,updated_at')
-    .gte('created_at', startDate) // Applies the selected time filter
+    .gte('created_at', startDate)
 
   if (props.branchId) query = query.eq('branch_id', props.branchId)
 
@@ -109,7 +109,7 @@ watch(
   () => props.period,
   (newVal) => {
     localPeriod.value = newVal.toUpperCase()
-    fetchMetrics() // Refresh metrics when period changes
+    fetchMetrics()
   },
 )
 onMounted(fetchMetrics)
@@ -117,11 +117,12 @@ onMounted(fetchMetrics)
 
 <style scoped>
 .metrics-overview-container {
-  background-color: #f8fafc;
-  border: 1px solid #283593;
+  background-color: #1a1a40;
+  border: none;
   padding: 16px;
   border-radius: 8px;
   width: 100%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .metrics-header {
@@ -132,41 +133,42 @@ onMounted(fetchMetrics)
 }
 
 .section-title {
-  color: #1e1b4b;
+  color: #ffffff;
   font-size: 0.8rem;
   font-weight: 800;
   margin: 0;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .timeframe-tabs {
   display: flex;
-  background: #e2e8f0;
-  border: 1px solid #283593;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 99px;
   overflow: hidden;
   padding: 2px;
 }
 
 .timeframe-tabs button {
   background: transparent;
-  color: #283593;
+  color: #ffffff;
   border: none;
   padding: 4px 12px;
   font-size: 0.65rem;
   font-weight: 700;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 99px;
   transition: all 0.2s;
 }
 
 .timeframe-tabs button.active {
-  background: #1e1b4b;
-  color: #ffffff;
+  background: #fbbf24;
+  color: #1e1b4b;
 }
 
 .timeframe-tabs button:hover:not(.active) {
-  background: rgba(40, 53, 147, 0.1);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .metrics-grid {
@@ -176,36 +178,46 @@ onMounted(fetchMetrics)
 }
 
 .metric-card {
-  background-color: #ffffff;
-  border: 1px solid #283593;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   padding: 12px 16px;
-  border-radius: 4px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 80px;
+  box-shadow:
+    inset 0 0 10px rgba(255, 255, 255, 0.02),
+    0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* Forced White and Bold */
 .card-title {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: #475569;
-  font-size: 0.65rem;
-  font-weight: 800;
+  gap: 8px;
   width: 100%;
   justify-content: flex-start;
+  text-transform: uppercase;
+}
+
+.card-title span {
+  color: #ffffff !important;
+  font-size: 0.7rem;
+  font-weight: 900 !important;
 }
 
 .icon {
-  color: #283593;
+  color: #ffffff;
 }
 
 .value {
   font-size: 1.8rem;
   font-weight: 800;
-  color: #0f172a;
+  color: #93c5fd;
   line-height: 1;
   margin-top: 8px;
 }

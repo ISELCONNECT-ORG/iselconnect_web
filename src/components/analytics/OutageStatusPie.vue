@@ -1,15 +1,19 @@
 <template>
   <div class="pie-container">
-    <div class="filter-controls">
-      <button
-        v-for="filter in ['Day', 'Week', 'Month', 'Year']"
-        :key="filter"
-        :class="{ active: currentFilter === filter }"
-        @click="setFilter(filter)"
-      >
-        {{ filter }}
-      </button>
+    <div class="card-header">
+      <h3 class="card-title">Outage Status Breakdown</h3>
+      <div class="timeframe-tabs">
+        <button
+          v-for="filter in ['Day', 'Week', 'Month', 'Year']"
+          :key="filter"
+          :class="{ active: currentFilter === filter }"
+          @click="setFilter(filter)"
+        >
+          {{ filter }}
+        </button>
+      </div>
     </div>
+
     <div class="canvas-box">
       <Doughnut :data="chartData" :options="chartOptions" />
     </div>
@@ -28,7 +32,8 @@ const currentFilter = ref('Month')
 
 const chartData = ref({
   labels: ['Pending', 'Ongoing', 'Resolved'],
-  datasets: [{ data: [0, 0, 0], backgroundColor: ['#eab308', '#0284c7', '#22c55e'] }],
+  // Updated Ongoing color to #283593 to match the IncidentChart bars
+  datasets: [{ data: [0, 0, 0], backgroundColor: ['#eab308', '#283593', '#22c55e'] }],
 })
 
 const chartOptions = {
@@ -62,7 +67,8 @@ const fetchStatusCounts = async () => {
   chartData.value = {
     labels: ['Pending', 'Ongoing', 'Resolved'],
     datasets: [
-      { data: [pending, ongoing, resolved], backgroundColor: ['#eab308', '#0284c7', '#22c55e'] },
+      // Updated Ongoing color to #283593 to match the IncidentChart bars
+      { data: [pending, ongoing, resolved], backgroundColor: ['#eab308', '#283593', '#22c55e'] },
     ],
   }
 }
@@ -81,29 +87,53 @@ onMounted(() => fetchStatusCounts())
   flex-direction: column;
   height: 100%;
 }
-.filter-controls {
+
+.card-header {
   display: flex;
-  justify-content: flex-end;
-  gap: 4px;
-  margin-bottom: 4px;
-}
-.filter-controls button {
-  background-color: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: #475569;
-  padding: 2px 6px;
-  font-size: 0.65rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-}
-.filter-controls button.active {
-  background-color: #fbbf24;
-  color: #0f172a;
-  border-color: #f59e0b;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
-/* GREATLY REDUCED CANVAS HEIGHT */
+.card-title {
+  font-size: 1rem;
+  color: #0f172a;
+  margin: 0;
+  font-weight: 800;
+}
+
+.timeframe-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 99px;
+  padding: 2px;
+}
+
+.timeframe-tabs button {
+  background: transparent;
+  color: #475569;
+  border: none;
+  padding: 4px 12px;
+  font-size: 0.65rem;
+  border-radius: 99px;
+  cursor: pointer;
+  font-weight: 700;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.timeframe-tabs button.active {
+  background-color: #fbbf24;
+  color: #1e1b4b;
+}
+
+.timeframe-tabs button:hover:not(.active) {
+  background-color: #e2e8f0;
+}
+
 .canvas-box {
   position: relative;
   flex: 1;

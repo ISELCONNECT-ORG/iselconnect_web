@@ -5,17 +5,16 @@
     </div>
 
     <nav class="nav-menu">
+      <!-- OVERVIEW SECTION -->
+      <div class="section-title">OVERVIEW</div>
       <router-link to="/branch/dashboard" class="nav-link" active-class="active">
         <LayoutDashboard :size="20" /> Dashboard
       </router-link>
       <router-link to="/branch/incident" class="nav-link" active-class="active">
-        <AlertTriangle :size="20" /> Incident List
-      </router-link>
-      <router-link to="/branch/analytics" class="nav-link" active-class="active">
-        <LayoutDashboard :size="20" /> Analytics
+        <AlertTriangle :size="20" /> Incident Queue
       </router-link>
       <router-link to="/branch/map" class="nav-link" active-class="active">
-        <Map :size="20" /> Map View
+        <MapIcon :size="20" /> Map View
       </router-link>
       <router-link to="/branch/linemen" class="nav-link" active-class="active">
         <Users :size="20" /> Lineman Monitoring
@@ -23,97 +22,171 @@
     </nav>
 
     <div class="footer-nav">
-      <router-link to="/branch/settings" class="nav-link" active-class="active">
-        <Settings :size="20" /> Settings
-      </router-link>
-      <router-link to="/branch/support" class="nav-link" active-class="active">
-        <HelpCircle :size="20" /> Support
-      </router-link>
-      <button @click="confirmLogout" class="logout-btn"><LogOut :size="20" /> Logout</button>
+      <!-- USER MANAGEMENT DROPDOWN -->
+      <div class="dropdown-container">
+        <button class="nav-link dropdown-toggle" @click="toggleUserMgmt">
+          <div class="dropdown-label"><Users :size="20" /> User Management</div>
+          <ChevronUp v-if="isUserMgmtOpen" :size="16" />
+          <ChevronDown v-else :size="16" />
+        </button>
+        <div v-if="isUserMgmtOpen" class="dropdown-menu">
+          <router-link to="/branch/create-lineman" class="nav-link sub-link" active-class="active">
+            <UserPlus :size="18" /> Create Lineman Account
+          </router-link>
+        </div>
+      </div>
+
+      <!-- SETTINGS DROPDOWN -->
+      <div class="dropdown-container">
+        <button class="nav-link dropdown-toggle" @click="toggleSettings">
+          <div class="dropdown-label"><Settings :size="20" /> Settings</div>
+          <ChevronUp v-if="isSettingsOpen" :size="16" />
+          <ChevronDown v-else :size="16" />
+        </button>
+        <div v-if="isSettingsOpen" class="dropdown-menu">
+          <router-link to="/branch/profile" class="nav-link sub-link" active-class="active">
+            <User :size="18" /> Profile
+          </router-link>
+          <router-link to="/branch/security" class="nav-link sub-link" active-class="active">
+            <Shield :size="18" /> Security
+          </router-link>
+          <router-link to="/branch/audit-log" class="nav-link sub-link" active-class="active">
+            <FileText :size="18" /> Audit Log
+          </router-link>
+          <router-link to="/branch/about" class="nav-link sub-link" active-class="active">
+            <Info :size="18" /> About Us
+          </router-link>
+        </div>
+      </div>
+
+      <!-- LOGOUT BUTTON -->
+      <button @click="confirmLogout" class="logout-btn mt-4"><LogOut :size="20" /> Logout</button>
     </div>
+
+    <!-- CUSTOM LOGOUT MODAL TELEPORTED TO BODY -->
+    <Teleport to="body">
+      <div v-if="showLogoutModal" class="modal-overlay" @click.self="cancelLogout">
+        <div class="modal-content">
+          <div class="modal-icon-container">
+            <LogOut :size="28" class="modal-icon" />
+          </div>
+          <h3 class="modal-title">Logout Confirmation</h3>
+          <p class="modal-text">Are you sure you want to log out of<br />ISELCONNECT?</p>
+          <div class="modal-actions">
+            <button @click="cancelLogout" class="btn-cancel">Cancel</button>
+            <button @click="handleLogout" class="btn-logout">Logout</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </aside>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import {
   LayoutDashboard,
-  Map,
   AlertTriangle,
+  Map as MapIcon,
   Users,
+  UserPlus,
   Settings,
-  HelpCircle,
+  User,
+  Shield,
+  FileText,
+  Info,
   LogOut,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-vue-next'
 import { supabase } from '@/services/supabase'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
+// Dropdown and Modal States
+const isUserMgmtOpen = ref(false)
+const isSettingsOpen = ref(false)
+const showLogoutModal = ref(false)
+
+const toggleUserMgmt = () => {
+  isUserMgmtOpen.value = !isUserMgmtOpen.value
+}
+
+const toggleSettings = () => {
+  isSettingsOpen.value = !isSettingsOpen.value
+}
+
 const handleLogout = async () => {
   const { error } = await supabase.auth.signOut()
   if (!error) {
-    router.push('/login') // branch users go to login
+    router.push('/')
   } else {
     alert('Error logging out: ' + error.message)
   }
 }
 
 const confirmLogout = () => {
-  const ok = window.confirm('Are you sure you want to log out?')
-  if (ok) {
-    handleLogout()
-  }
+  showLogoutModal.value = true
+}
+
+const cancelLogout = () => {
+  showLogoutModal.value = false
 }
 </script>
 
 <style scoped>
+/* Sidebar Container */
 .sidebar {
-  width: 240px;
-  background-color: rgba(255, 255, 255, 0.92);
-  border-right: 1px solid #e5e7eb;
+  width: 250px;
+  min-width: 250px;
+  flex-shrink: 0;
+  background-color: #f8fafc;
+  border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 0 20px 20px; /* same as admin sidebar */
+  padding: 0 16px 20px;
   position: sticky;
   top: 0;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 8px 24px rgba(148, 163, 184, 0.3);
-  animation: fadeInSidebar 0.25s ease-out;
+  overflow-y: auto;
 }
 
-@keyframes fadeInSidebar {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
+/* Logo Area */
 .logo-area {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0rem;
+  padding: 24px 8px 16px;
 }
 
 .logo-img {
-  width: 100px; /* visible size, same as Sidebar.vue */
-  height: 100px;
+  width: 140px;
+  height: auto;
   object-fit: contain;
-  border-radius: 0;
-  box-shadow: none;
 }
 
+/* Navigation Menu */
 .nav-menu {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   flex-grow: 1;
 }
 
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 12px 12px 4px;
+  letter-spacing: 0.05em;
+}
+
+.mt-4 {
+  margin-top: 16px;
+}
+
+/* Links and Buttons */
 .nav-link {
   color: #64748b;
   text-decoration: none;
@@ -121,11 +194,14 @@ const confirmLogout = () => {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   font-weight: 500;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
 }
 
 .nav-link:hover {
@@ -135,35 +211,173 @@ const confirmLogout = () => {
 
 .nav-link.active {
   background-color: #eef2ff;
-  color: #1e3a8a;
+  color: #283593;
   font-weight: 600;
 }
 
+/* Dropdown specific styles */
+.dropdown-container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+}
+
+.dropdown-toggle {
+  justify-content: space-between;
+}
+
+.dropdown-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dropdown-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.sub-link {
+  padding-left: 40px;
+  font-size: 0.9rem;
+}
+
+/* Footer & Logout Button */
 .footer-nav {
-  border-top: 1px solid #f1f5f9;
-  padding-top: 20px;
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
 }
 
 .logout-btn {
-  background: none;
+  background-color: #283593;
   border: none;
   width: 100%;
   cursor: pointer;
-  color: #ef4444;
-  padding: 10px 12px;
+  color: white;
+  padding: 12px;
   display: flex;
   align-items: center;
   gap: 12px;
   font-weight: 500;
-  border-radius: 10px;
+  border-radius: 8px;
   transition: background-color 0.2s ease;
 }
 
 .logout-btn:hover {
+  background-color: #1e2a78;
+}
+</style>
+
+<style>
+/*
+  MODAL STYLES MOVED TO GLOBAL SCOPE
+  Because we used <Teleport>, the modal now lives in the <body>,
+  so these styles cannot be 'scoped' to the sidebar anymore.
+*/
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 32px 24px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: modalIn 0.2s ease-out;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-icon-container {
   background-color: #fee2e2;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+}
+
+.modal-icon {
+  color: #b91c1c;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.modal-text {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-cancel {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: none;
+  padding: 10px 0;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 1;
+  transition: background-color 0.2s;
+}
+
+.btn-cancel:hover {
+  background-color: #e2e8f0;
+}
+
+.btn-logout {
+  background-color: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 10px 0;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 1;
+  transition: background-color 0.2s;
+}
+
+.btn-logout:hover {
+  background-color: #151336;
 }
 </style>

@@ -124,7 +124,7 @@ const fetchSupabaseAnalytics = async () => {
             label: 'Active Reports',
             backgroundColor: '#283593',
             borderRadius: 4,
-            maxBarThickness: 32, // <--- Stops bars from expanding to massive blocks
+            maxBarThickness: 32,
             data: sorted.map(([, count]) => count),
           },
         ],
@@ -174,30 +174,41 @@ onMounted(fetchSupabaseAnalytics)
 .timeframe-tabs {
   display: flex;
   gap: 4px;
-}
-.timeframe-tabs button {
-  background-color: #f1f5f9;
+  background: #f1f5f9;
   border: 1px solid #cbd5e1;
-  color: #475569;
-  padding: 2px 6px;
-  font-size: 0.65rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
+  border-radius: 99px;
+  padding: 2px;
 }
+
+.timeframe-tabs button {
+  background: transparent;
+  color: #475569;
+  border: none;
+  padding: 4px 12px;
+  font-size: 0.65rem;
+  border-radius: 99px;
+  cursor: pointer;
+  font-weight: 700;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
 .timeframe-tabs button.active {
   background-color: #fbbf24;
-  color: #0f172a;
-  border-color: #f59e0b;
+  color: #1e1b4b;
+}
+
+.timeframe-tabs button:hover:not(.active) {
+  background-color: #e2e8f0;
 }
 
 .chart-container {
   position: relative;
-  min-height: 240px; /* <--- Forces a dynamic breathable height regardless of items */
+  min-height: 280px; /* Increased height to better accommodate wider bars and text */
   width: 100%;
   flex-grow: 1;
 }
-
 .status-message {
   display: flex;
   flex-direction: column;

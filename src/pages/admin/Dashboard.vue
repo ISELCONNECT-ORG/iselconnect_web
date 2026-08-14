@@ -5,157 +5,472 @@
     <div class="main-wrapper">
       <Topbar />
 
-      <!-- HERO BANNER -->
       <header class="hero-banner">
-        <div class="hero-overlay-content">
-          <div class="hero-title">
-            <LayoutDashboard :size="16" />
-            <span>DASHBOARD</span>
+        <div class="hero-glass-box">
+          <div class="hero-text">
+            <h1>Good Evening, Administrator</h1>
+            <p>
+              Manage accounts, validate and prioritizing incoming reports, dispatch linemen,
+              generate descriptive analytics, and post targeted power advisories.
+            </p>
           </div>
-          <h1>{{ greeting }}, Administrator</h1>
-          <p>
-            Manage accounts, validate and prioritize incoming reports, dispatch linemen, generate
-            descriptive analytics, and post targeted power advisories.
-          </p>
         </div>
       </header>
 
-      <!-- METRIC SUMMARY CARDS (Now emits metricsUpdated) -->
-      <MetricSummaryCards
-        :period="currentPeriod"
-        :branchId="branchId"
-        @update:period="currentPeriod = $event"
-        @metricsUpdated="handleMetricsUpdate"
-      />
+      <div class="dashboard-content-grid">
+        <div class="left-column">
+          <MetricSummaryCards
+            :period="currentPeriod"
+            :branchId="branchId"
+            @update:period="currentPeriod = $event"
+            @metricsUpdated="handleMetricsUpdate"
+          />
 
-      <!-- STATS GRID & EFFICIENCY (Resized) -->
-      <div class="stats-top-grid">
-        <div class="stats-grid">
-          <!-- Total Reports & Active Linemen -->
-          <div v-for="stat in stats" :key="stat.title" class="mini-stat-card">
-            <div class="mini-stat-header">
-              {{ stat.title }}
+          <div class="middle-row-grid">
+            <div class="eff-col">
+              <div class="totals-row">
+                <div class="total-card">
+                  <span class="total-card-label"> <FileText :size="28" /> TOTAL REPORT </span>
+                  <span class="total-card-value">{{ stats[0].value }}</span>
+                </div>
+                <div class="total-card">
+                  <span class="total-card-label"> <Users :size="28" /> TOTAL LINEMAN </span>
+                  <span class="total-card-value">{{ stats[1].value }}</span>
+                </div>
+              </div>
+
+              <div class="left-efficiency-card">
+                <div class="left-eff-header">
+                  <span>EFFICIENCY</span>
+                  <span class="left-eff-value">{{ gridEfficiency }}%</span>
+                </div>
+                <div class="left-eff-bar-bg">
+                  <div class="left-eff-bar-fill" :style="{ width: gridEfficiency + '%' }"></div>
+                </div>
+                <div class="left-eff-desc">
+                  CALCULATED PERFORMANCE BASED ON<br />THE RESOLUTION OF TOTAL SYSTEM REPORTS.
+                </div>
+              </div>
             </div>
-            <div class="mini-stat-body">
-              <component :is="stat.icon" class="mini-stat-icon" :size="20" />
-              <span class="mini-stat-value">{{ stat.value }}</span>
-            </div>
+
+            <section
+              class="chart-container"
+              style="
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                padding-top: 16px;
+              "
+            >
+              <div class="chart-wrapper pie-wrapper" style="flex-grow: 1; height: 100%">
+                <OutageStatusPie />
+              </div>
+            </section>
           </div>
+
+          <!-- SYSTEM LOAD & CONSUMPTION (Removed wrapper to prevent duplication) -->
+          <IncidentChart :branchId="branchId" />
+
+          <!-- TOP BARANGAYS (Removed wrapper to prevent duplication) -->
+          <TopBarangaysChart :branchId="branchId" />
+
+          <section class="table-container">
+            <h2 style="margin: 0 0 4px 0">Incident List</h2>
+            <p style="margin: 0 0 12px 0; font-size: 0.8rem; color: #475569">
+              Review new incoming reports before pushing them to the active queue or archive.
+            </p>
+
+            <div v-if="incidentReports.length === 0" style="text-align: center; padding: 16px">
+              <p>No new incident reports waiting for review.</p>
+            </div>
+
+            <table v-else class="data-table">
+              <thead>
+                <tr>
+                  <th>Priority</th>
+                  <th>Report Details</th>
+                  <th>Location</th>
+                  <th>Description</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="report in incidentReports" :key="report.id">
+                  <td>
+                    <span
+                      :class="[
+                        'priority-badge',
+                        report.status_id === 1 ? 'badge-pending' : 'badge-progress',
+                      ]"
+                    >
+                      {{ report.status_id === 1 ? 'Pending' : 'Active' }}
+                    </span>
+                  </td>
+                  <td style="font-weight: 700">
+                    {{ report.report_types?.name ?? 'General Incident' }}
+                    <div
+                      style="font-weight: normal; font-size: 0.7rem; color: #64748b"
+                      v-if="report.users"
+                    >
+                      Reporter: {{ report.users.first_name }} {{ report.users.last_name }}
+                    </div>
+                  </td>
+                  <td>
+                    {{ report.landmark || 'N/A' }}
+                    <div style="font-size: 0.7rem; color: #64748b">
+                      Barangay: {{ report.barangays?.name ?? 'Unknown Barangay' }}
+                    </div>
+                  </td>
+                  <td style="color: #64748b; font-size: 0.8rem">
+                    {{ report.description || 'EMPTY' }}
+                  </td>
+                  <td style="color: #64748b; font-size: 0.8rem">
+                    {{ formatDateTime(report.created_at) }}
+                  </td>
+                  <td>
+                    <div class="table-action-buttons">
+                      <button class="btn-accept" @click="acceptReport(report)">Accept</button>
+                      <button class="btn-reject" @click="rejectReport(report)">Reject</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
         </div>
 
-        <!-- Grid Efficiency Wide Card -->
-        <aside class="efficiency-card">
-          <div class="efficiency-top-row">
-            <div class="efficiency-text">
-              <h3>Grid Efficiency</h3>
-              <p>Based on total reports vs resolved reports.</p>
+        <aside class="right-sidebar">
+          <div class="rs-panel">
+            <div class="ttd-header">
+              <div class="ttd-left">
+                <Clock :size="16" />
+                <span>TIME TO<br />DISPATCH</span>
+              </div>
+              <div class="ttd-right">
+                <span>CURRENT PHASE</span>
+                <span
+                  class="ttd-pill"
+                  :style="{
+                    backgroundColor: isBranchPhase ? '#fde047' : '#3b82f6',
+                    color: isBranchPhase ? '#1e1b4b' : 'white',
+                  }"
+                >
+                  {{ isBranchPhase ? 'BRANCH' : 'ADMIN' }}
+                </span>
+                <span>WORKING HOUR</span>
+              </div>
             </div>
-            <h2 class="efficiency-value-large">{{ gridEfficiency }}%</h2>
+            <div class="ttd-timer-box">
+              <h3>{{ timeUntilNextPhase }}</h3>
+              <span>Time until {{ isBranchPhase ? 'Admin' : 'Branch' }} Window</span>
+            </div>
+            <div class="ttd-footer">{{ dispatchInfoText }}</div>
           </div>
-          <div class="progress-bar">
-            <div class="fill" :style="{ width: gridEfficiency + '%' }"></div>
+
+          <button @click="openManualModal" class="rs-manual-btn">MANUAL REPORT</button>
+
+          <div class="rs-panel">
+            <div class="rs-title">ACTIVE INCIDENTS</div>
+            <div
+              v-if="activeIncidentsList.length === 0"
+              style="font-size: 0.7rem; color: rgba(255, 255, 255, 0.6); text-align: center"
+            >
+              No unassigned incidents found.
+            </div>
+            <div v-else v-for="inc in activeIncidentsList" :key="inc.id" class="rs-inner-card">
+              <div
+                class="inc-prio"
+                :class="getPriorityColorClass(inc.report_types?.priority_level)"
+              >
+                {{ inc.report_types?.priority_level || 'NORMAL' }}
+              </div>
+              <div class="inc-title">{{ inc.report_types?.name || 'GENERAL INCIDENT' }}</div>
+              <div class="inc-sub">
+                {{
+                  inc.users?.first_name
+                    ? inc.users.first_name + ' ' + inc.users.last_name
+                    : 'WALK IN'
+                }}
+              </div>
+              <div class="inc-actions">
+                <button
+                  class="inc-btn"
+                  :class="{ 'disabled-btn': isBranchPhase }"
+                  @click="openAssign(inc)"
+                >
+                  ASSIGN
+                </button>
+                <router-link :to="`/admin/reports/${inc.id}`" class="inc-btn" style="display: block"
+                  >DETAILS</router-link
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="rs-panel">
+            <div class="rs-title">SYSTEM ALERTS</div>
+            <div
+              v-if="systemAlerts.length === 0"
+              style="font-size: 0.7rem; color: rgba(255, 255, 255, 0.6); text-align: center"
+            >
+              No recent alerts.
+            </div>
+            <div v-else v-for="alert in systemAlerts" :key="alert.id" class="rs-inner-card">
+              <div class="alert-row">
+                <div class="alert-left">
+                  <span
+                    class="alert-prio"
+                    :class="getPriorityColorClass(alert.report_types?.priority_level)"
+                  >
+                    {{ alert.report_types?.priority_level || 'Unassigned' }} Priority
+                  </span>
+                  <span class="alert-title">{{
+                    alert.report_types?.name || 'New Incident Logged'
+                  }}</span>
+                </div>
+                <span class="alert-time">{{ timeAgo(alert.created_at) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="rs-panel">
+            <div class="rs-title">RECENT ACTIVITY</div>
+            <div
+              v-if="recentActivities.length === 0"
+              style="font-size: 0.7rem; color: rgba(255, 255, 255, 0.6); text-align: center"
+            >
+              No recent activity.
+            </div>
+            <div
+              v-else
+              v-for="activity in recentActivities"
+              :key="activity.id"
+              class="rs-inner-card"
+            >
+              <div class="alert-row">
+                <div class="alert-left">
+                  <span class="alert-title">{{ activity.title }}</span>
+                </div>
+                <span class="alert-time">{{ timeAgo(activity.created_at) }}</span>
+              </div>
+            </div>
           </div>
         </aside>
       </div>
+    </div>
 
-      <!-- ANALYTICS TOP SECTION (Resized) -->
-      <div class="analytics-top-split-grid">
-        <div class="section-title-wrapper">
-          <h2><span class="title-icon"></span> ANALYTICS</h2>
-          <p>
-            The analytics module is designed to transform raw utility report data into meaningful
-            insights, enabling the ISELCO-I administration to understand why and where power outages
-            and infrastructure issues are most frequent.
-          </p>
+    <!-- MANUAL REPORT MODAL -->
+    <div v-if="showManualModal" class="modal-overlay" @click.self="closeManualModal">
+      <div class="manual-modal-card">
+        <div class="manual-modal-header">
+          <h2>Manual Report</h2>
+          <p>Submit a new incident report to the queue.</p>
         </div>
 
-        <div class="pie-card">
-          <OutageStatusPie />
+        <div class="manual-modal-body">
+          <div class="section-label"><MapPin class="icon" /> LOCATION DETAILS</div>
+
+          <div class="form-row">
+            <div class="input-group custom-dropdown-container">
+              <label>Select Barangay <span class="req">*</span></label>
+              <div class="dropdown-trigger-btn" @click="toggleBarangayDropdown">
+                <span :class="{ 'muted-trigger': !selectedBarangayObj }">
+                  {{ selectedBarangayObj ? selectedBarangayObj.name : 'Search or select...' }}
+                </span>
+                <ChevronDown :size="16" class="dropdown-chevron" />
+              </div>
+
+              <div v-if="isBarangayDropdownOpen" class="dropdown-popover">
+                <div class="popover-search-box">
+                  <Search :size="14" class="search-input-icon" />
+                  <input
+                    v-model="barangaySearchQuery"
+                    type="text"
+                    class="search-input"
+                    placeholder="Search barangays..."
+                  />
+                </div>
+                <div class="popover-scroll-list">
+                  <template v-for="(bList, muniName) in groupedBarangays" :key="muniName">
+                    <div class="group-header-label">{{ muniName }}</div>
+                    <div
+                      v-for="b in bList"
+                      :key="b.id"
+                      class="group-option-box"
+                      @click="selectBarangay(b)"
+                    >
+                      {{ b.name }}
+                    </div>
+                  </template>
+                  <div v-if="Object.keys(groupedBarangays).length === 0" class="no-result-text">
+                    No barangays found.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label>Purok / Street <span class="req">*</span></label>
+              <input v-model="manualReport.purok" placeholder="" class="std-input" />
+            </div>
+          </div>
+
+          <div class="section-label" style="margin-top: 16px">
+            <AlertTriangle class="icon" /> ISSUE DETAILS
+          </div>
+
+          <div class="input-group custom-dropdown-container" style="margin-bottom: 12px">
+            <label>Select Issue Type <span class="req">*</span></label>
+            <div class="dropdown-trigger-btn" @click="toggleTypeDropdown">
+              <span :class="{ 'muted-trigger': !selectedTypeObj }">
+                {{ selectedTypeObj ? selectedTypeObj.name : 'Choose issue category...' }}
+              </span>
+              <ChevronDown :size="16" class="dropdown-chevron" />
+            </div>
+
+            <div v-if="isTypeDropdownOpen" class="dropdown-popover">
+              <div class="popover-search-box">
+                <Search :size="14" class="search-input-icon" />
+                <input
+                  v-model="typeSearchQuery"
+                  type="text"
+                  class="search-input"
+                  placeholder="Search issues..."
+                />
+              </div>
+              <div class="popover-scroll-list">
+                <template v-for="(tList, prioLevel) in groupedReportTypes" :key="prioLevel">
+                  <div class="group-header-label">{{ prioLevel }}</div>
+                  <div
+                    v-for="t in tList"
+                    :key="t.id"
+                    class="group-option-box"
+                    @click="selectReportType(t)"
+                  >
+                    {{ t.name }}
+                  </div>
+                </template>
+                <div v-if="Object.keys(groupedReportTypes).length === 0" class="no-result-text">
+                  No issues found.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label>Description</label>
+            <textarea
+              v-model="manualReport.description"
+              placeholder="Provide additional details about the incident..."
+              class="std-textarea"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button @click="closeManualModal" class="btn-cancel">Cancel</button>
+          <button @click="submitManualReport" class="btn-submit">
+            <FilePlus :size="14" /> Submit Report
+          </button>
         </div>
       </div>
+    </div>
 
-      <!-- SYSTEM LOAD & CONSUMPTION CHART (Resized) -->
-      <section class="chart-container">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
-          <h3 style="margin: 0; font-size: 0.9rem">System Load & Consumption</h3>
-        </div>
-        <IncidentChart :period="currentPeriod" :branchId="branchId" />
-      </section>
+    <!-- ASSIGN LINEMAN MODAL -->
+    <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
+      <div class="assign-modal-card">
+        <h3>Assign Lineman</h3>
+        <p>Select an available lineman to dispatch to this location.</p>
 
-      <!-- TOP BARANGAYS CHART (Resized) -->
-      <TopBarangaysChart :branchId="branchId" />
-
-      <!-- INCIDENT WAIT LIST TABLE -->
-      <section class="table-container">
-        <h2 style="margin: 0 0 4px 0; font-size: 1rem">Incident Wait List</h2>
-        <p style="margin: 0 0 12px 0; font-size: 0.8rem; color: #475569">
-          Review new incoming reports before pushing them to the active queue or archive.
-        </p>
-
-        <div v-if="incidentReports.length === 0" style="text-align: center; padding: 16px">
-          <p>No new incident reports waiting for review.</p>
+        <div class="assign-search-row">
+          <div class="search-input-wrapper">
+            <Search class="search-input-icon" :size="16" style="left: 10px" />
+            <input
+              v-model="assignSearchQuery"
+              type="text"
+              placeholder="Search linemen by name or branch..."
+              class="assign-search-input"
+            />
+          </div>
         </div>
 
-        <table v-else class="data-table">
-          <thead>
-            <tr>
-              <th>Priority</th>
-              <th>Report Details</th>
-              <th>Location</th>
-              <th>Description</th>
-              <th>Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="report in incidentReports" :key="report.id">
-              <td>
-                <span
-                  :class="[
-                    'priority-badge',
-                    report.status_id === 1 ? 'badge-pending' : 'badge-progress',
-                  ]"
-                >
-                  {{ report.status_id === 1 ? 'Pending' : 'Active' }}
-                </span>
-              </td>
-              <td style="font-weight: 700">
-                {{ report.report_types?.name ?? 'General Incident' }}
-                <div
-                  style="font-weight: normal; font-size: 0.7rem; color: #64748b"
-                  v-if="report.users"
-                >
-                  Reporter: {{ report.users.first_name }} {{ report.users.last_name }}
-                </div>
-              </td>
-              <td>
-                {{ report.landmark || 'N/A' }}
-                <div style="font-size: 0.7rem; color: #64748b">
-                  Barangay: {{ report.barangays?.name ?? 'Unknown Barangay' }}
-                </div>
-              </td>
-              <td style="color: #64748b; font-size: 0.8rem">{{ report.description || 'EMPTY' }}</td>
-              <td style="color: #64748b; font-size: 0.8rem">
-                {{ formatDateTime(report.created_at) }}
-              </td>
-              <td>
-                <div class="table-action-buttons">
-                  <button class="btn-accept" @click="acceptReport(report)">Accept</button>
-                  <button class="btn-reject" @click="rejectReport(report)">Reject</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+        <div class="table-scroll-wrapper">
+          <table class="lineman-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Branch</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="l in filteredLinemen" :key="l.id">
+                <td>
+                  <strong>{{ l.name }}</strong>
+                </td>
+                <td class="muted-text">{{ l.branch }}</td>
+                <td>
+                  <span
+                    :class="[
+                      'lineman-status',
+                      l.status === 'Available' ? 'status-available' : 'status-on-job',
+                    ]"
+                  >
+                    {{ l.status || 'Available' }}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    class="assign-action-btn"
+                    :disabled="l.status !== 'Available' || l.isJustAssigned"
+                    @click="assignSingleLineman(l.id)"
+                  >
+                    {{ l.isJustAssigned ? 'Assigned' : 'Assign' }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="filteredLinemen.length === 0">
+                <td colspan="4" class="text-center" style="padding: 24px">
+                  No matching linemen found.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          class="modal-footer"
+          style="padding: 0; background: transparent; border: none; margin-top: 16px"
+        >
+          <button @click="showAssignModal = false" class="btn-close-modal">Close</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { FileText, Zap, LayoutDashboard } from 'lucide-vue-next'
+import {
+  FileText,
+  Users,
+  Zap,
+  LayoutDashboard,
+  Calendar,
+  UserPlus,
+  MapPin,
+  Search,
+  ChevronDown,
+  AlertTriangle,
+  FilePlus,
+  HelpCircle,
+  Bell,
+  Clock,
+} from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import IncidentChart from '@/components/analytics/IncidentChart.vue'
@@ -169,26 +484,85 @@ import '@/assets/style/Dashboard.css'
 
 const router = useRouter()
 const incidentReports = ref([])
+const activeIncidentsList = ref([])
+const systemAlerts = ref([])
+const recentActivities = ref([])
 const currentPeriod = ref('Day')
 const branchId = ref(null)
 
-// Holds the live metrics fetched from MetricSummaryCards
 const globalMetrics = ref({ totalReports: 0, totalResolved: 0 })
-
 const stats = ref([
   { title: 'TOTAL REPORTS', value: '0', icon: FileText },
-  { title: 'ACTIVE LINEMEN', value: '0', icon: Zap },
+  { title: 'ACTIVE LINEMEN', value: '0', icon: Users },
 ])
 
+const showManualModal = ref(false)
+const manualReport = ref({
+  type_id: null,
+  barangay_id: null,
+  purok: '',
+  description: '',
+  municipality_id: null,
+})
+const barangays = ref([])
+const reportTypes = ref([])
+const isBarangayDropdownOpen = ref(false)
+const isTypeDropdownOpen = ref(false)
+const barangaySearchQuery = ref('')
+const typeSearchQuery = ref('')
+const selectedBarangayObj = ref(null)
+const selectedTypeObj = ref(null)
+
+const showAssignModal = ref(false)
+const selectedReport = ref(null)
+const availableLinemen = ref([])
+const assignSearchQuery = ref('')
+
+const now = ref(new Date())
+let timerInterval = null
+
+const isBranchPhase = computed(() => {
+  const hour = now.value.getHours()
+  return hour >= 6 && hour < 17
+})
+
+const currentDispatchPhase = computed(() => (isBranchPhase.value ? 'Branch Only' : 'Admin Only'))
+const dispatchInfoText = computed(() =>
+  isBranchPhase.value
+    ? '6am to 5pm is Branch Only to Dispatch'
+    : '5pm to 6am is Admin Only to Dispatch',
+)
+const nextPhaseSubtitle = computed(() =>
+  isBranchPhase.value ? 'Time until Admin Window' : 'Time until Branch Window',
+)
+
+const timeUntilNextPhase = computed(() => {
+  const current = now.value
+  const hour = current.getHours()
+  let target = new Date(current)
+
+  if (isBranchPhase.value) {
+    target.setHours(17, 0, 0, 0)
+  } else {
+    target.setHours(6, 0, 0, 0)
+    if (hour >= 17) target.setDate(target.getDate() + 1)
+  }
+
+  const diff = target - current
+  const h = Math.floor((diff / (1000 * 60 * 60)) % 24)
+  const m = Math.floor((diff / 1000 / 60) % 60)
+  const s = Math.floor((diff / 1000) % 60)
+
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+})
+
 const greeting = computed(() => {
-  const now = new Date()
-  const hour = now.getHours()
+  const hour = now.value.getHours()
   if (hour < 12) return 'Good Morning'
   else if (hour < 17) return 'Good Afternoon'
   else return 'Good Evening'
 })
 
-// FULLY COMPUTED GRID EFFICIENCY based on total reports
 const gridEfficiency = computed(() => {
   const total = globalMetrics.value.totalReports
   const resolved = globalMetrics.value.totalResolved
@@ -196,7 +570,6 @@ const gridEfficiency = computed(() => {
   return ((resolved / total) * 100).toFixed(1)
 })
 
-// Triggered when MetricSummaryCards finishes loading data
 const handleMetricsUpdate = (newMetrics) => {
   globalMetrics.value = newMetrics
   stats.value[0].value = newMetrics.totalReports.toString()
@@ -206,19 +579,48 @@ const loadIncidentReports = async () => {
   const { data, error } = await supabase
     .from('reports')
     .select(
-      `
-      id, landmark, description, created_at, status_id,
-      report_types(name), barangays(name),
-      users:residents_id(first_name, last_name)
-    `,
+      `id, landmark, description, created_at, status_id, report_types(name), barangays(name), users:residents_id(first_name, last_name)`,
     )
     .neq('landmark', 'Walk-in Report')
     .eq('status_id', 1)
     .order('created_at', { ascending: false })
+  if (!error) incidentReports.value = data || []
+}
 
-  if (!error) {
-    incidentReports.value = data || []
+const loadActiveIncidents = async () => {
+  const { data, error } = await supabase
+    .from('reports')
+    .select(
+      `
+      id, created_at, report_types(name, priority_level),
+      users:residents_id(first_name, last_name), assignments(id)
+    `,
+    )
+    .eq('status_id', 2)
+    .order('created_at', { ascending: false })
+
+  if (!error && data) {
+    const unassignedOnly = data.filter((r) => !r.assignments || r.assignments.length === 0)
+    activeIncidentsList.value = unassignedOnly.slice(0, 3)
   }
+}
+
+const loadSystemAlerts = async () => {
+  const { data, error } = await supabase
+    .from('reports')
+    .select(`id, created_at, report_types(name, priority_level)`)
+    .order('created_at', { ascending: false })
+    .limit(3)
+  if (!error) systemAlerts.value = data || []
+}
+
+const loadRecentActivity = async () => {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, title, created_at')
+    .order('created_at', { ascending: false })
+    .limit(3)
+  if (!error) recentActivities.value = data || []
 }
 
 const fetchLinemenStats = async () => {
@@ -227,28 +629,224 @@ const fetchLinemenStats = async () => {
     .select('*, users!inner(role_id)', { count: 'exact', head: true })
     .eq('users.role_id', 9)
     .eq('is_available', true)
-
   stats.value[1].value = (count || 0).toString()
 }
 
-const formatDateTime = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString()
+const fetchDropdownData = async () => {
+  const { data: types } = await supabase.from('report_types').select('*')
+  reportTypes.value = types || []
+  const { data: munis } = await supabase.from('municipalities').select('id, name')
+  const muniMap = {}
+  if (munis) munis.forEach((m) => (muniMap[m.id] = m.name))
+  const { data: brgys } = await supabase.from('barangays').select('id, name, municipality_id')
+  barangays.value = (brgys || []).map((b) => ({
+    ...b,
+    municipalities: { name: muniMap[b.municipality_id] || 'Unknown' },
+  }))
 }
 
-// Accept & Reject Methods (Trimmed for brevity)
+const formatDateTime = (dateString) => (dateString ? new Date(dateString).toLocaleDateString() : '')
+
+const timeAgo = (dateString) => {
+  if (!dateString) return ''
+  const seconds = Math.floor((now.value - new Date(dateString)) / 1000)
+  let interval = Math.floor(seconds / 31536000)
+  if (interval >= 1) return interval + 'y ago'
+  interval = Math.floor(seconds / 2592000)
+  if (interval >= 1) return interval + 'mo ago'
+  interval = Math.floor(seconds / 86400)
+  if (interval >= 1) return interval + 'd ago'
+  interval = Math.floor(seconds / 3600)
+  if (interval >= 1) return interval + 'h ago'
+  interval = Math.floor(seconds / 60)
+  if (interval >= 1) return interval + 'm ago'
+  return Math.floor(seconds) + 's ago'
+}
+
+const getPriorityColorClass = (level) => {
+  if (!level) return 'text-grey'
+  const lower = level.toLowerCase()
+  if (lower === 'critical' || lower === 'high') return 'text-red'
+  if (lower === 'normal' || lower === 'medium') return 'text-yellow'
+  return 'text-blue'
+}
+
 const acceptReport = async (report) => {
   await supabase.from('reports').update({ status_id: 2 }).eq('id', report.id)
   loadIncidentReports()
+  loadActiveIncidents()
 }
-
 const rejectReport = async (report) => {
   await supabase.from('reports').update({ status_id: 5 }).eq('id', report.id)
   loadIncidentReports()
 }
 
+const filteredLinemen = computed(() => {
+  if (!assignSearchQuery.value) return availableLinemen.value
+  const q = assignSearchQuery.value.toLowerCase()
+  return availableLinemen.value.filter(
+    (l) => l.name.toLowerCase().includes(q) || l.branch.toLowerCase().includes(q),
+  )
+})
+
+const openAssign = async (incident) => {
+  if (isBranchPhase.value) {
+    alert(
+      'Admin assigning is locked. 6:00 AM to 5:00 PM is reserved for Branch Only to dispatch.\n\nPlease wait for the Admin dispatch window (5:00 PM - 6:00 AM).',
+    )
+    return
+  }
+
+  selectedReport.value = incident
+  assignSearchQuery.value = ''
+
+  const { data: usersData } = await supabase
+    .from('users')
+    .select('id, first_name, last_name, is_active')
+    .eq('role_id', 9)
+  const { data: empData } = await supabase
+    .from('employees')
+    .select('user_id, branch_id, is_available')
+  const { data: branchData } = await supabase.from('iselco_branch').select('branch_id, branch_name')
+
+  availableLinemen.value = (usersData || []).map((user) => {
+    const emp = empData?.find((e) => e.user_id === user.id)
+    const branch = branchData?.find((b) => b.branch_id === emp?.branch_id)
+    return {
+      id: user.id,
+      name: `${user.first_name} ${user.last_name}`,
+      branch: branch?.branch_name || 'Unassigned Branch',
+      status: user.is_active ? 'Available' : 'On Job',
+      isJustAssigned: false,
+    }
+  })
+
+  showAssignModal.value = true
+}
+
+const assignSingleLineman = async (uid) => {
+  if (!selectedReport.value) return
+
+  const { error } = await supabase.from('assignments').insert({
+    report_id: selectedReport.value.id,
+    lineman_id: uid,
+    assigned_at: new Date().toISOString(),
+    inprogress_at: new Date().toISOString(),
+  })
+
+  if (!error) {
+    sendNotification('Assignment Updated', `Assigned to report ${selectedReport.value.id}`, uid)
+    const linemanIndex = availableLinemen.value.findIndex((l) => l.id === uid)
+    if (linemanIndex !== -1) {
+      availableLinemen.value[linemanIndex].isJustAssigned = true
+    }
+    loadActiveIncidents()
+  } else {
+    alert('Error assigning lineman: ' + error.message)
+  }
+}
+
+const groupedBarangays = computed(() => {
+  const query = barangaySearchQuery.value.toLowerCase().trim()
+  const map = {}
+  barangays.value.forEach((b) => {
+    const muniName = (b.municipalities?.name || 'UNKNOWN').toUpperCase()
+    if (!query || b.name.toLowerCase().includes(query) || muniName.toLowerCase().includes(query)) {
+      if (!map[muniName]) map[muniName] = []
+      map[muniName].push(b)
+    }
+  })
+  return map
+})
+
+const groupedReportTypes = computed(() => {
+  const query = typeSearchQuery.value.toLowerCase().trim()
+  const map = {}
+  const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW']
+  reportTypes.value.forEach((t) => {
+    const prio = (t.priority_level || 'NORMAL').toUpperCase()
+    if (!query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)) {
+      if (!map[prio]) map[prio] = []
+      map[prio].push(t)
+    }
+  })
+  const sortedMap = {}
+  priorityOrder.forEach((p) => {
+    if (map[p]) sortedMap[p] = map[p]
+  })
+  return sortedMap
+})
+
+const toggleBarangayDropdown = () => {
+  isBarangayDropdownOpen.value = !isBarangayDropdownOpen.value
+  if (isBarangayDropdownOpen.value) isTypeDropdownOpen.value = false
+}
+const toggleTypeDropdown = () => {
+  isTypeDropdownOpen.value = !isTypeDropdownOpen.value
+  if (isTypeDropdownOpen.value) isBarangayDropdownOpen.value = false
+}
+const selectBarangay = (b) => {
+  manualReport.value.barangay_id = b.id
+  manualReport.value.municipality_id = b.municipality_id
+  selectedBarangayObj.value = b
+  isBarangayDropdownOpen.value = false
+  barangaySearchQuery.value = ''
+}
+const selectReportType = (t) => {
+  manualReport.value.type_id = t.id
+  selectedTypeObj.value = t
+  isTypeDropdownOpen.value = false
+  typeSearchQuery.value = ''
+}
+
+const openManualModal = () => (showManualModal.value = true)
+const closeManualModal = () => {
+  showManualModal.value = false
+  manualReport.value = {
+    type_id: null,
+    barangay_id: null,
+    purok: '',
+    description: '',
+    municipality_id: null,
+  }
+  selectedBarangayObj.value = null
+  selectedTypeObj.value = null
+}
+
+const submitManualReport = async () => {
+  if (!manualReport.value.barangay_id || !manualReport.value.type_id)
+    return alert('Please select both Barangay and Issue Type.')
+  const { error } = await supabase.from('reports').insert([
+    {
+      description: manualReport.value.description || 'EMPTY',
+      report_type_id: manualReport.value.type_id,
+      landmark: 'Walk-in Report',
+      barangay_id: manualReport.value.barangay_id,
+      purok_sitio: manualReport.value.purok,
+      status_id: 2,
+      municipality_id: manualReport.value.municipality_id || 1,
+      latitude: 16.716173,
+      longitude: 121.678825,
+    },
+  ])
+  if (error) alert('Error: ' + error.message)
+  else {
+    closeManualModal()
+    loadActiveIncidents()
+  }
+}
+
 onMounted(() => {
   loadIncidentReports()
+  loadActiveIncidents()
+  loadSystemAlerts()
+  loadRecentActivity()
   fetchLinemenStats()
+  fetchDropdownData()
+  timerInterval = setInterval(() => (now.value = new Date()), 1000)
+})
+
+onUnmounted(() => {
+  if (timerInterval) clearInterval(timerInterval)
 })
 </script>
