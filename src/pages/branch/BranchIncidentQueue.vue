@@ -4,62 +4,106 @@
     <main class="content">
       <Topbar />
 
+      <!-- HERO HEADER -->
       <header class="hero-section">
-        <div class="hero-header-content">
-          <div class="hero-text">
-            <h1>{{ branchName }} Service Interruption Queue</h1>
-            <p>Manage and assign incoming damage reports for rapid grid restoration.</p>
-          </div>
-          <button @click="showManualModal = true" class="manual-dispatch-btn">
-            + Manual Entry
-          </button>
+        <div class="hero-text">
+          <h1>{{ branchName }} INCIDENT QUEUE</h1>
+          <p>Comprehensive incident management and dispatch operations for {{ branchName }}.</p>
         </div>
+        <button @click="openManualModal" class="manual-dispatch-btn">
+          <UserPlus class="btn-icon" /> MANUAL REPORT
+        </button>
       </header>
 
-      <section class="metrics-container stats-grid">
-        <div class="stat-card">
-          <div class="card-header">
-            <ActivitySquare class="stat-icon" />
-            <span class="trend-badge">Online</span>
+      <!-- OPERATIONAL OVERVIEW & PRIORITY CARDS -->
+      <section class="overview-section">
+        <div class="operational-overview-card">
+          <div class="overview-header">Operational Overview - {{ branchName }}</div>
+          <div class="overview-stats">
+            <div class="o-stat">
+              <span><ActivitySquare class="stat-icon" /> ONLINE LINEMAN</span>
+              <h2>{{ onlineLinemenCount }}</h2>
+            </div>
+            <div class="o-stat">
+              <span><UserCheck class="stat-icon" /> ASSIGNED</span>
+              <h2>{{ assignedCount }}</h2>
+            </div>
+            <div class="o-stat">
+              <span><ClipboardList class="stat-icon" /> TOTAL REPORT</span>
+              <h2>{{ totalReportsCount }}</h2>
+            </div>
+            <div class="o-stat">
+              <span><Wifi class="stat-icon" /> SYSTEM STATUS</span>
+              <h2 class="active-status"><span class="dot"></span> ACTIVE</h2>
+            </div>
           </div>
-          <h3>ONLINE LINEMAN</h3>
-          <p class="stat-value">{{ onlineLinemenCount }}</p>
         </div>
-        <div class="stat-card">
-          <div class="card-header">
-            <UserCheck class="stat-icon" />
-            <span class="trend-badge">Assigned</span>
+
+        <div class="priority-cards-row">
+          <div class="p-card critical">
+            <span><AlertTriangle class="p-icon" /> CRITICAL</span>
+            <h2>{{ criticalCount }}</h2>
           </div>
-          <h3>ASSIGNED</h3>
-          <p class="stat-value">{{ assignedCount }}</p>
-        </div>
-        <div class="stat-card">
-          <div class="card-header">
-            <ClipboardList class="stat-icon" />
-            <span class="trend-badge">Reports</span>
+          <div class="p-card high">
+            <span><AlertCircle class="p-icon" /> HIGH</span>
+            <h2>{{ highCount }}</h2>
           </div>
-          <h3>TOTAL REPORT</h3>
-          <p class="stat-value">{{ totalReportsCount }}</p>
-        </div>
-        <div class="stat-card">
-          <div class="card-header">
-            <Wifi class="stat-icon" />
-            <span class="trend-badge">Status</span>
+          <div class="p-card normal">
+            <span><Info class="p-icon" /> NORMAL</span>
+            <h2>{{ normalCount }}</h2>
           </div>
-          <h3>SYSTEM STATUS</h3>
-          <p class="stat-value">ACTIVE</p>
+          <div class="p-card low">
+            <span><ShieldAlert class="p-icon" /> LOW</span>
+            <h2>{{ lowCount }}</h2>
+          </div>
         </div>
       </section>
 
+      <!-- ACTIVE INCIDENTS -->
       <section class="queue-panel">
-        <h3>Active Incidents</h3>
+        <div class="panel-header-row">
+          <h3>Active Incidents</h3>
+          <div class="filter-controls">
+            <button
+              :class="['filter-btn', { active: currentPriorityFilter === 'All' }]"
+              @click="setFilter('All')"
+            >
+              All
+            </button>
+            <button
+              :class="['filter-btn', { active: currentPriorityFilter === 'Critical' }]"
+              @click="setFilter('Critical')"
+            >
+              Critical
+            </button>
+            <button
+              :class="['filter-btn', { active: currentPriorityFilter === 'High' }]"
+              @click="setFilter('High')"
+            >
+              High
+            </button>
+            <button
+              :class="['filter-btn', { active: currentPriorityFilter === 'Normal' }]"
+              @click="setFilter('Normal')"
+            >
+              Normal
+            </button>
+            <button
+              :class="['filter-btn', { active: currentPriorityFilter === 'Low' }]"
+              @click="setFilter('Low')"
+            >
+              Low
+            </button>
+          </div>
+        </div>
+
         <table class="data-table">
           <thead>
             <tr>
               <th>STATUS</th>
               <th>PRIORITY</th>
               <th>CUSTOMER</th>
-              <th>DESCRIPTION</th>
+              <th>LANDMARK</th>
               <th>MUNICIPALITY</th>
               <th>BARANGAY</th>
               <th>PUROK</th>
@@ -69,48 +113,56 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="report in activeReports" :key="report.id">
+            <tr v-for="r in activeReports" :key="r.id">
               <td>
-                <span class="status-pill">{{ report.report_statuses?.name }}</span>
+                <span class="status-pill">{{ r.report_statuses?.name || 'In Progress' }}</span>
               </td>
               <td>
-                <span
-                  :class="['priority-pill', getPriorityClass(report.report_types?.priority_level)]"
-                >
-                  {{ report.report_types?.priority_level || 'Normal' }}
+                <span :class="['priority-pill', getPriorityClass(r.report_types?.priority_level)]">
+                  {{ r.report_types?.priority_level || 'Normal' }}
                 </span>
               </td>
               <td>
-                <strong
-                  >{{ report.users?.first_name }} {{ report.users?.last_name || 'Walk-in' }}</strong
-                >
+                <strong>{{ r.users?.first_name }} {{ r.users?.last_name || 'Walk-in' }}</strong>
               </td>
-              <td>{{ report.description }}</td>
-              <td class="text-black">{{ report.municipalities?.name }}</td>
-              <td class="text-black">{{ report.barangays?.name }}</td>
-              <td class="text-black">{{ report.purok_sitio }}</td>
-              <td class="text-black">{{ report.lineman_display }}</td>
-              <td>{{ new Date(report.created_at).toLocaleTimeString() }}</td>
+              <td class="truncate">{{ r.landmark || 'N/A' }}</td>
+              <td>{{ r.municipalities?.name }}</td>
+              <td>{{ r.barangays?.name }}</td>
+              <td>{{ r.purok_sitio }}</td>
+              <td :class="{ 'muted-text': r.lineman_display === 'Unassigned' }">
+                {{ r.lineman_display }}
+              </td>
+              <td>{{ formatTime(r.created_at) }}</td>
               <td>
-                <button @click="openAssign(report)" class="action-btn">Assign</button>
-                <router-link :to="`/branch/reports/${report.id}`" class="details-btn">
-                  See Details
-                </router-link>
+                <div class="action-buttons">
+                  <button @click="openAssign(r)" class="action-btn">Assign</button>
+                  <router-link :to="`/branch/reports/${r.id}`" class="details-btn"
+                    >See Details</router-link
+                  >
+                </div>
+              </td>
+            </tr>
+            <tr v-if="activeReports.length === 0">
+              <td colspan="10" class="text-center">
+                No active incidents found for {{ branchName }}.
               </td>
             </tr>
           </tbody>
         </table>
       </section>
 
-      <section class="queue-panel" style="margin-top: 20px">
-        <h3>Resolved Incidents</h3>
+      <!-- RESOLVED INCIDENTS -->
+      <section class="queue-panel">
+        <div class="panel-header-row">
+          <h3>Resolved Incidents</h3>
+        </div>
         <table class="data-table">
           <thead>
             <tr>
               <th>STATUS</th>
               <th>PRIORITY</th>
               <th>CUSTOMER</th>
-              <th>DESCRIPTION</th>
+              <th>LANDMARK</th>
               <th>MUNICIPALITY</th>
               <th>BARANGAY</th>
               <th>PUROK</th>
@@ -120,81 +172,227 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="report in resolvedReports" :key="report.id">
+            <tr v-for="r in resolvedReports" :key="r.id">
+              <td><span class="status-pill">Resolved</span></td>
               <td>
-                <span class="status-pill">{{ report.report_statuses?.name }}</span>
-              </td>
-              <td>
-                <span
-                  :class="['priority-pill', getPriorityClass(report.report_types?.priority_level)]"
-                >
-                  {{ report.report_types?.priority_level || 'Normal' }}
+                <span :class="['priority-pill', getPriorityClass(r.report_types?.priority_level)]">
+                  {{ r.report_types?.priority_level || 'Normal' }}
                 </span>
               </td>
               <td>
-                <strong
-                  >{{ report.users?.first_name }} {{ report.users?.last_name || 'Walk-in' }}</strong
-                >
+                <strong>{{ r.users?.first_name }} {{ r.users?.last_name || 'Walk-in' }}</strong>
               </td>
-              <td>{{ report.description }}</td>
-              <td class="text-black">{{ report.municipalities?.name }}</td>
-              <td class="text-black">{{ report.barangays?.name }}</td>
-              <td class="text-black">{{ report.purok_sitio }}</td>
-              <td class="text-black">{{ report.lineman_display }}</td>
-              <td>{{ new Date(report.created_at).toLocaleTimeString() }}</td>
+              <td class="truncate">{{ r.landmark || 'N/A' }}</td>
+              <td>{{ r.municipalities?.name }}</td>
+              <td>{{ r.barangays?.name }}</td>
+              <td>{{ r.purok_sitio }}</td>
+              <td>{{ r.lineman_display }}</td>
+              <td>{{ formatTime(r.created_at) }}</td>
               <td>
-                <button class="action-btn" disabled>Done</button>
-                <router-link :to="`/branch/reports/${report.id}`" class="details-btn">
-                  See Details
-                </router-link>
+                <div class="action-buttons">
+                  <button class="action-btn" disabled style="opacity: 0.6; cursor: not-allowed">
+                    Done
+                  </button>
+                  <router-link :to="`/branch/reports/${r.id}`" class="details-btn"
+                    >See Details</router-link
+                  >
+                </div>
               </td>
+            </tr>
+            <tr v-if="resolvedReports.length === 0">
+              <td colspan="10" class="text-center">No resolved incidents found.</td>
             </tr>
           </tbody>
         </table>
       </section>
     </main>
 
-    <div v-if="showManualModal" class="modal-overlay">
-      <div class="modal-content glass-card">
-        <h3>New Customer Report</h3>
-        <select v-model="manualReport.barangay_id" class="input-field">
-          <option :value="null" disabled>Select Barangay</option>
-          <option v-for="barangay in barangays" :key="barangay.id" :value="barangay.id">
-            {{ barangay.name }}
-          </option>
-        </select>
-        <input v-model="manualReport.purok" placeholder="Purok/Sitio" class="input-field" />
-        <select v-model="manualReport.type_id" class="input-field">
-          <option :value="null" disabled>Select Issue Type</option>
-          <option v-for="type in reportTypes" :key="type.id" :value="type.id">
-            {{ type.name }}
-          </option>
-        </select>
-        <textarea
-          v-model="manualReport.description"
-          placeholder="Description of incident"
-          class="input-field"
-        ></textarea>
+    <!-- MANUAL REPORT MODAL -->
+    <div v-if="showManualModal" class="modal-overlay" @click.self="closeManualModal">
+      <div class="manual-modal-card">
+        <div class="manual-modal-header">
+          <h2>Manual Report - {{ branchName }}</h2>
+          <p>Submit a new incident report to the queue.</p>
+        </div>
 
-        <div class="modal-actions">
-          <button @click="submitManualReport" class="assign-btn">SUBMIT REPORT</button>
-          <button @click="showManualModal = false" class="cancel-btn">CANCEL</button>
+        <div class="manual-modal-body">
+          <div class="section-label"><MapPin class="icon" /> LOCATION DETAILS</div>
+
+          <div class="form-row">
+            <div class="input-group custom-dropdown-container">
+              <label>Select Barangay <span class="req">*</span></label>
+              <div class="dropdown-trigger-btn" @click="toggleBarangayDropdown">
+                <span :class="{ 'muted-trigger': !selectedBarangayObj }">
+                  {{ selectedBarangayObj ? selectedBarangayObj.name : 'Search or select...' }}
+                </span>
+                <ChevronDown :size="16" class="dropdown-chevron" />
+              </div>
+
+              <div v-if="isBarangayDropdownOpen" class="dropdown-popover">
+                <div class="popover-search-box">
+                  <Search :size="14" class="search-input-icon" />
+                  <input
+                    v-model="barangaySearchQuery"
+                    type="text"
+                    class="search-input"
+                    placeholder="Search barangays..."
+                  />
+                </div>
+                <div class="popover-scroll-list">
+                  <template v-for="(bList, muniName) in groupedBarangays" :key="muniName">
+                    <div class="group-header-label">{{ muniName }}</div>
+                    <div
+                      v-for="b in bList"
+                      :key="b.id"
+                      class="group-option-box"
+                      @click="selectBarangay(b)"
+                    >
+                      {{ b.name }}
+                    </div>
+                  </template>
+                  <div v-if="Object.keys(groupedBarangays).length === 0" class="no-result-text">
+                    No barangays found for {{ branchName }}.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label>Purok / Street <span class="req">*</span></label>
+              <input v-model="manualReport.purok" placeholder="" class="std-input" />
+            </div>
+          </div>
+
+          <div class="section-label" style="margin-top: 16px">
+            <AlertTriangle class="icon" /> ISSUE DETAILS
+          </div>
+
+          <div class="input-group custom-dropdown-container" style="margin-bottom: 12px">
+            <label>Select Issue Type <span class="req">*</span></label>
+            <div class="dropdown-trigger-btn" @click="toggleTypeDropdown">
+              <span :class="{ 'muted-trigger': !selectedTypeObj }">
+                {{ selectedTypeObj ? selectedTypeObj.name : 'Choose issue category...' }}
+              </span>
+              <ChevronDown :size="16" class="dropdown-chevron" />
+            </div>
+
+            <div v-if="isTypeDropdownOpen" class="dropdown-popover">
+              <div class="popover-search-box">
+                <Search :size="14" class="search-input-icon" />
+                <input
+                  v-model="typeSearchQuery"
+                  type="text"
+                  class="search-input"
+                  placeholder="Search issues..."
+                />
+              </div>
+              <div class="popover-scroll-list">
+                <template v-for="(tList, prioLevel) in groupedReportTypes" :key="prioLevel">
+                  <div class="group-header-label">{{ prioLevel }}</div>
+                  <div
+                    v-for="t in tList"
+                    :key="t.id"
+                    class="group-option-box"
+                    @click="selectReportType(t)"
+                  >
+                    {{ t.name }}
+                  </div>
+                </template>
+                <div v-if="Object.keys(groupedReportTypes).length === 0" class="no-result-text">
+                  No issues found.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label>Description</label>
+            <textarea
+              v-model="manualReport.description"
+              placeholder="Provide additional details about the incident, exact landmarks, or potential hazards..."
+              class="std-textarea"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button @click="closeManualModal" class="btn-cancel">Cancel</button>
+          <button @click="submitManualReport" class="btn-submit">
+            <FilePlus :size="14" /> Submit Report
+          </button>
         </div>
       </div>
     </div>
 
-    <div v-if="showAssignModal" class="modal-overlay">
-      <div class="modal-content glass-card">
-        <h3 style="margin-bottom: 10px">Dispatch Lineman</h3>
-        <div class="lineman-checkbox-list">
-          <label v-for="lineman in availableLinemen" :key="lineman.user_id" class="checkbox-label">
-            <input type="checkbox" :value="lineman.user_id" v-model="selectedLinemanIds" />
-            {{ lineman.name }}
-          </label>
+    <!-- ASSIGN LINEMAN MODAL -->
+    <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
+      <div class="assign-modal-card">
+        <h3>Assign Lineman - {{ branchName }}</h3>
+        <p>Select an available branch lineman to dispatch to this location.</p>
+
+        <div class="assign-search-row">
+          <div class="search-input-wrapper">
+            <Search class="search-icon" :size="16" />
+            <input
+              v-model="assignSearchQuery"
+              type="text"
+              placeholder="Search linemen by name..."
+              class="assign-search-input"
+            />
+          </div>
+          <button class="assign-filter-btn"><Filter :size="16" /> Filter</button>
         </div>
-        <div class="modal-actions" style="margin-top: 20px">
-          <button @click="submitAssignment" class="assign-btn">DISPATCH</button>
-          <button @click="showAssignModal = false" class="cancel-btn">CANCEL</button>
+
+        <div class="table-scroll-wrapper">
+          <table class="lineman-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Branch</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="l in filteredLinemen" :key="l.id">
+                <td>
+                  <strong>{{ l.name }}</strong>
+                </td>
+                <td class="muted-text">{{ l.branch }}</td>
+                <td>
+                  <span
+                    :class="[
+                      'lineman-status',
+                      l.status === 'Available' ? 'status-available' : 'status-on-job',
+                    ]"
+                  >
+                    {{ l.status || 'Available' }}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    class="assign-action-btn"
+                    :disabled="l.status !== 'Available' || isAssigned(l.id)"
+                    @click="assignSingleLineman(l.id)"
+                  >
+                    {{ isAssigned(l.id) ? 'Assigned' : 'Assign' }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="filteredLinemen.length === 0">
+                <td colspan="4" class="text-center" style="padding: 24px">
+                  No matching linemen found for this branch.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          class="modal-footer"
+          style="padding: 0; background: transparent; border: none; margin-top: 16px"
+        >
+          <button @click="showAssignModal = false" class="btn-close-modal">Close</button>
         </div>
       </div>
     </div>
@@ -202,52 +400,202 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import { sendNotification } from '@/utils/notifications.js'
 import BranchSidebar from '@/components/BranchSidebar.vue'
 import Topbar from '@/components/BranchTopbar.vue'
-import '@/assets/style/IncidentQueue.css'
-import { ActivitySquare, UserCheck, ClipboardList, Wifi } from 'lucide-vue-next'
+
+import {
+  ActivitySquare,
+  UserCheck,
+  ClipboardList,
+  Wifi,
+  UserPlus,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  ShieldAlert,
+  FilePlus,
+  MapPin,
+  Search,
+  Filter,
+  ChevronDown,
+} from 'lucide-vue-next'
 
 const pendingReports = ref([])
 const reportTypes = ref([])
 const barangays = ref([])
+
 const showManualModal = ref(false)
-const manualReport = ref({ type_id: null, barangay_id: null, purok: '', description: '' })
+const manualReport = ref({
+  type_id: null,
+  barangay_id: null,
+  purok: '',
+  description: '',
+  municipality_id: null,
+})
+
+// Custom Dropdown States
+const isBarangayDropdownOpen = ref(false)
+const isTypeDropdownOpen = ref(false)
+const barangaySearchQuery = ref('')
+const typeSearchQuery = ref('')
+const selectedBarangayObj = ref(null)
+const selectedTypeObj = ref(null)
 
 const showAssignModal = ref(false)
 const selectedReport = ref(null)
-const selectedLinemanIds = ref([])
 const availableLinemen = ref([])
+const assignSearchQuery = ref('')
 
 const assignedCount = ref(0)
 const totalReportsCount = ref(0)
 const onlineLinemenCount = ref(0)
-const branchName = ref('Branch')
+const currentPriorityFilter = ref('All')
+
 const branchId = ref(null)
+const branchName = ref('Branch')
+let refreshIntervalId = null
 
-// Sorted Active Incidents: First by Priority Level, then by Timestamp (Newest first)
-const activeReports = computed(() => {
-  const priorityRank = { Critical: 1, High: 2, Normal: 3, Low: 4 }
+const now = ref(new Date())
+let timerInterval = null
 
-  return pendingReports.value
-    .filter((report) => report.report_statuses?.name !== 'Resolved')
-    .sort((a, b) => {
-      const pA = priorityRank[a.report_types?.priority_level] || 3
-      const pB = priorityRank[b.report_types?.priority_level] || 3
-
-      if (pA !== pB) {
-        return pA - pB // Critical -> High -> Normal -> Low
-      }
-
-      return new Date(b.created_at) - new Date(a.created_at)
-    })
+// Time window check: Branch can assign from 8:00 AM (8) to 5:00 PM (17)
+const isBranchPhase = computed(() => {
+  const hour = now.value.getHours()
+  return hour >= 8 && hour < 17
 })
 
-const resolvedReports = computed(() =>
-  pendingReports.value.filter((report) => report.report_statuses?.name === 'Resolved'),
+const setFilter = (priority) => {
+  currentPriorityFilter.value = priority
+}
+
+const formatTime = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+const criticalCount = computed(
+  () =>
+    pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'Critical')
+      .length,
 )
+const highCount = computed(
+  () =>
+    pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'High')
+      .length,
+)
+const normalCount = computed(
+  () =>
+    pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'Normal')
+      .length,
+)
+const lowCount = computed(
+  () =>
+    pendingReports.value.filter((r) => (r.report_types?.priority_level || 'Normal') === 'Low')
+      .length,
+)
+
+// --- Custom Dropdown Computed Logic with Branch Barangay Filtering ---
+const groupedBarangays = computed(() => {
+  const query = barangaySearchQuery.value.toLowerCase().trim()
+  const map = {}
+  barangays.value.forEach((b) => {
+    const muniName = (b.municipalities?.name || 'UNKNOWN MUNICIPALITY').toUpperCase()
+    if (!query || b.name.toLowerCase().includes(query) || muniName.toLowerCase().includes(query)) {
+      if (!map[muniName]) map[muniName] = []
+      map[muniName].push(b)
+    }
+  })
+  return map
+})
+
+const groupedReportTypes = computed(() => {
+  const query = typeSearchQuery.value.toLowerCase().trim()
+  const map = {}
+  const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW']
+
+  reportTypes.value.forEach((t) => {
+    const prio = (t.priority_level || 'NORMAL').toUpperCase()
+    if (!query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)) {
+      if (!map[prio]) map[prio] = []
+      map[prio].push(t)
+    }
+  })
+
+  const sortedMap = {}
+  priorityOrder.forEach((p) => {
+    if (map[p] && map[p].length > 0) sortedMap[p] = map[p]
+  })
+  return sortedMap
+})
+
+// --- Dropdown Triggers ---
+const toggleBarangayDropdown = () => {
+  isBarangayDropdownOpen.value = !isBarangayDropdownOpen.value
+  if (isBarangayDropdownOpen.value) isTypeDropdownOpen.value = false
+}
+
+const toggleTypeDropdown = () => {
+  isTypeDropdownOpen.value = !isTypeDropdownOpen.value
+  if (isTypeDropdownOpen.value) isBarangayDropdownOpen.value = false
+}
+
+const selectBarangay = (b) => {
+  manualReport.value.barangay_id = b.id
+  manualReport.value.municipality_id = b.municipality_id
+  selectedBarangayObj.value = b
+  isBarangayDropdownOpen.value = false
+  barangaySearchQuery.value = ''
+}
+
+const selectReportType = (t) => {
+  manualReport.value.type_id = t.id
+  selectedTypeObj.value = t
+  isTypeDropdownOpen.value = false
+  typeSearchQuery.value = ''
+}
+
+const openManualModal = () => {
+  showManualModal.value = true
+}
+const closeManualModal = () => {
+  showManualModal.value = false
+  isBarangayDropdownOpen.value = false
+  isTypeDropdownOpen.value = false
+  barangaySearchQuery.value = ''
+  typeSearchQuery.value = ''
+  manualReport.value = {
+    type_id: null,
+    barangay_id: null,
+    purok: '',
+    description: '',
+    municipality_id: null,
+  }
+  selectedBarangayObj.value = null
+  selectedTypeObj.value = null
+}
+
+const activeReports = computed(() => {
+  let filtered = pendingReports.value.filter((r) => r.report_statuses?.name !== 'Resolved')
+  if (currentPriorityFilter.value !== 'All') {
+    filtered = filtered.filter(
+      (r) => (r.report_types?.priority_level || 'Normal') === currentPriorityFilter.value,
+    )
+  }
+  return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+})
+
+const resolvedReports = computed(() => {
+  let filtered = pendingReports.value.filter((r) => r.report_statuses?.name === 'Resolved')
+  if (currentPriorityFilter.value !== 'All') {
+    filtered = filtered.filter(
+      (r) => (r.report_types?.priority_level || 'Normal') === currentPriorityFilter.value,
+    )
+  }
+  return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+})
 
 const getPriorityClass = (level) => {
   switch (level) {
@@ -267,7 +615,6 @@ const getCurrentBranch = async () => {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser()
-
   if (userError || !user) return
 
   const { data: userData, error: branchError } = await supabase
@@ -292,13 +639,12 @@ const getCurrentBranch = async () => {
 const fetchAll = async () => {
   if (!branchId.value) return
 
-  // Fetch only reports belonging to this branch that have been accepted by admin (status_id > 1 and status_id != 5)
   const { data, error } = await supabase
     .from('reports')
     .select(
       `
-      *, report_statuses(name), report_types(name, priority_level), users(first_name, last_name),
-      barangays(name), municipalities(name), assignments(lineman_id, users(first_name, last_name))
+      *, report_statuses(name), report_types(name, priority_level), users!residents_id(first_name, last_name),
+      barangays(name), municipalities(name), assignments(lineman_id, users!lineman_id(first_name, last_name))
     `,
     )
     .eq('branch_id', branchId.value)
@@ -306,54 +652,74 @@ const fetchAll = async () => {
     .neq('status_id', 5)
 
   if (error) {
-    console.error('Error loading branch reports:', error)
+    console.error('Error fetching branch reports:', error)
     return
   }
 
-  pendingReports.value = (data || []).map((report) => {
-    const linemanNames = report.assignments
-      ?.map((assignment) => {
-        const first = assignment.users?.first_name?.trim() || ''
-        const last = assignment.users?.last_name?.trim() || ''
-        return [first, last].filter(Boolean).join(' ')
-      })
-      .filter(Boolean)
+  const supabaseReports = (data || []).map((r) => ({
+    ...r,
+    lineman_display:
+      r.assignments?.length > 0
+        ? [
+            ...new Set(
+              r.assignments.map((a) =>
+                `${a.users?.first_name || ''} ${a.users?.last_name || ''}`.trim(),
+              ),
+            ),
+          ].join(', ')
+        : 'Unassigned',
+  }))
 
-    return {
-      ...report,
-      lineman_display:
-        linemanNames.length > 0 ? [...new Set(linemanNames)].join(', ') : 'Unassigned',
-    }
-  })
-
+  pendingReports.value = supabaseReports
   totalReportsCount.value = pendingReports.value.length
 
   const { data: types } = await supabase.from('report_types').select('*')
   reportTypes.value = types || []
 
-  const { data: barangayData } = await supabase.from('barangays').select('*')
-  barangays.value = barangayData || []
+  const { data: munis } = await supabase.from('municipalities').select('id, name')
+  const muniMap = {}
+  if (munis) {
+    munis.forEach((m) => {
+      muniMap[m.id] = m.name
+    })
+  }
 
-  const { count: assigned } = await supabase
+  const { data: brgys } = await supabase.from('barangays').select('id, name, municipality_id')
+  const mappedBarangays = (brgys || []).map((b) => ({
+    ...b,
+    municipalities: { name: muniMap[b.municipality_id] || 'Unknown Municipality' },
+  }))
+
+  barangays.value = mappedBarangays.filter((b) => {
+    const branchStr = branchName.value.toLowerCase()
+    const muniStr = b.municipalities.name.toLowerCase()
+    return branchStr.includes(muniStr) || muniStr.includes(branchStr)
+  })
+
+  const { count: aCount } = await supabase
     .from('assignments')
     .select('*', { count: 'exact', head: true })
     .in(
       'report_id',
       pendingReports.value.map((report) => report.id),
     )
-  assignedCount.value = assigned || 0
+  assignedCount.value = aCount || 0
 
-  const { count: onlineCount } = await supabase
+  const { count: oCount } = await supabase
     .from('employees')
     .select('user_id, users!inner(*)', { count: 'exact', head: true })
     .eq('designation', 'Lineman')
     .eq('is_available', true)
     .eq('users.branch_id', branchId.value)
-  onlineLinemenCount.value = onlineCount || 0
+  onlineLinemenCount.value = oCount || 0
 }
 
 const submitManualReport = async () => {
   if (!branchId.value) return
+  if (!manualReport.value.barangay_id || !manualReport.value.type_id) {
+    alert('Please select both Barangay and Issue Type.')
+    return
+  }
 
   const { error } = await supabase.from('reports').insert([
     {
@@ -362,388 +728,750 @@ const submitManualReport = async () => {
       landmark: 'Walk-in Report',
       barangay_id: manualReport.value.barangay_id,
       purok_sitio: manualReport.value.purok,
-      latitude: 0.0,
-      longitude: 0.0,
       status_id: 2,
-      municipality_id: 1,
+      municipality_id: manualReport.value.municipality_id || 1,
       branch_id: branchId.value,
+      latitude: 16.716173,
+      longitude: 121.678825,
     },
   ])
 
-  if (error) {
-    alert('Error: ' + error.message)
-  } else {
-    alert('Report Added!')
+  if (error) alert('Error: ' + error.message)
+  else {
+    closeManualModal()
     await sendNotification(
       'New Report Received',
-      `A new report has been added for barangay ${manualReport.value.barangay_id}.`,
+      `A new report has been added for ${branchName.value}.`,
     )
-    showManualModal.value = false
-    manualReport.value = { type_id: null, barangay_id: null, purok: '', description: '' }
     fetchAll()
   }
 }
 
-const openAssign = async (report) => {
-  selectedReport.value = report
-  selectedLinemanIds.value = report.assignments?.map((assignment) => assignment.lineman_id) || []
+const filteredLinemen = computed(() => {
+  if (!assignSearchQuery.value) return availableLinemen.value
+  const q = assignSearchQuery.value.toLowerCase()
+  return availableLinemen.value.filter(
+    (l) => l.name.toLowerCase().includes(q) || l.branch.toLowerCase().includes(q),
+  )
+})
 
-  const { data, error } = await supabase
+const isAssigned = (uid) => {
+  return selectedReport.value?.assignments?.some((a) => a.lineman_id === uid)
+}
+
+const openAssign = async (r) => {
+  // Time Validation: Branch can only assign between 8:00 AM and 5:00 PM
+  if (!isBranchPhase.value) {
+    alert(
+      'Branch assigning is locked right now. 5:00 PM to 8:00 AM is reserved for Admin Only to dispatch.\n\nPlease wait for the Branch dispatch window (8:00 AM - 5:00 PM).',
+    )
+    return
+  }
+
+  selectedReport.value = r
+  assignSearchQuery.value = ''
+
+  const { data: usersData } = await supabase
     .from('users')
-    .select('id, first_name, last_name')
+    .select('id, first_name, last_name, is_active')
     .eq('role_id', 9)
     .eq('branch_id', branchId.value)
 
-  if (!error) {
-    availableLinemen.value =
-      data
-        ?.map((user) => {
-          const first = user.first_name?.trim() || ''
-          const last = user.last_name?.trim() || ''
-          const name = [first, last].filter(Boolean).join(' ')
-          return name ? { user_id: user.id, name } : null
-        })
-        .filter(Boolean) || []
-  }
+  availableLinemen.value =
+    usersData?.map((user) => {
+      return {
+        id: user.id,
+        name: `${user.first_name} ${user.last_name}`,
+        branch: branchName.value,
+        status: user.is_active ? 'Available' : 'On Job',
+      }
+    }) || []
 
   showAssignModal.value = true
 }
 
-const submitAssignment = async () => {
+const assignSingleLineman = async (uid) => {
   if (!selectedReport.value) return
 
-  await supabase.from('assignments').delete().eq('report_id', selectedReport.value.id)
+  const { error } = await supabase.from('assignments').insert({
+    report_id: selectedReport.value.id,
+    lineman_id: uid,
+    assigned_at: new Date().toISOString(),
+    inprogress_at: new Date().toISOString(),
+  })
 
-  if (selectedLinemanIds.value.length > 0) {
-    const assignmentsToInsert = selectedLinemanIds.value.map((userId) => ({
-      report_id: selectedReport.value.id,
-      lineman_id: userId,
-      assigned_at: new Date().toISOString(),
-      inprogress_at: new Date().toISOString(),
-    }))
-    const { error: assignError } = await supabase.from('assignments').insert(assignmentsToInsert)
-    if (!assignError) {
-      const customerName = selectedReport.value.users?.first_name
-        ? `${selectedReport.value.users.first_name} ${selectedReport.value.users.last_name}`
-        : 'the customer'
-      const reportLabel = selectedReport.value.report_types?.name || 'service report'
-
-      await Promise.all(
-        selectedLinemanIds.value.map((userId) =>
-          sendNotification(
-            'Lineman Assigned',
-            `You have been assigned to ${reportLabel} for ${customerName}.`,
-            userId,
-          ),
-        ),
-      )
-    }
+  if (!error) {
+    sendNotification('Assignment Updated', `Assigned to report ${selectedReport.value.id}`, uid)
+    if (!selectedReport.value.assignments) selectedReport.value.assignments = []
+    selectedReport.value.assignments.push({ lineman_id: uid })
   }
 
-  showAssignModal.value = false
   fetchAll()
 }
 
 onMounted(() => {
   getCurrentBranch()
+  refreshIntervalId = setInterval(getCurrentBranch, 5000)
+  timerInterval = setInterval(() => (now.value = new Date()), 1000)
+})
+
+onUnmounted(() => {
+  if (refreshIntervalId) clearInterval(refreshIntervalId)
+  if (timerInterval) clearInterval(timerInterval)
 })
 </script>
 
 <style scoped>
 .dashboard-root {
   display: flex;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Inter',
-    sans-serif;
-  background: #ffffff;
   min-height: 100vh;
+  background: #f8fafc;
+  font-family: 'Inter', sans-serif;
   color: #0f172a;
 }
-
 .content {
   flex-grow: 1;
-  padding: 24px 30px 40px;
+  padding: 16px 24px;
+  overflow-x: hidden;
 }
 
+/* Hero Section */
 .hero-section {
-  margin-bottom: 24px;
-  padding: 0;
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.hero-header-content {
+  background: #283593;
+  padding: 20px 24px;
+  border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 22px;
-  border-radius: 16px;
-  background: #1f3056;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
-
 .hero-text h1 {
-  margin: 0 0 6px;
-  font-size: 1.5rem;
-  color: #ffffff;
-}
-
-.hero-text p {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #e2e8f0;
-}
-
-.manual-dispatch-btn {
-  background: #ffffff;
-  color: #1f3056;
-  padding: 8px 18px;
-  border-radius: 999px;
-  border: 1px solid #cbd5e1;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12);
-}
-
-.metrics-container.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.stat-card {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 6px 18px rgba(148, 163, 184, 0.25);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.stat-icon {
-  width: 20px;
-  height: 20px;
-  color: #0f172a;
-}
-
-.trend-badge {
-  font-size: 0.7rem;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #e0f2fe;
-  color: #1d4ed8;
-  font-weight: 600;
-}
-
-.stat-card h3 {
   margin: 0 0 4px;
-  font-size: 0.9rem;
-  color: #0f172a;
-}
-
-.stat-value {
-  margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.6rem;
+  color: white;
   font-weight: 700;
 }
-
-.queue-panel {
-  margin-top: 16px;
-  padding: 16px 18px;
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+.hero-text p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #cbd5e1;
 }
-
-.queue-panel h3 {
-  margin: 0 0 12px;
-  font-size: 1rem;
+.manual-dispatch-btn {
+  background: #fde047;
   color: #0f172a;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 0.2s;
+}
+.manual-dispatch-btn:hover {
+  opacity: 0.9;
 }
 
+/* Operational Overview */
+.overview-section {
+  margin-bottom: 16px;
+}
+.operational-overview-card {
+  background: #1e1b4b;
+  border-radius: 8px;
+  padding: 16px 24px;
+  color: white;
+  margin-bottom: 12px;
+}
+.overview-header {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.overview-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.o-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  position: relative;
+  padding: 0 16px;
+}
+.o-stat:first-child {
+  padding-left: 0;
+}
+.o-stat:last-child {
+  padding-right: 0;
+}
+.o-stat:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 10%;
+  bottom: 10%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.o-stat span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.stat-icon {
+  width: 14px;
+  height: 14px;
+}
+.o-stat h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin: 0;
+  color: white;
+}
+.active-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  background: #4ade80;
+  border-radius: 50%;
+}
+
+/* Priority Cards */
+.priority-cards-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.p-card {
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.p-card span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.p-icon {
+  width: 14px;
+  height: 14px;
+}
+.p-card h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin: 0;
+}
+.p-card.critical {
+  background: #f87171;
+  color: #7f1d1d;
+  border: 1px solid #dc2626;
+}
+.p-card.high {
+  background: #fde047;
+  color: #78350f;
+  border: 1px solid #ca8a04;
+}
+.p-card.normal {
+  background: #93c5fd;
+  color: #1e3a8a;
+  border: 1px solid #2563eb;
+}
+.p-card.low {
+  background: #e2e8f0;
+  color: #334155;
+  border: 1px solid #475569;
+}
+
+/* Queue Tables */
+.queue-panel {
+  padding: 16px;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  margin-bottom: 16px;
+}
+.panel-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.queue-panel h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #1e1b4b;
+  font-weight: 700;
+}
+.filter-controls {
+  display: flex;
+  gap: 6px;
+}
+.filter-btn {
+  padding: 4px 12px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+.filter-btn.active {
+  background: #1e1b4b;
+  color: white;
+  border-color: #1e1b4b;
+}
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
 }
-
-.data-table th,
-.data-table td {
-  padding: 8px 6px;
+.data-table th {
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.65rem;
+  color: #64748b;
+  padding: 10px 12px;
   border-bottom: 1px solid #e2e8f0;
 }
-
-.data-table thead th {
-  text-align: left;
-  font-weight: 600;
+.data-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
   font-size: 0.8rem;
-  color: #64748b;
 }
-
-.data-table tbody tr:hover {
-  background: #f8fafc;
+.truncate {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.muted-text {
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .status-pill {
-  display: inline-block;
+  background: #e2e8f0;
+  color: #475569;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #1d4ed8;
-  font-size: 0.75rem;
-}
-
-/* Priority Badge styles */
-.priority-pill {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 999px;
   font-size: 0.7rem;
+  font-weight: 600;
+}
+.priority-pill {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
 }
 .priority-critical {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #f87171;
+  color: white;
 }
 .priority-high {
-  background: #ffedd5;
-  color: #9a3412;
+  background: #fde047;
+  color: #0f172a;
 }
 .priority-normal {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: #93c5fd;
+  color: #0f172a;
 }
 .priority-low {
   background: #f1f5f9;
-  color: #475569;
+  color: #0f172a;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 6px;
+}
 .action-btn {
-  background: #1f3056;
-  color: #ffffff;
-  padding: 6px 12px;
-  border-radius: 999px;
+  background: #1e1b4b;
+  color: white;
   border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 600;
 }
-
 .details-btn {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
+  background: white;
   border: 1px solid #cbd5e1;
-  font-size: 0.75rem;
+  color: #475569;
+  padding: 3px 12px;
+  border-radius: 4px;
+  font-size: 0.7rem;
   font-weight: 600;
-  color: #1f3056;
-  background: #ffffff;
   text-decoration: none;
   cursor: pointer;
 }
-
-.details-btn:hover {
-  background: #f8fafc;
+.text-center {
+  text-align: center;
+  color: #64748b;
+  padding: 24px;
 }
 
+/* MODALS */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
+/* Manual Report Modal */
+.manual-modal-card {
+  background: white;
+  border-radius: 8px;
+  width: 460px;
+  overflow: visible;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+.manual-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.manual-modal-header h2 {
+  margin: 0 0 4px 0;
+  font-size: 1.15rem;
+  color: #1e1b4b;
+  font-weight: 700;
+}
+.manual-modal-header p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.manual-modal-body {
+  padding: 20px;
+}
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1e1b4b;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+}
+.section-label .icon {
+  color: #d97706;
+  width: 14px;
+  height: 14px;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.input-group label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+.input-group label span.req {
+  color: #ef4444;
+}
+.std-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #0f172a;
+  background: white;
+  box-sizing: border-box;
+}
+.std-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #0f172a;
+  min-height: 70px;
+  resize: vertical;
+  box-sizing: border-box;
 }
 
-.modal-content {
-  width: min(420px, 90vw);
-  padding: 20px 22px;
-  border-radius: 20px;
+/* CUSTOM DROPDOWN STYLES */
+.custom-dropdown-container {
+  position: relative;
+  width: 100%;
+}
+.dropdown-trigger-btn {
+  width: 100%;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.dropdown-trigger-btn span {
+  font-size: 0.8rem;
+  font-weight: 500;
   color: #0f172a;
 }
-
-.modal-content h3 {
-  margin: 0 0 10px;
-  font-size: 1.1rem;
+.dropdown-trigger-btn span.muted-trigger {
+  color: #94a3b8;
 }
-
-.input-field {
-  width: 100%;
-  margin-top: 8px;
-  padding: 10px;
-  border-radius: 999px;
+.dropdown-chevron {
+  color: #64748b;
+}
+.dropdown-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: white;
   border: 1px solid #cbd5e1;
-  font-size: 0.9rem;
+  border-radius: 8px;
+  padding: 6px;
+  z-index: 1050;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+.popover-search-box {
+  position: relative;
+  margin-bottom: 6px;
+}
+.search-input {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 6px 8px 6px 28px;
+  font-size: 0.75rem;
   outline: none;
-  background: rgba(255, 255, 255, 0.9);
+  box-sizing: border-box;
+}
+.search-input-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+.popover-scroll-list {
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.group-header-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  margin: 4px 0 2px 4px;
+}
+.group-option-box {
+  padding: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #0f172a;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.group-option-box:hover {
+  background: #f1f5f9;
+}
+.no-result-text {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  padding: 6px;
+  text-align: center;
 }
 
-textarea.input-field {
-  border-radius: 12px;
-  min-height: 80px;
+/* Assign Lineman Modal */
+.assign-modal-card {
+  background: white;
+  border-radius: 8px;
+  width: 600px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+.assign-modal-card h3 {
+  margin: 0 0 4px 0;
+  font-size: 1.1rem;
+  color: #1e1b4b;
+}
+.assign-modal-card p {
+  margin: 0 0 16px 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.assign-search-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.search-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+.assign-search-input {
+  width: 100%;
+  padding: 8px 10px 8px 32px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  box-sizing: border-box;
+}
+.assign-filter-btn {
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.table-scroll-wrapper {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+.lineman-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lineman-table th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  text-align: left;
+  font-size: 0.65rem;
+  color: #64748b;
+  padding: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  z-index: 10;
+}
+.lineman-table td {
+  padding: 10px;
+  font-size: 0.8rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+.lineman-status {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+.status-available {
+  background: #dcfce7;
+  color: #166534;
+}
+.status-on-job {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.assign-action-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.assign-action-btn:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
-.modal-actions {
+/* Common Modal Footer */
+.modal-footer {
+  padding: 12px 20px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 16px;
 }
-
-.assign-btn {
-  background: #1f3056;
-  color: #ffffff;
-  padding: 8px 16px;
-  border-radius: 999px;
-  border: none;
-  font-size: 0.85rem;
+.btn-cancel {
+  background: white;
+  border: 1px solid #cbd5e1;
+  color: #1e1b4b;
+  padding: 6px 14px;
+  border-radius: 4px;
   font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(31, 48, 86, 0.35);
-}
-
-.cancel-btn {
-  background: rgba(255, 255, 255, 0.85);
-  color: #475569;
-  padding: 8px 16px;
-  border-radius: 999px;
-  border: none;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.8rem;
   cursor: pointer;
 }
-
-.lineman-checkbox-list {
+.btn-submit {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 6px;
-  margin-top: 8px;
 }
-
-.checkbox-label {
-  font-size: 0.85rem;
-  color: #0f172a;
+.btn-close-modal {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 </style>
