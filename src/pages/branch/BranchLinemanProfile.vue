@@ -1,57 +1,91 @@
+<!-- src/pages/branch/BranchLinemanProfile.vue -->
 <template>
   <div class="dashboard-root">
     <BranchSidebar />
+
     <main class="content">
-      <Topbar />
-      <router-link to="/branch/linemen" class="back-link">← Back to Directory</router-link>
+      <BranchTopbar />
 
-      <div v-if="lineman" class="profile-container">
-        <header class="profile-header">
-          <h1>{{ lineman.users.first_name }} {{ lineman.users.last_name }}</h1>
-          <p>Employee ID: {{ lineman.employee_id_no }}</p>
+      <header class="hero-banner detail-hero">
+        <router-link to="/branch/linemen" class="back-link">
+          &larr; BACK TO LINEMAN MONITORING
+        </router-link>
+        <div class="hero-overlay-content">
+          <h1>LINEMAN PROFILE</h1>
+          <p>Detailed view and management of field engineering personnel.</p>
+        </div>
+      </header>
 
-          <p class="branch-info">
-            <strong>Branch:</strong>
-            {{ lineman.users.iselco_branch?.branch_name || 'Not assigned' }}
-          </p>
-
-          <span class="status-badge" :class="lineman.is_available ? 'active' : 'deployed'">
-            {{ lineman.is_available ? 'Available' : 'Deployed' }}
-          </span>
-        </header>
-
-        <div class="stats-grid">
-          <div class="stat-card">
-            <h3>{{ stats.totalResolved }}</h3>
-            <p>RESOLVED JOBS</p>
-          </div>
-          <div class="stat-card">
-            <h3>{{ stats.totalAssigned }}</h3>
-            <p>TOTAL ASSIGNMENTS</p>
+      <div v-if="lineman" class="profile-content">
+        <div class="section-container">
+          <h3 class="section-title"><User :size="16" class="icon" /> Personal Information</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>FULL NAME</label>
+              <p>{{ lineman.users.first_name }} {{ lineman.users.last_name }}</p>
+            </div>
+            <div class="info-item">
+              <label>EMAIL ADDRESS</label>
+              <p>{{ lineman.users.email || 'N/A' }}</p>
+            </div>
+            <div class="info-item">
+              <label>CONTACT NUMBER</label>
+              <p>{{ lineman.users.mobile_number || 'N/A' }}</p>
+            </div>
+            <div class="info-item">
+              <label>ASSIGNED BRANCH</label>
+              <p>{{ lineman.users.iselco_branch?.branch_name || 'Branch' }}</p>
+            </div>
           </div>
         </div>
 
-        <section class="activity-section">
-          <h3>Recent Activity</h3>
-          <div class="activity-list">
-            <div v-for="item in assignments" :key="item.id" class="activity-item">
-              <div class="activity-info">
-                <span class="desc">{{
-                  item.reports?.description || 'No description provided'
-                }}</span>
-                <span class="date">{{ new Date(item.assigned_at).toLocaleDateString() }}</span>
-              </div>
-              <span class="pill" :class="getStatusClass(item.reports?.status_id)">
-                {{ item.reports?.report_statuses?.name }}
-              </span>
+        <div class="section-container">
+          <h3 class="section-title"><BarChart2 :size="16" class="icon" /> Performance Metrics</h3>
+          <div class="metrics-row">
+            <div class="metric-item">
+              <label>TOTAL TASKS</label>
+              <h2>{{ stats.totalAssigned }}</h2>
             </div>
-            <div v-if="assignments.length === 0" class="empty-state">
-              No recent activity found for this lineman.
+            <div class="divider"></div>
+            <div class="metric-item">
+              <label>CURRENT STATUS</label>
+              <h2 class="status-route">
+                <Route :size="18" /> {{ lineman.is_available ? 'Ready' : 'On Route' }}
+              </h2>
+            </div>
+            <div class="divider"></div>
+            <div class="metric-item">
+              <label>AVG RESOLUTION</label>
+              <h2>1.4h</h2>
             </div>
           </div>
-        </section>
-      </div>
+        </div>
 
+        <div class="section-container">
+          <h3 class="section-title"><History :size="16" class="icon" /> Recent Activity</h3>
+          <div class="activity-list">
+            <div class="activity-card" v-for="item in assignments" :key="item.id">
+              <div class="act-left">
+                <h4 class="act-title">
+                  {{ item.reports?.report_statuses?.name || 'Assigned' }} Incident #{{
+                    item.reports?.id || '---'
+                  }}
+                </h4>
+                <p class="act-desc">{{ item.reports?.description || 'No description provided' }}</p>
+              </div>
+              <div class="act-right">
+                <span class="act-date">{{ new Date(item.assigned_at).toLocaleString() }}</span>
+              </div>
+            </div>
+            <div
+              v-if="assignments.length === 0"
+              style="padding: 16px; color: #64748b; font-size: 0.85rem"
+            >
+              No recent activity found.
+            </div>
+          </div>
+        </div>
+      </div>
       <div v-else class="loading">Loading profile...</div>
     </main>
   </div>
@@ -62,22 +96,13 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import BranchSidebar from '@/components/BranchSidebar.vue'
-import Topbar from '@/components/BranchTopbar.vue'
+import BranchTopbar from '@/components/BranchTopbar.vue'
+import { User, BarChart2, History, Route } from 'lucide-vue-next'
 
 const route = useRoute()
 const lineman = ref(null)
 const assignments = ref([])
 const stats = ref({ totalResolved: 0, totalAssigned: 0 })
-
-const getStatusClass = (statusId) => {
-  return (
-    {
-      1: 'badge-pending',
-      2: 'badge-progress',
-      3: 'badge-resolved',
-    }[statusId] || 'badge-default'
-  )
-}
 
 const fetchProfile = async () => {
   const linemanId = route.params.id
@@ -103,18 +128,7 @@ const fetchProfile = async () => {
   const { data: emp, error } = await supabase
     .from('employees')
     .select(
-      `
-      id,
-      user_id,
-      employee_id_no,
-      is_available,
-      users(
-        first_name,
-        last_name,
-        branch_id,
-        iselco_branch(branch_name)
-      )
-    `,
+      `user_id, employee_id_no, is_available, users(first_name, last_name, email, mobile_number, branch_id, iselco_branch(branch_name))`,
     )
     .eq('id', linemanId)
     .eq('users.branch_id', userData.branch_id)
@@ -124,19 +138,18 @@ const fetchProfile = async () => {
     console.error('Error fetching profile:', error)
     return
   }
-
   lineman.value = emp
 
   const { data: history } = await supabase
     .from('assignments')
-    .select(`assigned_at, reports(description, status_id, report_statuses(name))`)
+    .select(`assigned_at, reports(id, description, status_id, report_statuses(name))`)
     .eq('lineman_id', emp.user_id)
     .order('assigned_at', { ascending: false })
 
   assignments.value = history || []
   stats.value.totalAssigned = assignments.value.length
   stats.value.totalResolved = assignments.value.filter(
-    (item) => item.reports?.status_id === 3,
+    (a) => a.reports?.status_id === 3 || a.reports?.status_id === 6,
   ).length
 }
 
@@ -146,91 +159,168 @@ onMounted(fetchProfile)
 <style scoped>
 .dashboard-root {
   display: flex;
-  font-family: sans-serif;
-  background: #ffffff;
+  background: #f8fafc;
   min-height: 100vh;
-  color: #000;
+  font-family: 'Inter', sans-serif;
+  color: #0f172a;
 }
 .content {
   flex-grow: 1;
-  padding: 40px;
+  padding: 16px 24px;
+}
+
+.hero-banner {
+  position: relative;
+  background: url('@/assets/Background/bannerdashboard.jpg') no-repeat center center;
+  background-size: cover;
+  padding: 20px 32px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(24, 24, 50, 0.9) 0%, rgba(30, 58, 138, 0.85) 100%);
+  z-index: 1;
+}
+.hero-overlay-content {
+  position: relative;
+  z-index: 2;
+  margin-top: 12px;
+}
+.hero-overlay-content h1 {
+  margin: 0 0 4px 0;
+  font-size: 1.6rem;
+  color: white;
+  font-weight: 700;
+}
+.hero-overlay-content p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #cbd5e1;
 }
 .back-link {
-  display: inline-block;
-  margin-bottom: 20px;
-  color: #2563eb;
+  position: relative;
+  z-index: 2;
+  color: white;
   text-decoration: none;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 700;
+  opacity: 0.8;
 }
-.profile-header {
-  margin-bottom: 30px;
+.back-link:hover {
+  opacity: 1;
 }
-.branch-info {
-  margin: 10px 0;
-  color: #4b5563;
-  font-size: 1rem;
+
+.section-container {
+  margin-bottom: 24px;
 }
-.status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-weight: bold;
-  font-size: 0.85rem;
-  margin-top: 10px;
-}
-.active {
-  background: #dcfce7;
-  color: #166534;
-}
-.deployed {
-  background: #ffedd5;
-  color: #9a3412;
-}
-.stats-grid {
+.section-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin-bottom: 12px;
   display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.icon {
+  color: #d97706;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
-  margin-bottom: 40px;
 }
-.stat-card {
-  background: #f9f9f9;
-  padding: 25px;
-  border-radius: 12px;
+.info-item label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+.info-item p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.metrics-row {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 24px;
+}
+.metric-item {
   flex: 1;
-  border: 1px solid #ddd;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
-.activity-item {
-  border-bottom: 1px solid #eee;
-  padding: 15px 0;
+.metric-item label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+.metric-item h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #1e1b4b;
+  margin: 0;
+}
+.status-route {
+  color: #d97706 !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.divider {
+  width: 1px;
+  height: 50px;
+  background: #e2e8f0;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.activity-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-.activity-info {
-  display: flex;
-  flex-direction: column;
+.act-title {
+  margin: 0 0 4px 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e1b4b;
 }
-.date {
-  font-size: 0.8rem;
-  color: #666;
-  margin-top: 4px;
-}
-.pill {
-  padding: 4px 12px;
-  border-radius: 15px;
+.act-desc {
+  margin: 0;
   font-size: 0.75rem;
-  font-weight: 600;
+  color: #64748b;
 }
-.badge-pending {
-  background: #fef3c7;
-  color: #92400e;
+.act-date {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 500;
 }
-.badge-progress {
-  background: #dbeafe;
-  color: #1e40af;
-}
-.badge-resolved {
-  background: #dcfce7;
-  color: #166534;
+.loading {
+  padding: 40px;
+  color: #64748b;
+  font-size: 0.9rem;
 }
 </style>

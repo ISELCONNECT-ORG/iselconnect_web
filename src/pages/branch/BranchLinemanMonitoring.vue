@@ -1,37 +1,84 @@
+<!-- src/pages/branch/BranchLinemanMonitoring.vue -->
 <template>
   <div class="dashboard-root">
     <BranchSidebar />
+
     <main class="content">
-      <Topbar />
-      <header class="header">
-        <div>
-          <h1>{{ branchName }} Workforce Directory</h1>
+      <BranchTopbar />
+
+      <header class="hero-banner">
+        <div class="hero-overlay-content">
+          <h1>LINEMAN MONITORING</h1>
           <p>Comprehensive profile management for the {{ branchName }} field engineering team.</p>
         </div>
-        <button @click="showModal = true" class="btn-add">+ Add Lineman</button>
       </header>
 
-      <section class="stats-container">
-        <div v-for="(value, key) in stats" :key="key" class="stat-card">
-          <h3>{{ value }}</h3>
-          <p>{{ key.toUpperCase() }}</p>
+      <div class="stats-card-container">
+        <button @click="showModal = true" class="add-btn">
+          <UserPlus :size="16" /> ADD LINEMAN
+        </button>
+        <div class="divider"></div>
+        <div class="stat-item">
+          <span class="label">TOTAL LINEMAN</span>
+          <h2>{{ stats.total }}</h2>
         </div>
-      </section>
-
-      <section class="directory-grid">
-        <div v-for="lineman in linemen" :key="lineman.id" class="lineman-card">
-          <div class="avatar-placeholder"></div>
-          <h4>{{ lineman.users?.first_name }} {{ lineman.users?.last_name }}</h4>
-          <p>ID: {{ lineman.employee_id_no }}</p>
-          <p class="status" :class="lineman.is_available ? 'active' : 'deployed'">
-            {{ lineman.is_available ? 'Available' : 'Deployed' }}
-          </p>
-
-          <router-link :to="`/branch/lineman/${lineman.id}`" class="btn-primary">
-            View Profile
-          </router-link>
+        <div class="divider"></div>
+        <div class="stat-item">
+          <span class="label">ON ROUTE</span>
+          <h2>{{ stats.onRoute }}</h2>
         </div>
-      </section>
+        <div class="divider"></div>
+        <div class="stat-item">
+          <span class="label">READY</span>
+          <h2>{{ stats.ready }}</h2>
+        </div>
+      </div>
+
+      <div class="table-panel">
+        <div class="panel-header">
+          <div class="tabs">
+            <button :class="{ active: activeTab === 'ALL' }" @click="activeTab = 'ALL'">ALL</button>
+            <button :class="{ active: activeTab === 'ACTIVE' }" @click="activeTab = 'ACTIVE'">
+              ACTIVE
+            </button>
+            <button :class="{ active: activeTab === 'INACTIVE' }" @click="activeTab = 'INACTIVE'">
+              INACTIVE
+            </button>
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>NAME</th>
+              <th>BRANCH</th>
+              <th>EMPLOYEE ID</th>
+              <th>ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="lineman in filteredLinemen" :key="lineman.id">
+              <td class="font-bold">
+                {{ lineman.users?.first_name }} {{ lineman.users?.last_name }}
+              </td>
+              <td class="muted">
+                {{ lineman.users?.iselco_branch?.branch_name || branchName }}
+              </td>
+              <td class="muted">{{ lineman.employee_id_no }}</td>
+              <td>
+                <router-link :to="`/branch/lineman/${lineman.id}`" class="btn-view-profile">
+                  View Profile
+                </router-link>
+              </td>
+            </tr>
+            <tr v-if="filteredLinemen.length === 0">
+              <td colspan="4" style="text-align: center; padding: 24px; color: #64748b">
+                No linemen found matching the current filters.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <AddLinemanModal v-if="showModal" @close="showModal = false" @refresh="fetchAllData" />
     </main>
@@ -39,17 +86,21 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { supabase } from '@/services/supabase'
 import BranchSidebar from '@/components/BranchSidebar.vue'
-import Topbar from '@/components/BranchTopbar.vue'
+import BranchTopbar from '@/components/BranchTopbar.vue'
 import AddLinemanModal from '@/components/account/AddLinemanModal.vue'
+import { UserPlus } from 'lucide-vue-next'
 
 const linemen = ref([])
 const showModal = ref(false)
 const branchName = ref('Branch')
 const branchId = ref(null)
-const stats = reactive({ total: 0, active: 0, onRoute: 0, ready: 0 })
+const stats = reactive({ total: 0, onRoute: 0, ready: 0 })
+
+// Filter States
+const activeTab = ref('ALL')
 
 const fetchAllData = async () => {
   const {
@@ -75,30 +126,21 @@ const fetchAllData = async () => {
 
   if (!branchId.value) return
 
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('employees')
     .select(
-      `id, user_id, employee_id_no, is_available, users!inner(first_name, last_name, role_id, branch_id)`,
+      `id, user_id, employee_id_no, is_available, users!inner(first_name, last_name, role_id, branch_id, iselco_branch(branch_name))`,
     )
     .eq('users.role_id', 9)
     .eq('users.branch_id', branchId.value)
 
-  if (!error) {
-    linemen.value = data || []
-  }
+  linemen.value = data || []
 
   const { count: total } = await supabase
     .from('employees')
     .select('*, users!inner(role_id, branch_id)', { count: 'exact', head: true })
     .eq('users.role_id', 9)
     .eq('users.branch_id', branchId.value)
-
-  const { count: active } = await supabase
-    .from('employees')
-    .select('*, users!inner(role_id, branch_id)', { count: 'exact', head: true })
-    .eq('users.role_id', 9)
-    .eq('users.branch_id', branchId.value)
-    .eq('is_available', false)
 
   const { count: ready } = await supabase
     .from('employees')
@@ -107,9 +149,10 @@ const fetchAllData = async () => {
     .eq('users.branch_id', branchId.value)
     .eq('is_available', true)
 
-  const { count: onRoute } = await supabase
+  const { count: route } = await supabase
     .from('assignments')
     .select('*', { count: 'exact', head: true })
+    .is('arrival_at', null)
     .in(
       'report_id',
       (await supabase.from('reports').select('id').eq('branch_id', branchId.value)).data?.map(
@@ -118,10 +161,23 @@ const fetchAllData = async () => {
     )
 
   stats.total = total || 0
-  stats.active = active || 0
   stats.ready = ready || 0
-  stats.onRoute = onRoute || 0
+  stats.onRoute = route || 0
 }
+
+// Filter Logic
+const filteredLinemen = computed(() => {
+  return linemen.value.filter((lineman) => {
+    const isReady = lineman.is_available === true
+    const isInactive = lineman.is_available === false
+
+    return (
+      activeTab.value === 'ALL' ||
+      (activeTab.value === 'ACTIVE' && isReady) ||
+      (activeTab.value === 'INACTIVE' && isInactive)
+    )
+  })
+})
 
 onMounted(fetchAllData)
 </script>
@@ -129,69 +185,169 @@ onMounted(fetchAllData)
 <style scoped>
 .dashboard-root {
   display: flex;
-  font-family: sans-serif;
-  background: #ffffff;
+  background: #f8fafc;
   min-height: 100vh;
-  color: #000;
+  font-family: 'Inter', sans-serif;
+  color: #0f172a;
 }
 .content {
   flex-grow: 1;
-  padding: 30px;
+  padding: 16px 24px;
 }
-.header {
+
+.hero-banner {
+  position: relative;
+  background: url('@/assets/Background/bannerdashboard.jpg') no-repeat center center;
+  background-size: cover;
+  padding: 24px 32px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(24, 24, 50, 0.9) 0%, rgba(30, 58, 138, 0.85) 100%);
+  z-index: 1;
+}
+.hero-overlay-content {
+  position: relative;
+  z-index: 2;
+}
+.hero-overlay-content h1 {
+  margin: 0 0 4px 0;
+  font-size: 1.6rem;
+  color: white;
+  font-weight: 700;
+}
+.hero-overlay-content p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+}
+
+.stats-card-container {
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+.add-btn {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.divider {
+  width: 1px;
+  height: 40px;
+  background: #e2e8f0;
+  margin: 0 32px;
+}
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.stat-item .label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 4px;
+}
+.stat-item h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1e1b4b;
+  margin: 0;
+}
+
+.table-panel {
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 20px;
+}
+.panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 16px;
 }
-.stats-container {
+.tabs {
   display: flex;
-  gap: 20px;
-  margin-bottom: 30px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 4px;
 }
-.stat-card {
-  background: #f9f9f9;
-  padding: 20px;
-  border-radius: 8px;
-  flex: 1;
-  border: 1px solid #ddd;
-  text-align: center;
-}
-.directory-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-}
-.lineman-card {
-  background: #fff;
-  padding: 20px;
-  border-radius: 12px;
-  border: 1px solid #ddd;
-  text-align: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-.btn-add {
-  background: #2563eb;
-  color: white;
-  padding: 10px 20px;
+.tabs button {
+  background: transparent;
   border: none;
-  border-radius: 5px;
+  padding: 6px 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
   cursor: pointer;
-}
-.btn-primary {
-  background: #000;
-  color: white;
-  padding: 8px 16px;
-  border: none;
   border-radius: 4px;
-  cursor: pointer;
+  transition: all 0.2s;
 }
-.active {
-  color: #006400;
-  font-weight: bold;
+.tabs button.active {
+  background: #1e1b4b;
+  color: white;
 }
-.deployed {
-  color: #cc5500;
-  font-weight: bold;
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th {
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: #64748b;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.data-table td {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.85rem;
+}
+.font-bold {
+  font-weight: 600;
+  color: #0f172a;
+}
+.muted {
+  color: #475569;
+}
+
+.btn-view-profile {
+  background: #283593;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.btn-view-profile:hover {
+  background: #1e1b4b;
 }
 </style>

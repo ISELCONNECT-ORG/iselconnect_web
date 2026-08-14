@@ -1,122 +1,73 @@
-﻿<template>
+﻿<!-- BranchReportDetails.vue -->
+<template>
   <div class="dashboard-root">
     <BranchSidebar />
-    <main class="content">
-      <!-- Back link -->
-      <div class="header-nav">
-        <router-link to="/branch/incident" class="back-link">
-          &larr; Back to Incident Queue
-        </router-link>
-      </div>
 
-      <!-- Hero/title bar -->
-      <header class="hero-section">
-        <div class="hero-header-content">
-          <div class="hero-text">
-            <h1>Branch Report Details & Live Tracking</h1>
+    <main class="content">
+      <!-- Top Hero Banner -->
+      <div class="hero-banner">
+        <div class="hero-left">
+          <router-link to="/branch/incident" class="back-btn">
+            &larr; BACK TO INCIDENT QUEUE
+          </router-link>
+          <div class="hero-titles">
+            <h1>BRANCH REPORT DETAILS</h1>
             <p>
               Comprehensive view and live LocationIQ road-snapped route tracking for ticket #{{
                 report?.id || '---'
-              }}.
+              }}
             </p>
           </div>
-          <span v-if="report" class="status-badge" :class="getStatusClass(report?.status_id)">
-            {{ getStatusName(report?.status_id) }}
-          </span>
         </div>
-      </header>
+        <div class="hero-right">
+          <span class="status-pill">{{ getStatusName(report?.status_id) }}</span>
+        </div>
+      </div>
 
-      <!-- Loading / empty -->
-      <div v-if="loading" class="state-card">
+      <!-- Loading / empty states -->
+      <div v-if="loading" class="info-card">
         <p>Loading report details...</p>
       </div>
 
-      <div v-else-if="!report" class="state-card">
+      <div v-else-if="!report" class="info-card">
         <p>Report not found, invalid ID, or unauthorized access to this branch.</p>
       </div>
 
-      <!-- Main details -->
-      <div v-else class="details-grid">
-        <!-- LEFT COLUMN: incident + live tracking map -->
-        <div class="main-info-column">
-          <section class="card incident-card">
-            <div class="card-header-row">
-              <h2>Incident Information</h2>
-              <span class="card-subtitle">
-                {{ getReportTypeName(report.report_type_id) }}
-              </span>
-            </div>
-
-            <!-- Boxed fields -->
-            <div class="form-field">
-              <label>Issue Type</label>
-              <div class="form-value">
-                {{ getReportTypeName(report.report_type_id) }}
+      <!-- Main Layout -->
+      <div v-else class="details-container">
+        <!-- ROW 1: Details, Reporter, Remarks -->
+        <div class="details-top-row">
+          <div class="info-card">
+            <h3>Report Details</h3>
+            <div class="grid-2-col">
+              <div class="data-group">
+                <label>ISSUE TYPE</label>
+                <p>{{ getReportTypeName(report.report_type_id) }}</p>
+              </div>
+              <div class="data-group">
+                <label>DATE & TIME</label>
+                <p>{{ formatDateTime(report.created_at) }}</p>
+              </div>
+              <div class="data-group">
+                <label>MUNICIPALITY</label>
+                <p>{{ getMunicipalityName(report.municipality_id) }}</p>
+              </div>
+              <div class="data-group">
+                <label>BARANGAY</label>
+                <p>{{ getBarangayName(report.barangay_id) }}</p>
               </div>
             </div>
-
-            <div class="form-field">
-              <label>Municipality / City</label>
-              <div class="form-value">
-                {{ getMunicipalityName(report.municipality_id) }}
-              </div>
+            <div class="data-group">
+              <label>LANDMARK</label>
+              <p>{{ report.landmark || 'N/A' }} (Purok: {{ report.purok_sitio || 'N/A' }})</p>
             </div>
+          </div>
 
-            <div class="form-field">
-              <label>Date & Time Reported</label>
-              <div class="form-value">
-                {{ formatDateTime(report.created_at) }}
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label>Barangay</label>
-              <div class="form-value">
-                {{ getBarangayName(report.barangay_id) }}
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label>Primary Landmark / Purok</label>
-              <div class="form-value">
-                {{ report.landmark || 'N/A' }} (Purok: {{ report.purok_sitio || 'N/A' }})
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label>Technical Description</label>
-              <div class="form-value form-value-long">
-                {{ report.description || 'No additional details provided.' }}
-              </div>
-            </div>
-          </section>
-
-          <!-- Live Tracking Map Section -->
-          <section class="card map-card-section">
-            <div class="card-header-row">
-              <h2>Live Location Map</h2>
-              <span class="card-subtitle">LocationIQ Road-Snapped Routing</span>
-            </div>
-            <div id="liveTrackingMap" class="map-container"></div>
-            <div class="map-legend">
-              <span class="legend-item"><span class="dot issue-dot"></span> Issue Location</span>
-              <span class="legend-item"
-                ><span class="dot lineman-dot"></span> Lineman Position</span
-              >
-            </div>
-          </section>
-        </div>
-
-        <!-- RIGHT COLUMN: consumer + evidence + resolved photo + lifecycle timeline -->
-        <div class="side-info-column">
-          <section class="card consumer-card">
-            <div class="card-header-row">
-              <h2>Consumer Information</h2>
-            </div>
-
-            <div class="form-field">
-              <label>Full Name</label>
-              <div class="form-value">
+          <div class="info-card">
+            <h3>Reporter Information</h3>
+            <div class="data-group" style="margin-bottom: 16px">
+              <label>FULL NAME</label>
+              <div class="gray-box">
                 {{
                   report.users?.first_name
                     ? `${report.users.first_name} ${report.users.last_name}`
@@ -124,92 +75,120 @@
                 }}
               </div>
             </div>
+            <div class="data-group">
+              <label>CONTACT NUMBER</label>
+              <div class="gray-box">{{ report.contact_number || 'Not available' }}</div>
+            </div>
+          </div>
 
-            <div class="form-field">
-              <label>Contact Number</label>
-              <div class="form-value">{{ report.contact_number || 'Not available' }}</div>
+          <div class="info-card">
+            <div class="remarks-header">
+              <h3>Remarks</h3>
+              <div class="res-time">RESOLUTION TIME<br /><b>42m 15s</b></div>
             </div>
-          </section>
+            <textarea
+              class="remarks-input"
+              placeholder="Enter remarks here..."
+              v-model="report.remarks"
+            ></textarea>
+          </div>
+        </div>
 
-          <!-- Initial Evidence Gallery -->
-          <section class="card evidence-card">
-            <div class="card-header-row">
-              <h2>Incident Evidence</h2>
-            </div>
-            <div v-if="evidenceUrls.length > 0" class="evidence-gallery">
-              <div v-for="(url, index) in evidenceUrls" :key="index" class="evidence-item">
-                <img
-                  :src="url"
-                  alt="Report Evidence"
-                  class="evidence-img"
-                  @click="openImage(url)"
-                />
-              </div>
-            </div>
-            <div v-else class="evidence-preview-box">
-              <p class="no-evidence-text">No uploaded media attachments found.</p>
-            </div>
-          </section>
+        <!-- ROW 2: Evidence -->
+        <div class="evidence-row">
+          <div class="info-card">
+            <h3>Incident Evidence</h3>
+            <img
+              v-if="evidenceUrls.length > 0"
+              :src="evidenceUrls[0]"
+              alt="Incident Evidence"
+              class="img-box"
+              @click="openImage(evidenceUrls[0])"
+            />
+            <div v-else class="no-img-box">No Image Provided</div>
+          </div>
 
-          <!-- Resolved Evidence Gallery -->
-          <section class="card evidence-card">
-            <div class="card-header-row">
-              <h2>Resolved Evidence (Lineman Upload)</h2>
-            </div>
-            <div v-if="resolvedPhotoUrl" class="evidence-gallery">
-              <div class="evidence-item">
-                <img
-                  :src="resolvedPhotoUrl"
-                  alt="Resolved Evidence"
-                  class="evidence-img"
-                  @click="openImage(resolvedPhotoUrl)"
-                />
-              </div>
-            </div>
-            <div v-else class="evidence-preview-box">
-              <p class="no-evidence-text">No resolved photo uploaded by lineman yet.</p>
-            </div>
-          </section>
-
-          <!-- Ticket Lifecycle Timeline Tracker -->
-          <section class="card timeline-card">
-            <div class="card-header-row">
-              <h2>Ticket Lifecycle Timeline</h2>
-              <span class="card-subtitle">Database Timestamp Tracker</span>
+          <div class="info-card">
+            <h3>Resolved Evidence</h3>
+            <img
+              v-if="resolvedPhotoUrl"
+              :src="resolvedPhotoUrl"
+              alt="Resolved Evidence"
+              class="img-box"
+              @click="openImage(resolvedPhotoUrl)"
+            />
+            <div v-else class="no-img-box">
+              <ImageOff :size="32" style="margin-bottom: 8px" /> No Resolved Image Yet
             </div>
 
-            <div class="jnt-timeline">
-              <div
-                v-for="(milestone, index) in lifecycleMilestones"
-                :key="index"
-                class="timeline-item"
+            <button
+              v-if="(!assignment || !assignment.is_verified_by_admin) && report?.status_id !== 6"
+              :disabled="!resolvedPhotoUrl"
+              @click="validateResolution"
+              class="verify-btn"
+              :style="{
+                opacity: !resolvedPhotoUrl ? 0.6 : 1,
+                cursor: !resolvedPhotoUrl ? 'not-allowed' : 'pointer',
+              }"
+            >
+              <CheckCircle :size="16" /> VERIFY EVIDENCE
+            </button>
+            <button v-else class="verify-btn verified" disabled>
+              <CheckCircle :size="16" /> VERIFIED
+            </button>
+          </div>
+        </div>
+
+        <!-- ROW 3: Map & Timeline -->
+        <div class="map-timeline-row">
+          <div class="info-card map-card">
+            <h3>Live Location Map</h3>
+            <div class="map-wrapper">
+              <div id="liveTrackingMap" class="map-box"></div>
+            </div>
+            <div class="map-legend">
+              <span
+                ><div class="dot yellow-dot"></div>
+                ISSUE</span
               >
-                <div class="timeline-left">
-                  <span class="timeline-date">{{ milestone.date || 'Pending' }}</span>
-                  <span class="timeline-time">{{ milestone.time || '--:--' }}</span>
-                </div>
+              <span
+                ><div class="dot blue-dot"></div>
+                LINEMAN</span
+              >
+            </div>
+          </div>
 
-                <div class="timeline-node">
+          <div class="timeline-card">
+            <h3>Timeline</h3>
+            <div class="timeline-tree">
+              <div
+                v-for="(milestone, idx) in lifecycleMilestones"
+                :key="idx"
+                class="timeline-node-row"
+              >
+                <div class="timeline-center-col">
                   <div
-                    class="node-dot"
-                    :class="{ active: milestone.active, completed: milestone.done }"
+                    class="node-bullet"
+                    :class="{ completed: milestone.done, active: milestone.active }"
                   ></div>
                   <div
-                    v-if="index !== lifecycleMilestones.length - 1"
-                    class="node-line"
-                    :class="{ 'line-active': milestone.done }"
+                    v-if="idx !== lifecycleMilestones.length - 1"
+                    class="node-connector"
+                    :class="{ 'connector-active': milestone.done }"
                   ></div>
                 </div>
-
-                <div class="timeline-right">
-                  <h4 class="timeline-title" :class="{ 'text-muted': !milestone.done }">
-                    {{ milestone.title }}
-                  </h4>
-                  <p class="timeline-location">{{ milestone.description }}</p>
+                <div class="timeline-content-col">
+                  <div class="t-title-row">
+                    <span class="t-title" :class="{ 'text-muted': !milestone.done }">{{
+                      milestone.title
+                    }}</span>
+                    <span class="t-time">{{ milestone.time || '--:--' }}</span>
+                  </div>
+                  <p class="t-desc">{{ milestone.description }}</p>
                 </div>
               </div>
             </div>
-          </section>
+          </div>
         </div>
       </div>
     </main>
@@ -217,13 +196,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import BranchSidebar from '@/components/BranchSidebar.vue'
-import Topbar from '@/components/BranchTopbar.vue'
+import { CheckCircle, ImageOff } from 'lucide-vue-next'
 
-// Leaflet for LocationIQ map rendering
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 
@@ -239,6 +217,11 @@ const branchId = ref(null)
 
 const LOCATIONIQ_TOKEN = import.meta.env.VITE_LOCATIONIQ_TOKEN
 let mapInstance = null
+let issueMarker = null
+let linemanMarker = null
+let routePolyline = null
+let refreshInterval = null
+let realtimeChannel = null
 
 const fetchReportDetails = async () => {
   const reportId = route.params.id
@@ -247,7 +230,7 @@ const fetchReportDetails = async () => {
     return
   }
 
-  // Validate Branch Account User
+  // Validate Branch Account User Session
   const {
     data: { user },
     error: userError,
@@ -273,7 +256,7 @@ const fetchReportDetails = async () => {
 
   branchId.value = userData.branch_id
 
-  // Fetch Report Data restricted to this branch and verified by admin (status_id > 1)
+  // Fetch Report restricted strictly to this branch account
   const { data, error } = await supabase
     .from('reports')
     .select('*, users(first_name, last_name), municipalities(name)')
@@ -288,169 +271,236 @@ const fetchReportDetails = async () => {
     const rawEvidence =
       data.evidence || data.image_url || data.photo_url || data.file_path || data.photo_path
     await fetchEvidenceFiles(rawEvidence)
-    await fetchResolvedPhoto(data.resolved_photo_url)
+
+    const resolvedPhotoPath =
+      data.resolved_photo_url || data.resolved_evidence || data.resolved_photo_path
+    await fetchResolvedPhoto(resolvedPhotoPath)
   }
 
-  // Fetch Assignment Data
   const { data: assignData, error: assignError } = await supabase
     .from('assignments')
     .select('*')
     .eq('report_id', reportId)
+    .order('assigned_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
-  if (!assignError) {
+  if (!assignError && assignData) {
     assignment.value = assignData
+    if (!resolvedPhotoUrl.value) {
+      const assignPhotoPath =
+        assignData.resolved_photo_url || assignData.resolved_evidence || assignData.photo_url
+      if (assignPhotoPath) await fetchResolvedPhoto(assignPhotoPath)
+    }
   }
 
   loading.value = false
   await nextTick()
   initLiveMap()
+  setupRealtimeTracking()
 }
 
-// Initialize LocationIQ Live Map and Fetch Road Directions
-const initLiveMap = async () => {
-  const mapElement = document.getElementById('liveTrackingMap')
-  if (!mapElement || mapInstance || !report.value) return
+const refreshLinemanLocation = async () => {
+  const reportId = route.params.id
+  if (!reportId) return
 
-  const reportLat = report.value.latitude || 16.7328
-  const reportLon = report.value.longitude || 121.7161
+  const { data: latestReport, error: repError } = await supabase
+    .from('reports')
+    .select('latitude, longitude')
+    .eq('id', reportId)
+    .single()
 
-  mapInstance = L.map('liveTrackingMap').setView([reportLat, reportLon], 14)
+  if (!repError && latestReport && report.value) {
+    report.value.latitude = latestReport.latitude
+    report.value.longitude = latestReport.longitude
+  }
 
-  L.tileLayer(
-    `https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_TOKEN}`,
-    {
-      maxZoom: 18,
-      attribution: '&copy; LocationIQ & OpenStreetMap',
-    },
-  ).addTo(mapInstance)
+  const { data: assignData, error: assignError } = await supabase
+    .from('assignments')
+    .select('id, current_lat, current_lon')
+    .eq('report_id', reportId)
+    .order('assigned_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
-  const issueIcon = L.divIcon({
-    className: 'custom-issue-marker',
-    html: '<div style="background:#1e1b4b;width:16px;height:16px;border-radius:50%;border:2px solid #fbbf24;box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>',
-    iconSize: [16, 16],
-  })
-  L.marker([reportLat, reportLon], { icon: issueIcon })
-    .addTo(mapInstance)
-    .bindPopup('<b>Issue Location</b><br>' + (report.value.landmark || 'Outage Spot'))
+  if (!assignError && assignData && mapInstance) {
+    if (assignment.value) {
+      assignment.value.current_lat = assignData.current_lat
+      assignment.value.current_lon = assignData.current_lon
+    }
 
-  if (assignment.value?.current_lat && assignment.value?.current_lon) {
-    const linemanLat = assignment.value.current_lat
-    const linemanLon = assignment.value.current_lon
+    const reportLat = report.value.latitude ? parseFloat(report.value.latitude) : 16.716173
+    const reportLon = report.value.longitude ? parseFloat(report.value.longitude) : 121.678825
 
-    const linemanIcon = L.divIcon({
-      className: 'custom-lineman-marker',
-      html: '<div style="background:#10b981;width:16px;height:16px;border-radius:50%;border:2px solid #ffffff;box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>',
-      iconSize: [16, 16],
-    })
-    L.marker([linemanLat, linemanLon], { icon: linemanIcon })
-      .addTo(mapInstance)
-      .bindPopup('<b>Lineman Current Location</b>')
+    const linemanLat =
+      assignData.current_lat !== null && assignData.current_lat !== undefined
+        ? parseFloat(assignData.current_lat)
+        : reportLat
+    const linemanLon =
+      assignData.current_lon !== null && assignData.current_lon !== undefined
+        ? parseFloat(assignData.current_lon)
+        : reportLon
+
+    if (issueMarker) issueMarker.setLatLng([reportLat, reportLon])
+
+    if (linemanMarker) {
+      linemanMarker.setLatLng([linemanLat, linemanLon])
+    } else {
+      const linemanIcon = L.divIcon({
+        className: 'custom-lineman-marker',
+        html: `<div style="background-color: #2563eb; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      })
+      linemanMarker = L.marker([linemanLat, linemanLon], { icon: linemanIcon, zIndexOffset: 1000 })
+        .addTo(mapInstance)
+        .bindPopup('<b>Lineman Location</b>')
+    }
 
     try {
+      if (linemanLat === reportLat && linemanLon === reportLon) throw new Error('Same coordinates')
       const response = await fetch(
         `https://us1.locationiq.com/v1/directions/driving/${linemanLon},${linemanLat};${reportLon},${reportLat}?key=${LOCATIONIQ_TOKEN}&geometries=geojson`,
       )
       const data = await response.json()
-      if (data.routes && data.routes.length > 0) {
+      if (data.routes && data.routes[0]) {
         const routeCoords = data.routes[0].geometry.coordinates.map((c) => [c[1], c[0]])
-        L.polyline(routeCoords, {
-          color: '#3b82f6',
-          weight: 4,
-          opacity: 0.8,
-        }).addTo(mapInstance)
-      } else {
-        L.polyline(
-          [
-            [linemanLat, linemanLon],
-            [reportLat, reportLon],
-          ],
-          {
-            color: '#3b82f6',
+        if (routePolyline) routePolyline.setLatLngs(routeCoords)
+        else
+          routePolyline = L.polyline(routeCoords, {
+            color: '#2563eb',
             weight: 4,
             opacity: 0.8,
-          },
-        ).addTo(mapInstance)
+          }).addTo(mapInstance)
+      } else {
+        throw new Error('No route')
       }
     } catch (err) {
-      console.error('Error fetching LocationIQ Directions:', err)
+      const fallbackCoords = [
+        [linemanLat, linemanLon],
+        [reportLat, reportLon],
+      ]
+      if (routePolyline) routePolyline.setLatLngs(fallbackCoords)
+      else
+        routePolyline = L.polyline(fallbackCoords, {
+          color: '#2563eb',
+          weight: 4,
+          dashArray: '5, 5',
+          opacity: 0.8,
+        }).addTo(mapInstance)
     }
   }
 }
 
-// Compute lifecycle milestones
+const setupRealtimeTracking = () => {
+  if (!assignment.value?.id) return
+  const assignmentId = assignment.value.id
+
+  realtimeChannel = supabase
+    .channel(`tracking_${assignmentId}_${Date.now()}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'assignments', filter: `id=eq.${assignmentId}` },
+      (payload) => {
+        if (payload.new.current_lat !== undefined && payload.new.current_lon !== undefined)
+          refreshLinemanLocation()
+      },
+    )
+    .subscribe()
+}
+
+const initLiveMap = async () => {
+  const mapElement = document.getElementById('liveTrackingMap')
+  if (!mapElement || !report.value) return
+
+  const reportLat = report.value.latitude ? parseFloat(report.value.latitude) : 16.716173
+  const reportLon = report.value.longitude ? parseFloat(report.value.longitude) : 121.678825
+
+  if (!mapInstance) {
+    mapInstance = L.map('liveTrackingMap', { zoomControl: false }).setView(
+      [reportLat, reportLon],
+      16,
+    )
+    L.tileLayer(
+      `https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_TOKEN}`,
+      { maxZoom: 19 },
+    ).addTo(mapInstance)
+
+    const issueIcon = L.divIcon({
+      className: 'custom-leaflet-marker',
+      html: `<div style="background-color: #facc15; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #1e1b4b; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8],
+    })
+
+    issueMarker = L.marker([reportLat, reportLon], { icon: issueIcon })
+      .addTo(mapInstance)
+      .bindPopup('<b>Issue Location</b>')
+  }
+
+  await refreshLinemanLocation()
+  if (issueMarker && linemanMarker) {
+    const bounds = L.latLngBounds([issueMarker.getLatLng(), linemanMarker.getLatLng()])
+    mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 })
+  }
+}
+
 const lifecycleMilestones = computed(() => {
   const rep = report.value
   const assign = assignment.value
 
-  const isInProgressDone = !!assign?.inprogress_at || !!assign?.completion_at
-  const isAdminVerified =
+  const hasCreated = !!rep?.created_at
+  const hasReviewed = rep?.status_id > 1 || hasCreated
+  const hasAssigned = !!assign?.assigned_at || hasReviewed
+  const hasInProgress = !!assign?.inprogress_at || hasAssigned
+  const hasResolved = !!assign?.completion_at || !!resolvedPhotoUrl.value || rep?.status_id >= 4
+  const hasVerified =
     !!assign?.is_verified_by_admin || !!assign?.verified_at || rep?.status_id === 6
+
+  const fallbackTime = rep?.updated_at || rep?.created_at
 
   return [
     {
-      title: 'Report Created',
-      description: 'Incident ticket initially submitted by resident.',
-      done: !!rep?.created_at,
-      active: !!rep?.created_at && !assign?.assigned_at,
-      date: formatDate(rep?.created_at),
+      title: 'REPORT CREATED',
+      description: 'Incident ticket submitted.',
+      done: hasCreated,
+      active: hasCreated && !hasAssigned,
       time: formatTime(rep?.created_at),
     },
     {
-      title:
-        rep?.status_id === 3
-          ? 'Report Approved'
-          : rep?.status_id === 5
-            ? 'Report Rejected'
-            : 'Review Status',
-      description:
-        rep?.status_id > 1
-          ? 'Admin evaluated and processed the outage report.'
-          : 'Awaiting administrative action.',
-      done: rep?.status_id > 1,
-      active: rep?.status_id === 1,
-      date: rep?.status_id > 1 ? formatDate(rep?.updated_at) : null,
-      time: rep?.status_id > 1 ? formatTime(rep?.updated_at) : null,
+      title: 'REVIEW STATUS',
+      description: hasReviewed ? 'Admin evaluated report.' : 'Awaiting admin action.',
+      done: hasReviewed,
+      active: hasCreated && !hasReviewed,
+      time: formatTime(rep?.updated_at || rep?.created_at),
     },
     {
-      title: 'Assigned Lineman',
-      description: assign?.assigned_at
-        ? 'Outage ticket dispatched to designated field team.'
-        : 'Pending lineman allocation.',
-      done: !!assign?.assigned_at,
-      active: rep?.status_id > 1 && !assign?.assigned_at,
-      date: formatDate(assign?.assigned_at),
-      time: formatTime(assign?.assigned_at),
+      title: 'ASSIGNED',
+      description: hasAssigned ? 'Ticket dispatched to team.' : 'Pending allocation.',
+      done: hasAssigned,
+      active: hasReviewed && !hasAssigned,
+      time: formatTime(assign?.assigned_at || fallbackTime),
     },
     {
-      title: 'In Progress Lineman',
-      description: assign?.inprogress_at
-        ? 'Lineman is currently on-site and working on the repair.'
-        : 'Pending field work start.',
-      done: isInProgressDone,
-      active: !!assign?.assigned_at && !isInProgressDone,
-      date: formatDate(assign?.inprogress_at),
-      time: formatTime(assign?.inprogress_at),
+      title: 'IN PROGRESS',
+      description: hasInProgress ? 'Lineman on-site.' : 'Pending work start.',
+      done: hasInProgress,
+      active: hasAssigned && !hasInProgress,
+      time: formatTime(assign?.inprogress_at || assign?.assigned_at || fallbackTime),
     },
     {
-      title: 'Resolved Report',
-      description: assign?.completion_at
-        ? 'Field repairs finished and power service restored.'
-        : 'Repair work currently ongoing.',
-      done: !!assign?.completion_at,
-      active: isInProgressDone && !assign?.completion_at,
-      date: formatDate(assign?.completion_at),
-      time: formatTime(assign?.completion_at),
+      title: 'RESOLVED',
+      description: hasResolved ? 'Repair finished, photo uploaded.' : 'Repair ongoing.',
+      done: hasResolved,
+      active: hasInProgress && !hasResolved,
+      time: formatTime(assign?.completion_at || fallbackTime),
     },
     {
-      title: 'Validated by Admin',
-      description: isAdminVerified
-        ? 'Admin verified resolution and officially closed ticket.'
-        : 'Awaiting final administrative sign-off.',
-      done: isAdminVerified,
-      active: !!assign?.completion_at && !isAdminVerified,
-      date: isAdminVerified ? formatDate(assign?.verified_at || rep?.updated_at) : null,
-      time: isAdminVerified ? formatTime(assign?.verified_at || rep?.updated_at) : null,
+      title: 'VALIDATED',
+      description: hasVerified ? 'Admin verified resolution.' : 'Awaiting sign-off.',
+      done: hasVerified,
+      active: hasResolved && !hasVerified,
+      time: formatTime(assign?.verified_at || fallbackTime),
     },
   ]
 })
@@ -461,13 +511,10 @@ const fetchEvidenceFiles = async (fieldValue) => {
   const paths = Array.isArray(fieldValue) ? fieldValue : [fieldValue]
   for (const item of paths) {
     if (typeof item === 'string' && item.trim() !== '') {
-      if (item.startsWith('http')) {
-        evidenceUrls.value.push(item)
-      } else {
+      if (item.startsWith('http')) evidenceUrls.value.push(item)
+      else {
         const { data } = supabase.storage.from('report_photos').getPublicUrl(item)
-        if (data?.publicUrl) {
-          evidenceUrls.value.push(data.publicUrl)
-        }
+        if (data?.publicUrl) evidenceUrls.value.push(data.publicUrl)
       }
     }
   }
@@ -478,7 +525,7 @@ const fetchResolvedPhoto = async (fieldValue) => {
     resolvedPhotoUrl.value = null
     return
   }
-  if (fieldValue.startsWith('http')) {
+  if (typeof fieldValue === 'string' && fieldValue.startsWith('http')) {
     resolvedPhotoUrl.value = fieldValue
   } else {
     const { data } = supabase.storage.from('report_photos').getPublicUrl(fieldValue)
@@ -486,17 +533,43 @@ const fetchResolvedPhoto = async (fieldValue) => {
   }
 }
 
+const validateResolution = async () => {
+  if (!report.value || !resolvedPhotoUrl.value) return
+  const currentTime = new Date().toISOString()
+  let assignError = null
+
+  if (assignment.value) {
+    const { error } = await supabase
+      .from('assignments')
+      .update({ is_verified_by_admin: true, verified_at: currentTime })
+      .eq('id', assignment.value.id)
+    assignError = error
+  }
+
+  const { error: repError } = await supabase
+    .from('reports')
+    .update({ status_id: 6, updated_at: currentTime })
+    .eq('id', report.value.id)
+
+  if (assignError || repError)
+    alert('Failed to validate: ' + (assignError?.message || repError?.message))
+  else fetchReportDetails()
+}
+
+const openImage = (url) => {
+  window.open(url, '_blank')
+}
+
 const fetchLookups = async () => {
   const bRes = await supabase.from('barangays').select('id, name')
   if (bRes.data) barangayList.value = bRes.data
-
   const tRes = await supabase.from('report_types').select('id, name')
   if (tRes.data) reportTypes.value = tRes.data
 }
 
 const getBarangayName = (id) => {
   const found = barangayList.value.find((b) => b.id === id)
-  return found ? found.name : 'Unknown Barangay'
+  return found ? found.name : 'Unknown'
 }
 
 const getReportTypeName = (id) => {
@@ -505,51 +578,53 @@ const getReportTypeName = (id) => {
 }
 
 const getMunicipalityName = (mId) => {
-  return mId === 6 ? 'Echague, Isabela' : 'Alicia, Isabela'
+  return mId === 6 ? 'Echague' : 'Alicia'
 }
 
 const getStatusName = (statusId) => {
-  if (statusId === 1) return 'Pending'
-  if (statusId === 2) return 'In Progress'
-  if (statusId === 4) return 'Pending Verification'
-  if (statusId === 5) return 'Rejected'
-  if (statusId === 6) return 'Resolved'
-  return 'Resolved'
+  if (statusId === 1) return 'PENDING'
+  if (statusId === 2) return 'IN PROGRESS'
+  if (statusId === 4) return 'VERIFICATION'
+  if (statusId === 5) return 'REJECTED'
+  if (statusId === 6) return 'RESOLVED'
+  return 'IN PROGRESS'
 }
 
-const getStatusClass = (statusId) => {
-  if (statusId === 1) return 'badge-pending'
-  if (statusId === 2) return 'badge-dispatched'
-  if (statusId === 6) return 'badge-resolved'
-  return 'badge-resolved'
-}
-
-const formatDateTime = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleString()
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return null
-  return new Date(dateStr).toLocaleDateString('en-US', {
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return 'N/A'
+  return new Date(dateStr).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
 const formatTime = (dateStr) => {
   if (!dateStr) return null
-  return new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-}
-
-const openImage = (url) => {
-  window.open(url, '_blank')
+  return new Date(dateStr).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
 }
 
 onMounted(() => {
   fetchLookups()
   fetchReportDetails()
+  refreshInterval = setInterval(() => {
+    refreshLinemanLocation()
+  }, 5000)
+})
+
+onUnmounted(() => {
+  if (refreshInterval) clearInterval(refreshInterval)
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel)
+  if (mapInstance) {
+    mapInstance.remove()
+    mapInstance = null
+  }
 })
 </script>
 
@@ -558,167 +633,261 @@ onMounted(() => {
   display: flex;
   min-height: 100vh;
   background: #f8fafc;
+  font-family: 'Inter', sans-serif;
   color: #0f172a;
 }
+
 .content {
   flex-grow: 1;
   padding: 24px 30px 40px;
-  max-width: 1200px;
 }
-.header-nav {
-  margin-bottom: 20px;
-}
-.back-link {
-  color: #2563eb;
-  text-decoration: none;
-  font-weight: 500;
-}
-.state-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
-}
-.details-grid {
-  display: grid;
-  grid-template-columns: 1.7fr 1fr;
-  gap: 24px;
-}
-.card {
-  background: #ffffff;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-  padding: 22px;
-  margin-bottom: 24px;
-}
-.card-header-row {
+
+/* HERO BANNER */
+.hero-banner {
+  background: #1e1b4b;
+  border-radius: 12px;
+  padding: 24px 32px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 24px;
 }
-.card-subtitle {
-  color: #64748b;
+.hero-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+.back-btn {
+  background: #fde047;
+  color: #1e1b4b;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.hero-titles h1 {
+  color: white;
+  margin: 0 0 4px 0;
+  font-size: 1.8rem;
+  text-transform: uppercase;
+}
+.hero-titles p {
+  color: #cbd5e1;
+  margin: 0;
   font-size: 0.9rem;
 }
-.status-badge {
-  background: #e0f2fe;
-  color: #0369a1;
-  padding: 8px 12px;
-  border-radius: 9999px;
-  font-size: 0.85rem;
-  font-weight: 600;
+.status-pill {
+  background: #fde047;
+  color: #1e1b4b;
+  padding: 8px 20px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
-.form-field {
-  margin-bottom: 18px;
+
+/* DETAILS TOP ROW */
+.details-top-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1.5fr;
+  gap: 20px;
+  margin-bottom: 20px;
 }
-.form-field label {
+.info-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+}
+.info-card h3 {
+  color: #1e1b4b;
+  font-size: 1.1rem;
+  margin: 0 0 20px 0;
+}
+.grid-2-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.data-group label {
   display: block;
-  margin-bottom: 6px;
+  font-size: 0.65rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.data-group p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+.gray-box {
+  background: #f1f5f9;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+.remarks-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.res-time {
+  text-align: right;
+  font-size: 0.65rem;
+  color: #64748b;
+  font-weight: 600;
+}
+.res-time b {
+  font-size: 1rem;
+  color: #1e1b4b;
+}
+.remarks-input {
+  width: 100%;
+  height: 100px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.85rem;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+
+/* EVIDENCE ROW */
+.evidence-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.img-box {
+  width: 100%;
+  height: 280px;
+  border-radius: 8px;
+  object-fit: cover;
+  cursor: pointer;
+}
+.no-img-box {
+  width: 100%;
+  height: 280px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #334155;
+  margin-bottom: 16px;
+  background: #f8fafc;
 }
-.form-value {
-  color: #0f172a;
-  font-size: 0.95rem;
-  line-height: 1.7;
-}
-.form-value-long {
-  white-space: pre-wrap;
-}
-.map-container {
-  width: 100%;
-  height: 340px;
+.verify-btn {
+  background: #1e1b4b;
+  color: white;
+  padding: 12px 24px;
   border-radius: 8px;
-  z-index: 1;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  float: right;
+  margin-top: 16px;
+}
+.verify-btn.verified {
+  background: #10b981;
+}
+
+/* MAP & TIMELINE ROW */
+.map-timeline-row {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr;
+  gap: 20px;
+}
+.map-card {
+  display: flex;
+  flex-direction: column;
+}
+.map-wrapper {
+  flex-grow: 1;
+  min-height: 350px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 12px;
+}
+.map-box {
+  width: 100%;
+  height: 100%;
 }
 .map-legend {
   display: flex;
-  gap: 20px;
-  margin-top: 10px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #475569;
-  align-items: center;
-  justify-content: center;
+  gap: 24px;
+  justify-content: flex-start;
+  padding-left: 8px;
 }
-.legend-item {
+.map-legend span {
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1e1b4b;
 }
 .dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  display: inline-block;
 }
-.issue-dot {
-  background: #1e1b4b;
-  border: 2px solid #fbbf24;
+.yellow-dot {
+  background: #facc15;
 }
-.lineman-dot {
-  background: #10b981;
-  border: 2px solid #fff;
-}
-.evidence-gallery {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.evidence-item {
-  border-radius: 14px;
-  overflow: hidden;
-  cursor: pointer;
-}
-.evidence-img {
-  width: 100%;
-  height: 140px;
-  object-fit: cover;
-}
-.no-evidence-text {
-  margin: 0;
-  color: #64748b;
+.blue-dot {
+  background: #2563eb;
 }
 
-.jnt-timeline {
+/* TIMELINE */
+.timeline-card {
+  background: white;
+  border: 2px solid #facc15;
+  border-radius: 12px;
+  padding: 24px;
+}
+.timeline-card h3 {
+  color: #1e1b4b;
+  font-size: 1.1rem;
+  margin: 0 0 24px 0;
+  text-align: center;
+}
+.timeline-tree {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  padding-left: 10px;
-  margin-top: 10px;
 }
-.timeline-item {
+.timeline-node-row {
   display: flex;
   gap: 16px;
   position: relative;
   padding-bottom: 24px;
 }
-.timeline-left {
-  width: 85px;
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-}
-.timeline-date {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-.timeline-time {
-  font-size: 0.75rem;
-  color: #64748b;
-}
-.timeline-node {
+.timeline-center-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
+  z-index: 1;
 }
-.node-dot {
+.node-bullet {
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -727,40 +896,53 @@ onMounted(() => {
   box-shadow: 0 0 0 2px #cbd5e1;
   z-index: 2;
 }
-.node-dot.completed {
-  background: #10b981;
-  box-shadow: 0 0 0 2px #d1fae5;
+.node-bullet.completed {
+  background: #1e1b4b;
+  box-shadow: 0 0 0 2px #ffffff;
 }
-.node-dot.active {
-  background: #2563eb;
-  box-shadow: 0 0 0 3px #bfdbfe;
+.node-bullet.active {
+  background: #fde047;
+  border: 2px solid #1e1b4b;
+  box-shadow: 0 0 0 2px #ffffff;
 }
-.node-line {
+.node-connector {
   width: 2px;
-  background: #e2e8f0;
-  flex-grow: 1;
+  background: #cbd5e1;
   position: absolute;
-  top: 12px;
+  top: 14px;
   bottom: -24px;
+  z-index: 1;
 }
-.node-line.line-active {
-  background: #10b981;
+.node-connector.connector-active {
+  background: #1e1b4b;
 }
-.timeline-right {
+.timeline-content-col {
   flex-grow: 1;
+  margin-top: -2px;
 }
-.timeline-title {
-  margin: 0 0 4px 0;
-  font-size: 0.95rem;
-  color: #0f172a;
+.t-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.t-title {
+  font-weight: 700;
+  color: #1e1b4b;
+  font-size: 0.85rem;
+}
+.t-title.text-muted {
+  color: #64748b;
+}
+.t-time {
+  font-size: 0.75rem;
+  color: #64748b;
   font-weight: 600;
 }
-.timeline-title.text-muted {
-  color: #94a3b8;
-}
-.timeline-location {
-  margin: 0;
-  font-size: 0.85rem;
+.t-desc {
+  font-size: 0.8rem;
   color: #475569;
+  margin: 0;
+  line-height: 1.4;
 }
 </style>

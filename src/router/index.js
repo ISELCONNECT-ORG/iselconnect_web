@@ -64,24 +64,24 @@ const router = createRouter({
       component: () => import('../pages/branch/BranchProfile.vue'),
       meta: { requiresAuth: true },
     },
-    {
-      path: '/branch/support',
-      name: 'BranchSupport',
-      component: () => import('../pages/branch/BranchSupport.vue'),
-      meta: { requiresAuth: true },
-    },
+    // {
+    //   path: '/branch/support',
+    //   name: 'BranchSupport',
+    //   component: () => import('../pages/branch/BranchSupport.vue'),
+    //   meta: { requiresAuth: true },
+    // },
     {
       path: '/branch/settings',
       name: 'BranchSettings',
       component: () => import('../pages/branch/BranchSettings.vue'),
       meta: { requiresAuth: true },
     },
-    {
-      path: '/branch/user-management',
-      name: 'BranchUserManagement',
-      component: () => import('../pages/Settings/UserManagement.vue'),
-      meta: { requiresAuth: true },
-    },
+    // {
+    //   path: '/branch/user-management',
+    //   name: 'BranchUserManagement',
+    //   component: () => import('../pages/Settings/UserManagement.vue'),
+    //   meta: { requiresAuth: true },
+    // },
     {
       path: '/branch/audit-log',
       name: 'BranchAuditLog',
@@ -156,31 +156,31 @@ const router = createRouter({
       component: () => import('@/pages/admin/LinemanProfile.vue'),
       meta: { requiresAuth: true },
     },
-    {
-      path: '/admin/user-management',
-      name: 'UserManagement',
-      // Matches your folder structure in src/pages/Settings/UserManagement.vue
-      component: () => import('@/pages/Settings/UserManagement.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/admin/support',
-      name: 'AdminSupport',
-      component: () => import('@/pages/admin/Support.vue'),
-      meta: { requiresAuth: true },
-    },
+    // {
+    //   path: '/admin/user-management',
+    //   name: 'UserManagement',
+    //   // Matches your folder structure in src/pages/Settings/UserManagement.vue
+    //   component: () => import('@/pages/Settings/UserManagement.vue'),
+    //   meta: { requiresAuth: true },
+    // },
+    // {
+    //   path: '/admin/support',
+    //   name: 'AdminSupport',
+    //   component: () => import('@/pages/admin/Support.vue'),
+    //   meta: { requiresAuth: true },
+    // },
     {
       path: '/admin/archive',
       name: 'Archive',
       component: () => import('@/pages/Settings/Archive.vue'),
       meta: { requiresAuth: true },
     },
-    {
-      path: '/admin/settings', // This must match the URL path exactly
-      name: 'AdminSettings',
-      component: () => import('@/pages/Settings/Settings.vue'),
-      meta: { requiresAuth: true },
-    },
+    // {
+    //   path: '/admin/settings', // This must match the URL path exactly
+    //   name: 'AdminSettings',
+    //   component: () => import('@/pages/Settings/Settings.vue'),
+    //   meta: { requiresAuth: true },
+    // },
     {
       path: '/admin/profile',
       name: 'AdminProfile',
@@ -203,6 +203,38 @@ const router = createRouter({
       path: '/admin/account-verification',
       name: 'AccountVerification',
       component: () => import('../pages/admin/AccountVerification.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/create-lineman',
+      name: 'CreateLineman',
+      // Notice the exact path matching your VS Code sidebar
+      component: () => import('@/pages/User Management/CreateLineman.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/create-branch',
+      name: 'CreateBranchAccount',
+      component: () => import('@/pages/User Management/CreateBranchAccount.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/audit-log',
+      name: 'AuditLog',
+      component: () => import('@/pages/Settings/AuditLog.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/security',
+      name: 'Security',
+      component: () => import('@/pages/Settings/Security.vue'),
+      meta: { requiresAuth: true },
+    },
+    // Inside your router routes configuration array:
+    {
+      path: '/admin/about',
+      name: 'AboutUs',
+      component: () => import('@/pages/Settings/AboutUs.vue'),
       meta: { requiresAuth: true },
     },
   ],
