@@ -237,6 +237,12 @@ const router = createRouter({
       component: () => import('@/pages/Settings/AboutUs.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/user-management',
+      name: 'UserManagement',
+      component: () => import('@/pages/User Management/UserManagement.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

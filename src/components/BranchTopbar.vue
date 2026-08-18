@@ -1,77 +1,361 @@
-﻿<template>
-  <header class="branch-topbar">
-    <div class="logo">
-      <h3>ISELCONNECT</h3>
+﻿<!-- src/components/BranchTopbar.vue -->
+<template>
+  <header class="topbar-container" @click="closeDropdown">
+    <div class="topbar-left">
+      <span class="brand-title">ISELCONNECT • BRANCH</span>
     </div>
 
-    <div class="user-area">
-      <router-link to="/branch/notification" class="icon-btn">
-        <Bell :size="20" />
-      </router-link>
+    <div class="topbar-right">
+      <!-- Notification Bell Trigger -->
+      <div class="notification-bell-wrapper" @click.stop="toggleNotifications">
+        <button class="bell-btn" title="Notifications">🔔</button>
 
-      <router-link to="/branch/profile" class="profile-box">
-        <div class="profile-text">
-          <span class="name">Branch Account</span>
-          <span class="role">Branch Supervisor</span>
+        <!-- Notification Dropdown Panel (Branch Account Only) -->
+        <div v-if="showNotifications" class="notification-dropdown-card" @click.stop>
+          <div class="dropdown-header">
+            <h3 class="dropdown-title">Branch Notifications</h3>
+            <div class="filter-dropdown-wrapper">
+              <select v-model="selectedFilter" class="filter-select">
+                <option value="All">Filter by All</option>
+                <option value="Incident">Incident</option>
+                <option value="Advisory">Advisory</option>
+                <option value="Assignment">Assignment</option>
+                <option value="Resolved">Resolved</option>
+                <option value="System">System</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="dropdown-body">
+            <div v-if="filteredGroupedNotifications.length === 0" class="empty-state">
+              <p>No branch notifications found.</p>
+            </div>
+
+            <div
+              v-for="group in filteredGroupedNotifications"
+              :key="group.label"
+              class="notification-group"
+            >
+              <span class="group-label">{{ group.label }}</span>
+              <div class="items-list">
+                <div v-for="note in group.items" :key="note.id" class="notification-item">
+                  <!-- Lucide Icon -->
+                  <div class="item-icon-wrapper" :class="`icon-${getSeverity(note)}`">
+                    <component :is="getLucideIcon(getType(note))" class="lucide-icon" />
+                  </div>
+
+                  <!-- Real Data Content (Full text display, no truncation) -->
+                  <div class="item-content">
+                    <div class="item-top-row">
+                      <span class="item-source-time">
+                        {{ getTypeLabel(note) }} •
+                        <span class="time-ago">{{ formatTimeAgo(note.created_at) }}</span>
+                      </span>
+                    </div>
+                    <h4 class="item-title">{{ note.title }}</h4>
+                    <p class="item-desc">{{ note.message }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="avatar"></div>
-      </router-link>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup>
-import { Bell } from 'lucide-vue-next'
+import { ref, computed } from 'vue'
+import { supabase } from '@/services/supabase'
+import { AlertTriangle, Zap, CheckCircle2, Truck, Info } from 'lucide-vue-next'
+
+const showNotifications = ref(false)
+const notifications = ref([])
+const selectedFilter = ref('All')
+
+const toggleNotifications = () => {
+  showNotifications.value = !showNotifications.value
+  if (showNotifications.value) {
+    fetchBranchNotifications()
+  }
+}
+
+const closeDropdown = () => {
+  showNotifications.value = false
+}
+
+const formatTimeAgo = (dateString) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const seconds = Math.floor((now - date) / 1000)
+  if (seconds < 60) return 'Just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+const fetchBranchNotifications = async () => {
+  // Get current session user to filter strictly for this branch account[cite: 2]
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let query = supabase.from('notifications').select('*').order('created_at', { ascending: false })
+
+  if (user && user.id) {
+    // Filters specifically for notifications assigned to this branch user or broadcasted globally (null)[cite: 2]
+    query = query.or(`residents_id.eq.${user.id},residents_id.is.null`)
+  }
+
+  const { data, error } = await query
+
+  if (!error) {
+    notifications.value = data || []
+  }
+}
+
+const getType = (note) => {
+  const t = (note.title || '').toLowerCase()
+  if (t.includes('resolved') || t.includes('completed')) return 'RESOLVED'
+  if (t.includes('system') || t.includes('deployed')) return 'SYSTEM'
+  if (t.includes('assign') || t.includes('dispatch') || t.includes('lineman')) return 'ASSIGNMENT'
+  if (t.includes('advisory') || t.includes('scheduled')) return 'ADVISORY'
+  return 'INCIDENT'
+}
+
+const getTypeLabel = (note) => {
+  const type = getType(note)
+  if (type === 'INCIDENT') return 'System Alert'
+  if (type === 'ASSIGNMENT') return 'Dispatch Control'
+  if (type === 'ADVISORY') return 'Grid Management'
+  return 'System Update'
+}
+
+const getSeverity = (note) => {
+  const type = getType(note)
+  if (type === 'INCIDENT') return 'critical'
+  if (type === 'ADVISORY') return 'high'
+  if (type === 'ASSIGNMENT') return 'normal'
+  return 'low'
+}
+
+const getLucideIcon = (type) => {
+  switch (type) {
+    case 'INCIDENT':
+      return AlertTriangle
+    case 'ASSIGNMENT':
+      return Truck
+    case 'ADVISORY':
+      return Zap
+    case 'RESOLVED':
+      return CheckCircle2
+    default:
+      return Info
+  }
+}
+
+const filteredGroupedNotifications = computed(() => {
+  const now = new Date()
+  const todayItems = []
+  const yesterdayItems = []
+  const olderItems = []
+
+  const filtered = notifications.value.filter((note) => {
+    if (selectedFilter.value === 'All') return true
+    return getType(note).toLowerCase() === selectedFilter.value.toLowerCase()
+  })
+
+  filtered.forEach((note) => {
+    const diffInDays = Math.floor((now - new Date(note.created_at)) / (1000 * 60 * 60 * 24))
+    if (diffInDays === 0) todayItems.push(note)
+    else if (diffInDays === 1) yesterdayItems.push(note)
+    else olderItems.push(note)
+  })
+
+  const groups = []
+  if (todayItems.length) groups.push({ label: 'TODAY', items: todayItems })
+  if (yesterdayItems.length) groups.push({ label: 'YESTERDAY', items: yesterdayItems })
+  if (olderItems.length) groups.push({ label: 'OLDER', items: olderItems })
+  return groups
+})
 </script>
 
 <style scoped>
-.branch-topbar {
-  height: 70px;
-  background: #ffffff;
+.topbar-container {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 0 30px;
-  border-bottom: 1px solid #e5e7eb;
+  align-items: center;
+  padding: 12px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
-.user-area {
+.topbar-left .brand-title {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #312e81;
+  letter-spacing: 0.05em;
+}
+.topbar-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
-.profile-box {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-decoration: none;
+.notification-bell-wrapper {
+  position: relative;
   cursor: pointer;
 }
-.profile-text {
+.bell-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+.bell-btn:hover {
+  background: #f1f5f9;
+}
+.notification-dropdown-card {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 400px;
+  max-height: 560px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f1f5f9;
   display: flex;
   flex-direction: column;
-  text-align: right;
+  z-index: 10000;
+  overflow: hidden;
+  text-align: left;
 }
-.name {
+.dropdown-header {
+  padding: 18px 20px 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+}
+.dropdown-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.filter-select {
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.78rem;
   font-weight: 600;
-  font-size: 0.9rem;
-  color: #1e293b;
-}
-.role {
-  font-size: 0.75rem;
-  color: #64748b;
-}
-.avatar {
-  width: 36px;
-  height: 36px;
-  background: #cbd5e1;
-  border-radius: 50%;
-}
-.icon-btn {
-  border: none;
-  background: none;
   cursor: pointer;
-  color: #64748b;
+  outline: none;
+}
+.dropdown-body {
+  overflow-y: auto;
+  padding: 12px 16px;
+  flex-grow: 1;
+}
+.group-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin: 12px 0 8px 4px;
+  letter-spacing: 0.05em;
+}
+.notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px 12px;
+  border-radius: 12px;
+  transition: background 0.15s ease;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #f8fafc;
+}
+.notification-item:hover {
+  background: #f8fafc;
+}
+.item-icon-wrapper {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.lucide-icon {
+  width: 18px;
+  height: 18px;
+}
+.icon-critical {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.icon-high {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+.icon-normal {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+.icon-low {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+.item-content {
+  flex-grow: 1;
+}
+.item-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.item-source-time {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+}
+.time-ago {
+  color: #94a3b8;
+  font-weight: 400;
+}
+.item-title {
+  margin: 0 0 4px 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+  word-break: break-word;
+  white-space: normal;
+}
+.item-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: normal;
+}
+.empty-state {
+  padding: 30px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
 }
 </style>

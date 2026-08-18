@@ -1,3 +1,4 @@
+<!-- src/components/BranchSidebar.vue -->
 <template>
   <aside class="sidebar">
     <div class="logo-area">
@@ -22,20 +23,6 @@
     </nav>
 
     <div class="footer-nav">
-      <!-- USER MANAGEMENT DROPDOWN -->
-      <div class="dropdown-container">
-        <button class="nav-link dropdown-toggle" @click="toggleUserMgmt">
-          <div class="dropdown-label"><Users :size="20" /> User Management</div>
-          <ChevronUp v-if="isUserMgmtOpen" :size="16" />
-          <ChevronDown v-else :size="16" />
-        </button>
-        <div v-if="isUserMgmtOpen" class="dropdown-menu">
-          <router-link to="/branch/create-lineman" class="nav-link sub-link" active-class="active">
-            <UserPlus :size="18" /> Create Lineman Account
-          </router-link>
-        </div>
-      </div>
-
       <!-- SETTINGS DROPDOWN -->
       <div class="dropdown-container">
         <button class="nav-link dropdown-toggle" @click="toggleSettings">
@@ -89,7 +76,6 @@ import {
   AlertTriangle,
   Map as MapIcon,
   Users,
-  UserPlus,
   Settings,
   User,
   Shield,
@@ -105,13 +91,8 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 // Dropdown and Modal States
-const isUserMgmtOpen = ref(false)
 const isSettingsOpen = ref(false)
 const showLogoutModal = ref(false)
-
-const toggleUserMgmt = () => {
-  isUserMgmtOpen.value = !isUserMgmtOpen.value
-}
 
 const toggleSettings = () => {
   isSettingsOpen.value = !isSettingsOpen.value
@@ -286,8 +267,8 @@ const cancelLogout = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
-  backdrop-filter: blur(4px);
+  z-index: 9999; /* Massively increased to beat any dashboard elements */
+  backdrop-filter: blur(4px); /* Increased the blur slightly for better effect */
 }
 
 .modal-content {

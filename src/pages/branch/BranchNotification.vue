@@ -1,36 +1,88 @@
+<!-- src/pages/branch/BranchNotification.vue -->
 <template>
   <div class="dashboard-root">
-    <BranchSidebar />
     <main class="content">
-      <BranchTopbar />
-      <div class="page-header">
-        <h1>Branch Notifications</h1>
-        <p>Notifications for your branch account only.</p>
-      </div>
+      <header class="header-bar">
+        <h1>BRANCH NOTIFICATIONS</h1>
+        <!-- Active Filter Pills -->
+        <div class="filter-pills">
+          <button
+            v-for="tab in filterTabs"
+            :key="tab"
+            class="pill"
+            :class="{ active: selectedFilter === tab }"
+            @click="selectedFilter = tab"
+          >
+            {{ tab }}
+          </button>
+        </div>
+      </header>
 
-      <div v-for="(group, label) in groupedNotifications" :key="label" class="notification-section">
-        <h3 class="group-label">{{ label }}</h3>
-
-        <div v-if="group.length === 0" class="empty-state">
-          <p>No notifications for this period.</p>
+      <section class="notification-container">
+        <div v-if="filteredGroupedNotifications.length === 0" class="empty-state">
+          <p>No branch notifications found for "{{ selectedFilter }}".</p>
         </div>
 
-        <div v-else class="notification-list">
-          <div
-            v-for="note in group"
-            :key="note.id"
-            class="notification-item"
-            :class="{ unread: !note.is_read }"
-          >
-            <div class="icon-circle">!</div>
-            <div class="note-content">
-              <h4>{{ note.title }}</h4>
-              <p>{{ note.message }}</p>
-              <small>{{ formatDate(note.created_at) }}</small>
+        <div
+          v-for="group in filteredGroupedNotifications"
+          :key="group.label"
+          class="notification-section"
+        >
+          <h3 class="group-label">{{ group.label }}</h3>
+
+          <div class="notification-cards-list">
+            <div v-for="note in group.items" :key="note.id" class="notification-card">
+              <!-- Left Icon Badge -->
+              <div class="card-icon-wrapper" :class="`icon-${getSeverity(note)}`">
+                <span class="icon-symbol">{{ getIconSymbol(getType(note)) }}</span>
+              </div>
+
+              <!-- Main Card Content -->
+              <div class="card-body">
+                <div class="card-top-row">
+                  <span :class="['type-badge', `badge-${getSeverity(note)}`]">
+                    {{ getType(note) }}
+                  </span>
+                  <div class="timestamp-action">
+                    <span class="time-stamp">⏱ {{ formatTimeAgo(note.created_at) }}</span>
+                    <button class="close-btn" @click="deleteNotification(note.id)" title="Dismiss">
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                <h4 class="card-title">{{ note.title }}</h4>
+                <p class="card-desc">{{ note.message }}</p>
+
+                <!-- Action Buttons Footer -->
+                <div class="card-footer">
+                  <button
+                    v-if="getType(note) === 'INCIDENT'"
+                    class="action-btn btn-decline"
+                    @click="handleDecline(note.id)"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    v-if="getType(note) === 'INCIDENT'"
+                    class="action-btn btn-acknowledge"
+                    @click="handleAcknowledge(note.id)"
+                  >
+                    Acknowledge
+                  </button>
+                  <a
+                    v-else-if="getActionText(note)"
+                    href="#"
+                    :class="['action-link', `text-${getSeverity(note)}`]"
+                  >
+                    {{ getActionText(note) }} →
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </main>
   </div>
 </template>
@@ -38,235 +90,378 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
-import BranchSidebar from '@/components/BranchSidebar.vue'
-import BranchTopbar from '@/components/BranchTopbar.vue'
 
 const notifications = ref([])
+const selectedFilter = ref('All')
+const filterTabs = ['All', 'Incident', 'Advisory', 'Assignment', 'Resolved', 'System']
 
-const formatDate = (dateString) => {
-  const options = { year: 'numeric', month: 'long', day: 'numeric' }
-  return new Date(dateString).toLocaleDateString(undefined, options)
+// Time ago formatter
+const formatTimeAgo = (dateString) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const seconds = Math.floor((now - date) / 1000)
+
+  if (seconds < 60) return 'Just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
 }
 
-const fetchNotifications = async () => {
+const fetchBranchNotifications = async () => {
+  // Get current logged-in branch user session
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser()
 
-  if (userError || !user) {
-    console.error('Unable to load notifications for branch user:', userError)
-    return
+  let query = supabase.from('notifications').select('*').order('created_at', { ascending: false })
+
+  // If branch user is logged in, filter specifically for their account/residuals if applicable,
+  // or match branch-specific identifiers. (Falls back gracefully if null).
+  if (user && user.id) {
+    query = query.or(`residents_id.eq.${user.id},residents_id.is.null`)
   }
 
-  const { data: userData, error: branchError } = await supabase
-    .from('users')
-    .select('branch_id')
-    .eq('id', user.id)
-    .single()
+  const { data, error } = await query
 
-  if (branchError) {
-    console.warn('Unable to load branch information for notifications:', branchError.message)
-  }
-
-  const branchId = userData?.branch_id
-  let response
-
-  if (branchId) {
-    response = await supabase
-      .from('notifications')
-      .select('id, title, message, is_read, created_at, residents_id, users!inner(branch_id)')
-      .eq('users.branch_id', branchId)
-      .order('created_at', { ascending: false })
-
-    if (response.error) {
-      console.warn(
-        'Branch notifications query failed, falling back to user notifications:',
-        response.error.message,
-      )
-    }
-  }
-
-  if (!branchId || response?.error) {
-    response = await supabase
-      .from('notifications')
-      .select('id, title, message, is_read, created_at')
-      .eq('residents_id', user.id)
-      .order('created_at', { ascending: false })
-  }
-
-  if (response.error) {
-    console.error('Error fetching notifications:', response.error.message)
-    notifications.value = []
+  if (error) {
+    console.error('Error fetching branch notifications:', error.message)
   } else {
-    notifications.value = response.data || []
+    notifications.value = data || []
   }
 }
 
-const groupedNotifications = computed(() => {
+const deleteNotification = async (id) => {
+  const { error } = await supabase.from('notifications').delete().eq('id', id)
+  if (!error) {
+    notifications.value = notifications.value.filter((n) => n.id !== id)
+  }
+}
+
+const handleAcknowledge = (id) => {
+  deleteNotification(id)
+}
+
+const handleDecline = (id) => {
+  deleteNotification(id)
+}
+
+const getType = (note) => {
+  const t = (note.title || '').toLowerCase()
+  if (t.includes('resolved') || t.includes('completed')) return 'RESOLVED'
+  if (t.includes('system') || t.includes('deployed')) return 'SYSTEM'
+  if (t.includes('assign') || t.includes('dispatch') || t.includes('lineman')) return 'ASSIGNMENT'
+  if (t.includes('advisory') || t.includes('scheduled')) return 'ADVISORY'
+  return 'INCIDENT'
+}
+
+const getSeverity = (note) => {
+  const type = getType(note)
+  if (type === 'INCIDENT') return 'critical'
+  if (type === 'ADVISORY') return 'high'
+  if (type === 'ASSIGNMENT') return 'normal'
+  return 'low'
+}
+
+const getIconSymbol = (type) => {
+  switch (type) {
+    case 'INCIDENT':
+      return '⚠️'
+    case 'ASSIGNMENT':
+      return '🚗'
+    case 'ADVISORY':
+      return '⚡'
+    case 'RESOLVED':
+      return '✓'
+    default:
+      return 'i'
+  }
+}
+
+const getActionText = (note) => {
+  const type = getType(note)
+  if (type === 'INCIDENT') return 'View Details'
+  if (type === 'ADVISORY') return 'Review Advisory'
+  if (type === 'RESOLVED') return 'View Report'
+  if (type === 'SYSTEM') return 'Read Release Notes'
+  return ''
+}
+
+const filteredGroupedNotifications = computed(() => {
   const now = new Date()
-  const groups = { Today: [], 'This Week': [], 'This Month': [], Older: [] }
+  const todayItems = []
+  const yesterdayItems = []
+  const olderItems = []
 
-  notifications.value.forEach((note) => {
-    const noteDate = new Date(note.created_at)
-    const diffInDays = (now - noteDate) / (1000 * 60 * 60 * 24)
-
-    if (diffInDays < 1) {
-      groups['Today'].push(note)
-    } else if (diffInDays < 7) {
-      groups['This Week'].push(note)
-    } else if (diffInDays < 30) {
-      groups['This Month'].push(note)
-    } else {
-      groups['Older'].push(note)
-    }
+  const filtered = notifications.value.filter((note) => {
+    if (selectedFilter.value === 'All') return true
+    return getType(note).toLowerCase() === selectedFilter.value.toLowerCase()
   })
 
-  return Object.fromEntries(Object.entries(groups).filter(([_, v]) => v.length > 0))
+  filtered.forEach((note) => {
+    const noteDate = new Date(note.created_at)
+    const diffInDays = Math.floor((now - noteDate) / (1000 * 60 * 60 * 24))
+
+    if (diffInDays === 0) todayItems.push(note)
+    else if (diffInDays === 1) yesterdayItems.push(note)
+    else olderItems.push(note)
+  })
+
+  const groups = []
+  if (todayItems.length) groups.push({ label: 'TODAY', items: todayItems })
+  if (yesterdayItems.length) groups.push({ label: 'YESTERDAY', items: yesterdayItems })
+  if (olderItems.length) groups.push({ label: 'OLDER', items: olderItems })
+
+  return groups
 })
 
-onMounted(fetchNotifications)
+onMounted(fetchBranchNotifications)
 </script>
 
 <style scoped>
 .dashboard-root {
   display: flex;
   min-height: 100vh;
-  background: #ffffff; /* white background for whole page */
+  background: #f8fafc;
   color: #0f172a;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .content {
   flex-grow: 1;
   padding: 32px 40px 40px;
-  max-width: 1100px;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
-/* Header bar */
 .header-bar h1 {
-  margin: 0;
-  font-size: 1.6rem;
-  color: #0f172a;
+  margin: 0 0 20px 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
 }
 
-.header-bar .subtitle {
-  margin: 4px 0 18px;
-  font-size: 0.9rem;
+.filter-pills {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
   color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-/* Light glass main panel */
-.glass-panel {
-  padding: 20px 22px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  box-shadow: 0 14px 30px rgba(148, 163, 184, 0.35);
+.pill.active {
+  background: #312e81;
+  color: white;
+  border-color: #312e81;
 }
 
-/* Group labels */
 .group-label {
-  font-size: 0.9rem;
-  color: #64748b;
+  font-size: 0.75rem;
+  color: #94a3b8;
   margin: 24px 0 12px 0;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  font-weight: 700;
 }
 
-/* Notifications */
-.notification-item {
+.notification-cards-list {
   display: flex;
-  gap: 15px;
-  padding: 14px 16px;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.notification-card {
   background: #ffffff;
-  margin-bottom: 10px;
   border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 10px rgba(148, 163, 184, 0.25);
+  padding: 20px;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.02);
+  border: 1px solid #f1f5f9;
+  display: flex;
+  gap: 16px;
+  transition: all 0.2s ease;
 }
 
-/* Unread baseline highlight */
-.unread {
-  box-shadow: 0 0 0 1px #3b82f6;
+.notification-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
 }
 
-/* Category colors (left border + icon background) */
-.cat-report {
-  border-left: 4px solid #22c55e;
-}
-
-.cat-advisory {
-  border-left: 4px solid #3b82f6;
-}
-
-.cat-warning {
-  border-left: 4px solid #f97316;
-}
-
-.cat-default {
-  border-left: 4px solid #9ca3af;
-}
-
-.icon-circle {
-  width: 40px;
-  height: 40px;
-  background: #e5e7eb;
-  color: #111827;
+.card-icon-wrapper {
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
   flex-shrink: 0;
+  font-size: 1.1rem;
 }
 
-/* Icon color tweak by category */
-.cat-report .icon-circle {
-  background: #dcfce7;
-  color: #166534;
+.icon-critical {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.icon-high {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+.icon-normal {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+.icon-low {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
 }
 
-.cat-advisory .icon-circle {
-  background: #dbeafe;
-  color: #1e40af;
+.card-body {
+  flex-grow: 1;
 }
 
-.cat-warning .icon-circle {
-  background: #ffedd5;
-  color: #c2410c;
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
-.cat-default .icon-circle {
-  background: #e5e7eb;
-  color: #111827;
+.type-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.note-content h4 {
-  margin: 0;
-  color: #1e293b;
-  font-size: 0.95rem;
+.badge-critical {
+  background: #ef4444;
+  color: white;
+}
+.badge-high {
+  background: #f59e0b;
+  color: white;
+}
+.badge-normal {
+  background: #3b82f6;
+  color: white;
+}
+.badge-low {
+  background: #10b981;
+  color: white;
 }
 
-.note-content p {
-  margin: 5px 0;
-  color: #64748b;
-  font-size: 0.9rem;
+.timestamp-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.note-content small {
+.time-stamp {
+  font-size: 0.78rem;
   color: #94a3b8;
-  font-size: 0.8rem;
 }
 
-/* Empty state inside glass card */
-.empty-state {
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px dashed #e2e8f0;
-  background: #f9fafb;
-  color: #64748b;
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
   font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+.close-btn:hover {
+  color: #ef4444;
+}
+
+.card-title {
+  margin: 0 0 6px 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.card-desc {
+  margin: 0 0 14px 0;
+  font-size: 0.86rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.card-footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.action-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-decline {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+.btn-decline:hover {
+  background: #f1f5f9;
+}
+
+.btn-acknowledge {
+  background: #312e81;
+  border: 1px solid #312e81;
+  color: white;
+}
+.btn-acknowledge:hover {
+  background: #272469;
+}
+
+.action-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.text-critical {
+  color: #ef4444;
+}
+.text-high {
+  color: #f59e0b;
+}
+.text-normal {
+  color: #3b82f6;
+}
+.text-low {
+  color: #10b981;
+}
+
+.empty-state {
+  padding: 40px;
+  text-align: center;
+  color: #94a3b8;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
 }
 </style>

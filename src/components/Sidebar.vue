@@ -5,7 +5,6 @@
     </div>
 
     <nav class="nav-menu">
-      <!-- OVERVIEW SECTION -->
       <div class="section-title">OVERVIEW</div>
       <router-link to="/admin/dashboard" class="nav-link" active-class="active">
         <LayoutDashboard :size="20" /> Dashboard
@@ -17,7 +16,6 @@
         <MapIcon :size="20" /> Map View
       </router-link>
 
-      <!-- FIELD OPS SECTION -->
       <div class="section-title mt-4">FIELD OPS</div>
       <router-link to="/admin/linemen" class="nav-link" active-class="active">
         <Users :size="20" /> Lineman Monitoring
@@ -28,7 +26,6 @@
     </nav>
 
     <div class="footer-nav">
-      <!-- USER MANAGEMENT DROPDOWN -->
       <div class="dropdown-container">
         <button class="nav-link dropdown-toggle" @click="toggleUserMgmt">
           <div class="dropdown-label"><Users :size="20" /> User Management</div>
@@ -36,6 +33,9 @@
           <ChevronDown v-else :size="16" />
         </button>
         <div v-if="isUserMgmtOpen" class="dropdown-menu">
+          <router-link to="/user-management" class="nav-link sub-link" active-class="active">
+            <Users :size="18" /> All Users
+          </router-link>
           <router-link
             to="/admin/account-verification"
             class="nav-link sub-link"
@@ -49,10 +49,12 @@
           <router-link to="/admin/create-branch" class="nav-link sub-link" active-class="active">
             <Landmark :size="18" /> Create Branch Account
           </router-link>
+          <router-link to="/admin/archive" class="nav-link sub-link" active-class="active">
+            <Archive :size="18" /> Archive
+          </router-link>
         </div>
       </div>
 
-      <!-- SETTINGS DROPDOWN -->
       <div class="dropdown-container">
         <button class="nav-link dropdown-toggle" @click="toggleSettings">
           <div class="dropdown-label"><Settings :size="20" /> Settings</div>
@@ -75,11 +77,9 @@
         </div>
       </div>
 
-      <!-- LOGOUT BUTTON -->
       <button @click="confirmLogout" class="logout-btn mt-4"><LogOut :size="20" /> Logout</button>
     </div>
 
-    <!-- CUSTOM LOGOUT MODAL TELEPORTED TO BODY -->
     <Teleport to="body">
       <div v-if="showLogoutModal" class="modal-overlay" @click.self="cancelLogout">
         <div class="modal-content">
@@ -109,6 +109,7 @@ import {
   ShieldCheck,
   UserPlus,
   Landmark,
+  Archive,
   Settings,
   User,
   Shield,
@@ -293,11 +294,7 @@ const cancelLogout = () => {
 </style>
 
 <style>
-/*
-  MODAL STYLES MOVED TO GLOBAL SCOPE
-  Because we used <Teleport>, the modal now lives in the <body>,
-  so these styles cannot be 'scoped' to the sidebar anymore.
-*/
+/* GLOBAL MODAL STYLES */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -305,8 +302,8 @@ const cancelLogout = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999; /* Massively increased to beat any dashboard elements */
-  backdrop-filter: blur(4px); /* Increased the blur slightly for better effect */
+  z-index: 9999;
+  backdrop-filter: blur(4px);
 }
 
 .modal-content {

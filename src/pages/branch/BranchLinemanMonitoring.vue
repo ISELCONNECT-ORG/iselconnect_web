@@ -14,10 +14,6 @@
       </header>
 
       <div class="stats-card-container">
-        <button @click="showModal = true" class="add-btn">
-          <UserPlus :size="16" /> ADD LINEMAN
-        </button>
-        <div class="divider"></div>
         <div class="stat-item">
           <span class="label">TOTAL LINEMAN</span>
           <h2>{{ stats.total }}</h2>
@@ -79,8 +75,6 @@
           </tbody>
         </table>
       </div>
-
-      <AddLinemanModal v-if="showModal" @close="showModal = false" @refresh="fetchAllData" />
     </main>
   </div>
 </template>
@@ -90,11 +84,8 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { supabase } from '@/services/supabase'
 import BranchSidebar from '@/components/BranchSidebar.vue'
 import BranchTopbar from '@/components/BranchTopbar.vue'
-import AddLinemanModal from '@/components/account/AddLinemanModal.vue'
-import { UserPlus } from 'lucide-vue-next'
 
 const linemen = ref([])
-const showModal = ref(false)
 const branchName = ref('Branch')
 const branchId = ref(null)
 const stats = reactive({ total: 0, onRoute: 0, ready: 0 })
@@ -240,19 +231,7 @@ onMounted(fetchAllData)
   padding: 20px 24px;
   margin-bottom: 24px;
 }
-.add-btn {
-  background: #1e1b4b;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 6px;
-  font-weight: 700;
-  font-size: 0.8rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
+
 .divider {
   width: 1px;
   height: 40px;
