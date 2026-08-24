@@ -101,6 +101,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width: 40px">No.</th>
               <th>STATUS</th>
               <th>PRIORITY</th>
               <th>CUSTOMER</th>
@@ -114,7 +115,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in activeReports" :key="r.id">
+            <tr v-for="(r, index) in activeReports" :key="r.id">
+              <td style="font-weight: 600; color: #64748b">
+                {{ index + 1 }}
+              </td>
               <td>
                 <span class="status-pill">{{ r.report_statuses?.name || 'In Progress' }}</span>
               </td>
@@ -144,7 +148,7 @@
               </td>
             </tr>
             <tr v-if="activeReports.length === 0">
-              <td colspan="10" class="text-center">No active incidents found.</td>
+              <td colspan="11" class="text-center">No active incidents found.</td>
             </tr>
           </tbody>
         </table>
@@ -158,6 +162,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width: 40px">No.</th>
               <th>STATUS</th>
               <th>PRIORITY</th>
               <th>CUSTOMER</th>
@@ -171,7 +176,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in resolvedReports" :key="r.id">
+            <tr v-for="(r, index) in resolvedReports" :key="r.id">
+              <td style="font-weight: 600; color: #64748b">
+                {{ index + 1 }}
+              </td>
               <td><span class="status-pill">Resolved</span></td>
               <td>
                 <span :class="['priority-pill', getPriorityClass(r.report_types?.priority_level)]">
@@ -199,7 +207,7 @@
               </td>
             </tr>
             <tr v-if="resolvedReports.length === 0">
-              <td colspan="10" class="text-center">No resolved incidents found.</td>
+              <td colspan="11" class="text-center">No resolved incidents found.</td>
             </tr>
           </tbody>
         </table>
@@ -323,6 +331,29 @@
       </div>
     </div>
 
+    <!-- CUSTOM VALIDATION MODAL -->
+    <div
+      v-if="showValidationModal"
+      class="modal-overlay"
+      style="z-index: 1050"
+      @click.self="closeValidationModal"
+    >
+      <div class="validation-modal-card">
+        <div class="validation-content">
+          <div class="validation-icon-wrapper">
+            <div class="validation-icon">!</div>
+          </div>
+          <div class="validation-text">
+            <h3>Validation Required</h3>
+            <p>Please select both Barangay and Issue Type.</p>
+          </div>
+        </div>
+        <div class="validation-footer">
+          <button @click="closeValidationModal" class="btn-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ASSIGN LINEMAN MODAL -->
     <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
       <div class="assign-modal-card">
@@ -402,6 +433,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import { sendNotification } from '@/utils/notifications.js'
+import { useSystemAlerts } from '@/composables/useSystemAlerts'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 
@@ -422,11 +454,14 @@ import {
   ChevronDown,
 } from 'lucide-vue-next'
 
+const { addAlert } = useSystemAlerts()
+
 const pendingReports = ref([])
 const reportTypes = ref([])
 const barangays = ref([])
 
 const showManualModal = ref(false)
+const showValidationModal = ref(false)
 const manualReport = ref({
   type_id: null,
   barangay_id: null,
@@ -502,10 +537,13 @@ const groupedBarangays = computed(() => {
 const groupedReportTypes = computed(() => {
   const query = typeSearchQuery.value.toLowerCase().trim()
   const map = {}
-  const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW']
+
+  // Added 'OTHER' to the priority order array
+  const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW', 'OTHER']
 
   reportTypes.value.forEach((t) => {
-    const prio = (t.priority_level || 'NORMAL').toUpperCase()
+    // Changed fallback from 'NORMAL' to 'OTHER'
+    const prio = (t.priority_level || 'OTHER').toUpperCase()
     if (!query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)) {
       if (!map[prio]) map[prio] = []
       map[prio].push(t)
@@ -548,6 +586,7 @@ const selectReportType = (t) => {
 const openManualModal = () => {
   showManualModal.value = true
 }
+
 const closeManualModal = () => {
   showManualModal.value = false
   isBarangayDropdownOpen.value = false
@@ -563,6 +602,10 @@ const closeManualModal = () => {
   }
   selectedBarangayObj.value = null
   selectedTypeObj.value = null
+}
+
+const closeValidationModal = () => {
+  showValidationModal.value = false
 }
 
 const activeReports = computed(() => {
@@ -658,7 +701,8 @@ const fetchAll = async () => {
 
 const submitManualReport = async () => {
   if (!manualReport.value.barangay_id || !manualReport.value.type_id) {
-    alert('Please select both Barangay and Issue Type.')
+    // Replaced native alert with custom validation modal
+    showValidationModal.value = true
     return
   }
 
@@ -676,8 +720,16 @@ const submitManualReport = async () => {
     },
   ])
 
-  if (error) alert('Error: ' + error.message)
-  else {
+  if (error) {
+    alert('Error: ' + error.message)
+  } else {
+    // Show success notification
+    addAlert({
+      title: 'Manual Report Submitted',
+      message: 'The incident has been successfully logged and added to the active queue.',
+      severity: 'low',
+    })
+
     closeManualModal()
     fetchAll()
   }
@@ -758,6 +810,15 @@ const assignSingleLineman = async (uid) => {
     sendNotification('Assignment Updated', `Assigned to report ${selectedReport.value.id}`, uid)
     if (!selectedReport.value.assignments) selectedReport.value.assignments = []
     selectedReport.value.assignments.push({ lineman_id: uid })
+
+    // Show success notification
+    addAlert({
+      title: 'Lineman Dispatched',
+      message: 'The selected lineman has been successfully assigned to the incident.',
+      severity: 'low',
+    })
+  } else {
+    alert('Error assigning lineman: ' + error.message)
   }
 
   fetchAll()
@@ -1096,6 +1157,77 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+}
+
+/* Validation Required Modal (Image Matched) */
+.validation-modal-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #a5b4fc; /* matching the purple-ish light blue outer stroke */
+  width: 360px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.validation-content {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.validation-icon-wrapper {
+  background: #f1f5f9;
+  padding: 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.validation-icon {
+  background: #1e1b4b;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+.validation-text {
+  flex: 1;
+}
+.validation-text h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.15rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+.validation-text p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.4;
+}
+.validation-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-ok {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 10px 28px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-ok:hover {
+  opacity: 0.9;
 }
 
 /* Manual Report Modal */

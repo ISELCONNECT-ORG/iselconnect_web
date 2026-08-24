@@ -80,7 +80,7 @@
                 <button
                   class="action-btn btn-retrieve"
                   :disabled="processingId === report.id"
-                  @click="retrieveReport(report)"
+                  @click="promptRetrieve(report)"
                 >
                   {{ processingId === report.id ? 'Retrieving...' : 'Retrieve' }}
                 </button>
@@ -90,6 +90,63 @@
         </table>
       </div>
     </main>
+
+    <!-- Custom Retrieve Confirmation Modal -->
+    <div v-if="showRetrieveModal" class="modal-overlay" @click.self="closeModal">
+      <div class="custom-modal">
+        <!-- Header -->
+        <div class="modal-header">
+          <div class="modal-header-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="#2563eb"
+              width="18"
+              height="18"
+            >
+              <path
+                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+              />
+            </svg>
+          </div>
+          <h2>Confirm Retrieve Report</h2>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body">
+          <div class="body-icon-box">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#2563eb"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              width="24"
+              height="24"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </div>
+          <div class="body-content">
+            <h3>Are you sure you want to retrieve?</h3>
+            <p>
+              This will set its status back to 'Pending'. This action allows for further edits or
+              re-verification by the administrative team.
+            </p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="closeModal">Cancel</button>
+          <button class="btn-retrieve-confirm" @click="executeRetrieve">Retrieve</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -102,6 +159,10 @@ const reports = ref([])
 const loading = ref(true)
 const processingId = ref(null)
 const filterStatus = ref('all') // 'all', 'resolved', 'rejected'
+
+// Modal State
+const showRetrieveModal = ref(false)
+const reportToRetrieve = ref(null)
 
 // Helper to format dates
 const formatDate = (dateString) => {
@@ -116,7 +177,7 @@ const formatDate = (dateString) => {
   })
 }
 
-// Fetch Archived Reports (Status 5 = Rejected, 6 = Resolved)
+// Fetch Archived Reports (Status 5 = Rejected, 6 = Resolved)[cite: 7]
 const loadArchivedReports = async () => {
   loading.value = true
   try {
@@ -135,28 +196,39 @@ const loadArchivedReports = async () => {
   }
 }
 
-// Retrieve Report Logic
-const retrieveReport = async (report) => {
-  const confirmed = window.confirm(
-    `Are you sure you want to retrieve Report #${report.id}? This will set its status back to 'Pending'.`,
-  )
-  if (!confirmed) return
+// Prompt Retrieve Modal
+const promptRetrieve = (report) => {
+  reportToRetrieve.value = report
+  showRetrieveModal.value = true
+}
 
+const closeModal = () => {
+  showRetrieveModal.value = false
+  reportToRetrieve.value = null
+}
+
+// Execute Retrieve Logic
+const executeRetrieve = async () => {
+  if (!reportToRetrieve.value) return
+
+  const report = reportToRetrieve.value
   processingId.value = report.id
+  closeModal()
 
   try {
-    // status_id 1 is 'Pending' based on your database schema
+    // status_id 1 is 'Pending' based on your database schema[cite: 7]
     const { error } = await supabase.from('reports').update({ status_id: 1 }).eq('id', report.id)
 
     if (error) throw error
 
-    // Remove the report from the local UI array because it is no longer "Archived"
+    // Remove the report from the local UI array because it is no longer "Archived"[cite: 7]
     reports.value = reports.value.filter((r) => r.id !== report.id)
   } catch (err) {
     console.error('Failed to retrieve report:', err.message)
     alert('Error retrieving the report. Please try again.')
   } finally {
     processingId.value = null
+    reportToRetrieve.value = null
   }
 }
 
@@ -354,7 +426,7 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-/* Retrieve Button Styling (Amber/Orange to stand out) */
+/* Retrieve Button Styling */
 .btn-retrieve {
   background-color: #f59e0b;
 }
@@ -368,5 +440,127 @@ onMounted(() => {
   padding: 40px !important;
   color: #64748b;
   font-style: italic;
+}
+
+/* =========================================
+   CUSTOM RETRIEVE MODAL STYLES
+   ========================================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.custom-modal {
+  background: white;
+  width: 440px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.modal-header-icon {
+  background: #eff6ff;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-header h2 {
+  font-size: 1rem;
+  margin: 0;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.modal-body {
+  display: flex;
+  gap: 16px;
+  padding: 24px 20px;
+  align-items: flex-start;
+}
+
+.body-icon-box {
+  background: #f1f5f9;
+  padding: 10px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.body-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.body-content p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.modal-footer {
+  padding: 14px 20px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-cancel {
+  background: white;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 7px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #f1f5f9;
+}
+
+.btn-retrieve-confirm {
+  background: #1e2a78;
+  color: white;
+  border: none;
+  padding: 7px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-retrieve-confirm:hover {
+  opacity: 0.9;
 }
 </style>

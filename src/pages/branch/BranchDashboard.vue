@@ -714,9 +714,13 @@ const groupedBarangays = computed(() => {
 const groupedReportTypes = computed(() => {
   const query = typeSearchQuery.value.toLowerCase().trim()
   const map = {}
-  const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW']
+
+  // Added 'OTHER' to the priority order array
+  const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW', 'OTHER']
+
   reportTypes.value.forEach((t) => {
-    const prio = (t.priority_level || 'NORMAL').toUpperCase()
+    // Changed fallback from 'NORMAL' to 'OTHER'
+    const prio = (t.priority_level || 'OTHER').toUpperCase()
     if (!query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)) {
       if (!map[prio]) map[prio] = []
       map[prio].push(t)

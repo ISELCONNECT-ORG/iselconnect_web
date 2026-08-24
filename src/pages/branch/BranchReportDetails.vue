@@ -84,13 +84,22 @@
           <div class="info-card">
             <div class="remarks-header">
               <h3>Remarks</h3>
-              <div class="res-time">RESOLUTION TIME<br /><b>42m 15s</b></div>
+              <div class="res-time">
+                RESOLUTION TIME<br />
+                <b
+                  :style="{
+                    color:
+                      !assignment?.completion_at && assignment?.assigned_at ? '#2563eb' : '#1e1b4b',
+                  }"
+                >
+                  {{ resolutionDuration }}
+                </b>
+              </div>
             </div>
-            <textarea
-              class="remarks-input"
-              placeholder="Enter remarks here..."
-              v-model="report.remarks"
-            ></textarea>
+            <!-- REMARKS DISPLAY ONLY -->
+            <div class="remarks-box">
+              {{ report.remarks || 'No remarks provided by lineman yet.' }}
+            </div>
           </div>
         </div>
 
@@ -223,6 +232,11 @@ let routePolyline = null
 let refreshInterval = null
 let realtimeChannel = null
 
+// Live timer for calculation
+const nowTime = ref(Date.now())
+let timerIntervalSec = null
+const frozenResolutionTime = ref(null)
+
 const fetchReportDetails = async () => {
   const reportId = route.params.id
   if (!reportId) {
@@ -230,7 +244,7 @@ const fetchReportDetails = async () => {
     return
   }
 
-  // Validate Branch Account User Session
+  // Validate Branch Account User Session[cite: 3]
   const {
     data: { user },
     error: userError,
@@ -256,7 +270,7 @@ const fetchReportDetails = async () => {
 
   branchId.value = userData.branch_id
 
-  // Fetch Report restricted strictly to this branch account
+  // Fetch Report restricted strictly to this branch account[cite: 3]
   const { data, error } = await supabase
     .from('reports')
     .select('*, users(first_name, last_name), municipalities(name)')
@@ -450,59 +464,119 @@ const lifecycleMilestones = computed(() => {
   const assign = assignment.value
 
   const hasCreated = !!rep?.created_at
-  const hasReviewed = rep?.status_id > 1 || hasCreated
-  const hasAssigned = !!assign?.assigned_at || hasReviewed
-  const hasInProgress = !!assign?.inprogress_at || hasAssigned
-  const hasResolved = !!assign?.completion_at || !!resolvedPhotoUrl.value || rep?.status_id >= 4
-  const hasVerified =
-    !!assign?.is_verified_by_admin || !!assign?.verified_at || rep?.status_id === 6
+  const hasReviewed = rep?.status_id > 1
 
-  const fallbackTime = rep?.updated_at || rep?.created_at
+  const hasAssigned = !!assign?.assigned_at || !!assign?.id
+  const hasInProgress = hasAssigned && (!!assign?.inprogress_at || rep?.status_id >= 2)
+  const hasResolved =
+    hasInProgress && (!!assign?.completion_at || !!resolvedPhotoUrl.value || rep?.status_id >= 4)
+  const hasVerified =
+    hasResolved && (!!assign?.is_verified_by_admin || !!assign?.verified_at || rep?.status_id === 6)
 
   return [
     {
       title: 'REPORT CREATED',
       description: 'Incident ticket submitted.',
       done: hasCreated,
-      active: hasCreated && !hasAssigned,
-      time: formatTime(rep?.created_at),
+      active: hasCreated && !hasReviewed,
+      time: hasCreated ? formatTime(rep?.created_at) : '--:--',
     },
     {
       title: 'REVIEW STATUS',
       description: hasReviewed ? 'Admin evaluated report.' : 'Awaiting admin action.',
       done: hasReviewed,
-      active: hasCreated && !hasReviewed,
-      time: formatTime(rep?.updated_at || rep?.created_at),
+      active: hasReviewed && !hasAssigned,
+      time: hasReviewed ? formatTime(rep?.updated_at || rep?.created_at) : '--:--',
     },
     {
       title: 'ASSIGNED',
       description: hasAssigned ? 'Ticket dispatched to team.' : 'Pending allocation.',
       done: hasAssigned,
-      active: hasReviewed && !hasAssigned,
-      time: formatTime(assign?.assigned_at || fallbackTime),
+      active: hasAssigned && !hasInProgress,
+      time: hasAssigned ? formatTime(assign?.assigned_at) : '--:--',
     },
     {
       title: 'IN PROGRESS',
       description: hasInProgress ? 'Lineman on-site.' : 'Pending work start.',
       done: hasInProgress,
-      active: hasAssigned && !hasInProgress,
-      time: formatTime(assign?.inprogress_at || assign?.assigned_at || fallbackTime),
+      active: hasInProgress && !hasResolved,
+      time: hasInProgress ? formatTime(assign?.inprogress_at || assign?.assigned_at) : '--:--',
     },
     {
       title: 'RESOLVED',
       description: hasResolved ? 'Repair finished, photo uploaded.' : 'Repair ongoing.',
       done: hasResolved,
-      active: hasInProgress && !hasResolved,
-      time: formatTime(assign?.completion_at || fallbackTime),
+      active: hasResolved && !hasVerified,
+      time: hasResolved ? formatTime(assign?.completion_at || rep?.updated_at) : '--:--',
     },
     {
       title: 'VALIDATED',
       description: hasVerified ? 'Admin verified resolution.' : 'Awaiting sign-off.',
       done: hasVerified,
-      active: hasResolved && !hasVerified,
-      time: formatTime(assign?.verified_at || fallbackTime),
+      active: hasVerified,
+      time: hasVerified ? formatTime(assign?.verified_at || rep?.updated_at) : '--:--',
     },
   ]
+})
+
+const resolutionDuration = computed(() => {
+  if (!assignment.value || !assignment.value.assigned_at) return 'NOT ASSIGNED'
+
+  const start = new Date(assignment.value.assigned_at).getTime()
+  let end = nowTime.value
+
+  const rep = report.value
+  const isResolved = rep && (rep.status_id >= 4 || resolvedPhotoUrl.value)
+
+  if (isResolved) {
+    let foundValidEnd = false
+
+    if (assignment.value.completion_at) {
+      const compTime = new Date(assignment.value.completion_at).getTime()
+      if (compTime > start) {
+        end = compTime
+        foundValidEnd = true
+      }
+    }
+
+    if (!foundValidEnd && assignment.value.verified_at) {
+      const verTime = new Date(assignment.value.verified_at).getTime()
+      if (verTime > start) {
+        end = verTime
+        foundValidEnd = true
+      }
+    }
+
+    if (!foundValidEnd && rep?.updated_at) {
+      const upTime = new Date(rep.updated_at).getTime()
+      if (upTime > start) {
+        end = upTime
+        foundValidEnd = true
+      }
+    }
+
+    if (!foundValidEnd) {
+      if (!frozenResolutionTime.value) {
+        frozenResolutionTime.value = nowTime.value
+      }
+      end = frozenResolutionTime.value
+    }
+  }
+
+  const diffMs = end - start
+  if (diffMs <= 0) return '00m 00s'
+
+  const d = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const h = Math.floor((diffMs / 1000 / 60 / 60) % 24)
+  const m = Math.floor((diffMs / 1000 / 60) % 60)
+  const s = Math.floor((diffMs / 1000) % 60)
+
+  let result = ''
+  if (d > 0) result += `${d}d `
+  if (h > 0) result += `${h}h `
+  result += `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
+
+  return result
 })
 
 const fetchEvidenceFiles = async (fieldValue) => {
@@ -535,6 +609,18 @@ const fetchResolvedPhoto = async (fieldValue) => {
 
 const validateResolution = async () => {
   if (!report.value || !resolvedPhotoUrl.value) return
+
+  // TIME WINDOW RESTRICTION CHECK (Branch: 8:00 AM to 5:00 PM)
+  const currentHour = new Date().getHours()
+  const isBranchWindow = currentHour >= 8 && currentHour < 17
+
+  if (!isBranchWindow) {
+    alert(
+      'Validation is locked for Branch accounts.\n\nBranch window is strictly from 8:00 AM to 5:00 PM. (5:00 PM to 8:00 AM is reserved for Admin).',
+    )
+    return
+  }
+
   const currentTime = new Date().toISOString()
   let assignError = null
 
@@ -548,7 +634,11 @@ const validateResolution = async () => {
 
   const { error: repError } = await supabase
     .from('reports')
-    .update({ status_id: 6, updated_at: currentTime })
+    .update({
+      status_id: 6,
+      updated_at: currentTime,
+      resolution_time: resolutionDuration.value,
+    })
     .eq('id', report.value.id)
 
   if (assignError || repError)
@@ -616,10 +706,15 @@ onMounted(() => {
   refreshInterval = setInterval(() => {
     refreshLinemanLocation()
   }, 5000)
+
+  timerIntervalSec = setInterval(() => {
+    nowTime.value = Date.now()
+  }, 1000)
 })
 
 onUnmounted(() => {
   if (refreshInterval) clearInterval(refreshInterval)
+  if (timerIntervalSec) clearInterval(timerIntervalSec)
   if (realtimeChannel) supabase.removeChannel(realtimeChannel)
   if (mapInstance) {
     mapInstance.remove()
@@ -748,17 +843,19 @@ onUnmounted(() => {
 }
 .res-time b {
   font-size: 1rem;
-  color: #1e1b4b;
 }
-.remarks-input {
+
+/* REMARKS TEXT BOX UPDATED */
+.remarks-box {
   width: 100%;
   height: 100px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 12px;
   font-size: 0.85rem;
-  resize: none;
-  outline: none;
+  background: #f8fafc;
+  color: #475569;
+  overflow-y: auto;
   box-sizing: border-box;
 }
 

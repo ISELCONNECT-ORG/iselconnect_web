@@ -1,3 +1,4 @@
+<!-- UserManagement.vue -->
 <template>
   <div class="dashboard-root">
     <Sidebar />
@@ -103,8 +104,13 @@
               </td>
               <td class="col-status">
                 <div class="status-indicator">
-                  <span :class="['status-dot', user.ban_status ? 'inactive' : 'active']"></span>
-                  {{ user.ban_status ? 'Banned' : 'Active' }}
+                  <span :class="['status-dot', user.is_active ? 'active' : 'inactive']"></span>
+                  {{ user.is_active ? 'Online' : 'Offline' }}
+                  <span
+                    v-if="user.ban_status"
+                    style="color: #ef4444; font-size: 0.8rem; font-weight: 600; margin-left: 4px"
+                    >(Banned)</span
+                  >
                 </div>
                 <div v-if="user.rejected_count > 0" class="rejection-text">
                   {{ user.rejected_count }}/5 Rejections
@@ -115,7 +121,7 @@
                   v-if="!user.ban_status"
                   class="action-btn btn-block"
                   :disabled="processingId === user.id"
-                  @click="updateUserStatus(user, true)"
+                  @click="promptStatusUpdate(user, true)"
                 >
                   {{ processingId === user.id ? 'Wait...' : 'Block' }}
                 </button>
@@ -124,7 +130,7 @@
                   v-else
                   class="action-btn btn-unblock"
                   :disabled="processingId === user.id"
-                  @click="updateUserStatus(user, false)"
+                  @click="promptStatusUpdate(user, false)"
                 >
                   {{ processingId === user.id ? 'Wait...' : 'Unblock' }}
                 </button>
@@ -134,15 +140,84 @@
         </table>
       </div>
     </main>
+
+    <!-- Custom Confirmation Modal for Block/Unblock -->
+    <div v-if="showConfirmModal" class="modal-overlay" @click.self="closeModal">
+      <div class="confirm-modal">
+        <!-- Header -->
+        <div class="modal-header">
+          <svg
+            class="header-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="#dc2626"
+            width="20"
+            height="20"
+          >
+            <path d="M12 2L1 21h22L12 2zm1 16h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+          </svg>
+          <h2>Confirm {{ actionType === 'block' ? 'Block' : 'Unblock' }} Account</h2>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body">
+          <div class="body-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#dc2626"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              width="24"
+              height="24"
+            >
+              <path
+                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+              />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </div>
+          <div class="body-text">
+            <h3>Are you sure to {{ actionType }} this account?</h3>
+            <p v-if="actionType === 'block'">
+              This action will revoke the user's access to the field operations network. This action
+              can be reversed by an administrator if needed.
+            </p>
+            <p v-else>
+              This action will restore the user's access to the field operations network. This
+              action can be reversed by an administrator if needed.
+            </p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="closeModal">Cancel</button>
+          <button
+            :class="actionType === 'block' ? 'btn-confirm-block' : 'btn-confirm-unblock'"
+            @click="executeStatusUpdate"
+          >
+            {{ actionType === 'block' ? 'Block' : 'Unblock' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
+import { sendNotification } from '@/utils/notifications.js'
+import { useSystemAlerts } from '@/composables/useSystemAlerts'
 
 // IMPORT SIDEBAR: Adjust this path if your Sidebar is located elsewhere!
 import Sidebar from '@/components/Sidebar.vue'
+
+const { addAlert } = useSystemAlerts()
 
 const users = ref([])
 const loading = ref(true)
@@ -238,13 +313,33 @@ const filteredUsers = computed(() => {
   })
 })
 
-// --- Block / Unblock Database Operation ---
-const updateUserStatus = async (user, newBanStatus) => {
-  const actionText = newBanStatus ? 'block' : 'unblock'
-  const confirmed = window.confirm(`Are you sure you want to ${actionText} ${user.first_name}?`)
-  if (!confirmed) return
+// --- Modal State ---
+const showConfirmModal = ref(false)
+const actionType = ref('block') // 'block' or 'unblock'
+const userToProcess = ref(null)
 
+// --- Modal Trigger ---
+const promptStatusUpdate = (user, newBanStatus) => {
+  userToProcess.value = user
+  actionType.value = newBanStatus ? 'block' : 'unblock'
+  showConfirmModal.value = true
+}
+
+const closeModal = () => {
+  showConfirmModal.value = false
+  userToProcess.value = null
+}
+
+// --- Execute Database Operation ---
+const executeStatusUpdate = async () => {
+  if (!userToProcess.value) return
+
+  const user = userToProcess.value
+  const newBanStatus = actionType.value === 'block'
   processingId.value = user.id
+
+  // Close the modal immediately for better UX
+  closeModal()
 
   try {
     const { error } = await supabase
@@ -253,7 +348,22 @@ const updateUserStatus = async (user, newBanStatus) => {
       .eq('id', user.id)
 
     if (error) throw error
+
     user.ban_status = newBanStatus // Optimistic UI Update
+
+    // Send a notification record and trigger local dashboard pop-up (using 'low' severity to hide action buttons)
+    const actionText = newBanStatus ? 'blocked' : 'unblocked'
+    await sendNotification(
+      'Account Status Update',
+      `User ${user.first_name || ''} ${user.last_name || ''} has been ${actionText}.`,
+      user.id,
+    )
+
+    addAlert({
+      title: newBanStatus ? 'Account Blocked' : 'Account Unblocked',
+      message: `Successfully ${actionText} ${user.first_name || 'the'} user account.`,
+      severity: 'low',
+    })
   } catch (err) {
     console.error('Failed to update status:', err.message)
     alert('Error updating user ban status.')
@@ -553,5 +663,133 @@ onMounted(() => {
   padding: 40px !important;
   color: #64748b;
   font-style: italic;
+}
+
+/* --- Custom Modal Styles --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.confirm-modal {
+  background-color: #ffffff;
+  width: 460px;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.modal-header h2 {
+  font-size: 1.1rem;
+  margin: 0;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.modal-body {
+  display: flex;
+  gap: 16px;
+  padding: 24px;
+  background-color: #ffffff;
+}
+
+.body-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+}
+
+.body-text h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.05rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.body-text p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  background-color: #f8fafc; /* Subtle gray background for footer */
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-cancel {
+  background-color: #ffffff;
+  border: 1px solid #1e2a78;
+  color: #1e2a78;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-cancel:hover {
+  background-color: #f1f5f9;
+}
+
+.btn-confirm-block {
+  background-color: #b91c1c; /* Distinct red matching the block design */
+  border: none;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 8px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-confirm-block:hover {
+  background-color: #991b1b;
+}
+
+.btn-confirm-unblock {
+  background-color: #1e2a78; /* Distinct dark blue matching the unblock design */
+  border: none;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 8px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-confirm-unblock:hover {
+  background-color: #151d54;
 }
 </style>

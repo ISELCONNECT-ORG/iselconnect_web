@@ -23,9 +23,31 @@ span {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 0 20px 20px 20px;
-  gap: 20px;
+  padding: 0 16px 16px 16px;
+  gap: 16px;
   overflow-x: hidden;
+}
+
+/* ========================================================
+   GLOBAL TOPBAR MATCHING STYLE (Map View Alignment)
+   ======================================================== */
+.topbar-container {
+  padding: 12px 0 !important;
+  background: transparent !important;
+  position: relative;
+  width: 100%;
+}
+
+.topbar-inner-box {
+  background: #283593 !important;
+  border-radius: 8px !important;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: 100% !important;
+  box-sizing: border-box;
 }
 
 /* ========================================================

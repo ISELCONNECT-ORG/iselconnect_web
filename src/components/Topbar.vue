@@ -1,64 +1,76 @@
 <!-- src/components/Topbar.vue -->
 <template>
   <header class="topbar-container" @click="closeDropdown">
-    <div class="topbar-left">
-      <span class="brand-title">ISELCONNECT</span>
-    </div>
+    <div class="topbar-inner-box">
+      <div class="topbar-left">
+        <span class="brand-logo-icon">⚡</span>
+        <span class="brand-title">ISELCONNECT</span>
+      </div>
 
-    <div class="topbar-right">
-      <!-- Notification Bell Trigger -->
-      <div class="notification-bell-wrapper" @click.stop="toggleNotifications">
-        <button class="bell-btn" title="Notifications">🔔</button>
+      <div class="topbar-right">
+        <!-- Notification Bell Trigger -->
+        <div class="notification-bell-wrapper" @click.stop="toggleNotifications">
+          <button class="bell-btn" title="Notifications">
+            🔔<span class="notification-dot"></span>
+          </button>
 
-        <!-- Notification Dropdown Panel (All Notifications) -->
-        <div v-if="showNotifications" class="notification-dropdown-card" @click.stop>
-          <div class="dropdown-header">
-            <h3 class="dropdown-title">Notifications</h3>
-            <div class="filter-dropdown-wrapper">
-              <select v-model="selectedFilter" class="filter-select">
-                <option value="All">Filter by All</option>
-                <option value="Incident">Incident</option>
-                <option value="Advisory">Advisory</option>
-                <option value="Assignment">Assignment</option>
-                <option value="Resolved">Resolved</option>
-                <option value="System">System</option>
-              </select>
+          <!-- Notification Dropdown Panel (All Notifications) -->
+          <div v-if="showNotifications" class="notification-dropdown-card" @click.stop>
+            <div class="dropdown-header">
+              <h3 class="dropdown-title">Notifications</h3>
+              <div class="filter-dropdown-wrapper">
+                <select v-model="selectedFilter" class="filter-select">
+                  <option value="All">Filter by All</option>
+                  <option value="Incident">Incident</option>
+                  <option value="Advisory">Advisory</option>
+                  <option value="Assignment">Assignment</option>
+                  <option value="Resolved">Resolved</option>
+                  <option value="System">System</option>
+                </select>
+              </div>
             </div>
-          </div>
 
-          <div class="dropdown-body">
-            <div v-if="filteredGroupedNotifications.length === 0" class="empty-state">
-              <p>No notifications found.</p>
-            </div>
+            <div class="dropdown-body">
+              <div v-if="filteredGroupedNotifications.length === 0" class="empty-state">
+                <p>No notifications found.</p>
+              </div>
 
-            <div
-              v-for="group in filteredGroupedNotifications"
-              :key="group.label"
-              class="notification-group"
-            >
-              <span class="group-label">{{ group.label }}</span>
-              <div class="items-list">
-                <div v-for="note in group.items" :key="note.id" class="notification-item">
-                  <!-- Lucide Icon -->
-                  <div class="item-icon-wrapper" :class="`icon-${getSeverity(note)}`">
-                    <component :is="getLucideIcon(getType(note))" class="lucide-icon" />
-                  </div>
-
-                  <!-- Real Data Content (Full text display, no truncation) -->
-                  <div class="item-content">
-                    <div class="item-top-row">
-                      <span class="item-source-time">
-                        {{ getTypeLabel(note) }} •
-                        <span class="time-ago">{{ formatTimeAgo(note.created_at) }}</span>
-                      </span>
+              <div
+                v-for="group in filteredGroupedNotifications"
+                :key="group.label"
+                class="notification-group"
+              >
+                <span class="group-label">{{ group.label }}</span>
+                <div class="items-list">
+                  <div v-for="note in group.items" :key="note.id" class="notification-item">
+                    <!-- Lucide Icon -->
+                    <div class="item-icon-wrapper" :class="`icon-${getSeverity(note)}`">
+                      <component :is="getLucideIcon(getType(note))" class="lucide-icon" />
                     </div>
-                    <h4 class="item-title">{{ note.title }}</h4>
-                    <p class="item-desc">{{ note.message }}</p>
+
+                    <!-- Real Data Content -->
+                    <div class="item-content">
+                      <div class="item-top-row">
+                        <span class="item-source-time">
+                          {{ getTypeLabel(note) }} •
+                          <span class="time-ago">{{ formatTimeAgo(note.created_at) }}</span>
+                        </span>
+                      </div>
+                      <h4 class="item-title">{{ note.title }}</h4>
+                      <p class="item-desc">{{ note.message }}</p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Profile Pill Button -->
+        <div class="profile-pill">
+          <span class="profile-icon">👤</span>
+          <span class="profile-name">Admin Profile</span>
+          <span class="profile-chevron">▼</span>
         </div>
       </div>
     </div>
@@ -99,7 +111,6 @@ const formatTimeAgo = (dateString) => {
 }
 
 const fetchAdminNotifications = async () => {
-  // Fetches ALL notifications for Admin[cite: 1]
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
@@ -178,19 +189,34 @@ const filteredGroupedNotifications = computed(() => {
 
 <style scoped>
 .topbar-container {
+  padding: 0;
+  background: transparent;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin-bottom: 16px;
+}
+.topbar-inner-box {
+  background: #283593;
+  border-radius: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 24px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  position: relative;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand-logo-icon {
+  color: #ffffff;
+  font-size: 1rem;
 }
 .topbar-left .brand-title {
   font-weight: 800;
-  font-size: 1.1rem;
-  color: #312e81;
+  font-size: 1rem;
+  color: #ffffff;
   letter-spacing: 0.05em;
 }
 .topbar-right {
@@ -205,19 +231,51 @@ const filteredGroupedNotifications = computed(() => {
 .bell-btn {
   background: transparent;
   border: none;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   cursor: pointer;
   padding: 6px;
   border-radius: 50%;
   transition: background 0.2s;
+  position: relative;
 }
 .bell-btn:hover {
-  background: #f1f5f9;
+  background: rgba(255, 255, 255, 0.1);
 }
+.notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  background: #ef4444;
+  border-radius: 50%;
+}
+.profile-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.profile-icon {
+  font-size: 0.85rem;
+}
+.profile-chevron {
+  font-size: 0.65rem;
+  opacity: 0.8;
+}
+
+/* Dropdown Styles */
 .notification-dropdown-card {
   position: absolute;
-  top: 50px;
-  right: 0;
+  top: 55px;
+  right: 20px;
   width: 400px;
   max-height: 560px;
   background: #ffffff;

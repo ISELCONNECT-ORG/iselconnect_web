@@ -243,6 +243,12 @@ const router = createRouter({
       component: () => import('@/pages/User Management/UserManagement.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin/reports/best-lineman',
+      name: 'BestLinemanReport',
+      component: () => import('@/pages/printables/BestLinemanReport.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

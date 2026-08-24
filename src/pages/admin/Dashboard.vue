@@ -88,6 +88,7 @@
             <table v-else class="data-table">
               <thead>
                 <tr>
+                  <th style="width: 40px">No.</th>
                   <th>Priority</th>
                   <th>Report Details</th>
                   <th>Location</th>
@@ -97,7 +98,10 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="report in incidentReports" :key="report.id">
+                <tr v-for="(report, index) in incidentReports" :key="report.id">
+                  <td style="font-weight: 600; color: #64748b">
+                    {{ index + 1 }}
+                  </td>
                   <td>
                     <span
                       :class="[
@@ -123,8 +127,24 @@
                       Barangay: {{ report.barangays?.name ?? 'Unknown Barangay' }}
                     </div>
                   </td>
-                  <td style="color: #64748b; font-size: 0.8rem">
-                    {{ report.description || 'EMPTY' }}
+                  <td>
+                    <router-link
+                      :to="`/admin/reports/${report.id}`"
+                      style="
+                        background-color: #f8fafc;
+                        color: #3b82f6;
+                        padding: 6px 12px;
+                        border-radius: 6px;
+                        font-size: 0.75rem;
+                        font-weight: 600;
+                        text-decoration: none;
+                        display: inline-block;
+                        border: 1px solid #e2e8f0;
+                        cursor: pointer;
+                      "
+                    >
+                      View Details
+                    </router-link>
                   </td>
                   <td style="color: #64748b; font-size: 0.8rem">
                     {{ formatDateTime(report.created_at) }}
@@ -378,6 +398,29 @@
       </div>
     </div>
 
+    <!-- CUSTOM VALIDATION MODAL -->
+    <div
+      v-if="showValidationModal"
+      class="modal-overlay"
+      style="z-index: 1050"
+      @click.self="closeValidationModal"
+    >
+      <div class="validation-modal-card">
+        <div class="validation-content">
+          <div class="validation-icon-wrapper">
+            <div class="validation-icon">!</div>
+          </div>
+          <div class="validation-text">
+            <h3>Validation Required</h3>
+            <p>Please select both Barangay and Issue Type.</p>
+          </div>
+        </div>
+        <div class="validation-footer">
+          <button @click="closeValidationModal" class="btn-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ASSIGN LINEMAN MODAL -->
     <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
       <div class="assign-modal-card">
@@ -479,10 +522,13 @@ import MetricSummaryCards from '@/components/analytics/MetricSummaryCards.vue'
 import OutageStatusPie from '@/components/analytics/OutageStatusPie.vue'
 import { supabase } from '@/services/supabase'
 import { sendNotification } from '@/utils/notifications.js'
+import { useSystemAlerts } from '@/composables/useSystemAlerts'
 
 import '@/assets/style/Dashboard.css'
 
 const router = useRouter()
+const { addAlert } = useSystemAlerts()
+
 const incidentReports = ref([])
 const activeIncidentsList = ref([])
 const systemAlerts = ref([])
@@ -497,6 +543,7 @@ const stats = ref([
 ])
 
 const showManualModal = ref(false)
+const showValidationModal = ref(false)
 const manualReport = ref({
   type_id: null,
   barangay_id: null,
@@ -521,17 +568,21 @@ const assignSearchQuery = ref('')
 const now = ref(new Date())
 let timerInterval = null
 
+// Changed from 6 AM to 8 AM
 const isBranchPhase = computed(() => {
   const hour = now.value.getHours()
-  return hour >= 6 && hour < 17
+  return hour >= 8 && hour < 17
 })
 
 const currentDispatchPhase = computed(() => (isBranchPhase.value ? 'Branch Only' : 'Admin Only'))
+
+// Changed labels to match requirements
 const dispatchInfoText = computed(() =>
   isBranchPhase.value
-    ? '6am to 5pm is Branch Only to Dispatch'
-    : '5pm to 6am is Admin Only to Dispatch',
+    ? '8:00am to 5:00pm branch only assigned but the admin is not assigned'
+    : '5:00pm to 8:00am admin only assigned but the branch is not assigned',
 )
+
 const nextPhaseSubtitle = computed(() =>
   isBranchPhase.value ? 'Time until Admin Window' : 'Time until Branch Window',
 )
@@ -544,7 +595,8 @@ const timeUntilNextPhase = computed(() => {
   if (isBranchPhase.value) {
     target.setHours(17, 0, 0, 0)
   } else {
-    target.setHours(6, 0, 0, 0)
+    // Changed target target hour from 6 to 8
+    target.setHours(8, 0, 0, 0)
     if (hour >= 17) target.setDate(target.getDate() + 1)
   }
 
@@ -672,12 +724,33 @@ const getPriorityColorClass = (level) => {
 }
 
 const acceptReport = async (report) => {
-  await supabase.from('reports').update({ status_id: 2 }).eq('id', report.id)
+  const { error } = await supabase.from('reports').update({ status_id: 2 }).eq('id', report.id)
+
+  if (!error) {
+    // Show local success toast on the dashboard
+    addAlert({
+      title: 'System Confirmation',
+      message: `Report in ${report.barangays?.name || 'the area'} accepted and moved to active queue.`,
+      severity: 'low',
+    })
+  }
+
   loadIncidentReports()
   loadActiveIncidents()
 }
+
 const rejectReport = async (report) => {
-  await supabase.from('reports').update({ status_id: 5 }).eq('id', report.id)
+  const { error } = await supabase.from('reports').update({ status_id: 5 }).eq('id', report.id)
+
+  if (!error) {
+    // Show local success toast on the dashboard
+    addAlert({
+      title: 'System Confirmation',
+      message: 'Report was rejected and removed from pending.',
+      severity: 'low',
+    })
+  }
+
   loadIncidentReports()
 }
 
@@ -691,8 +764,9 @@ const filteredLinemen = computed(() => {
 
 const openAssign = async (incident) => {
   if (isBranchPhase.value) {
+    // Updated alert box string
     alert(
-      'Admin assigning is locked. 6:00 AM to 5:00 PM is reserved for Branch Only to dispatch.\n\nPlease wait for the Admin dispatch window (5:00 PM - 6:00 AM).',
+      'Admin assigning is locked. 8:00 AM to 5:00 PM is reserved for Branch Only to dispatch.\n\nPlease wait for the Admin dispatch window (5:01 PM - 7:59 AM).',
     )
     return
   }
@@ -735,7 +809,20 @@ const assignSingleLineman = async (uid) => {
   })
 
   if (!error) {
-    sendNotification('Assignment Updated', `Assigned to report ${selectedReport.value.id}`, uid)
+    // Alert the lineman via database notification
+    sendNotification(
+      'System: Dispatch Update',
+      `Assigned to report ${selectedReport.value.id}`,
+      uid,
+    )
+
+    // Trigger the local visual pop-up on the admin dashboard
+    addAlert({
+      title: 'System Confirmation',
+      message: 'Lineman successfully dispatched to the incident.',
+      severity: 'low',
+    })
+
     const linemanIndex = availableLinemen.value.findIndex((l) => l.id === uid)
     if (linemanIndex !== -1) {
       availableLinemen.value[linemanIndex].isJustAssigned = true
@@ -762,18 +849,25 @@ const groupedBarangays = computed(() => {
 const groupedReportTypes = computed(() => {
   const query = typeSearchQuery.value.toLowerCase().trim()
   const map = {}
-  const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW']
+
+  // 1. Add 'OTHER' to the priority order array
+  const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW', 'OTHER']
+
   reportTypes.value.forEach((t) => {
-    const prio = (t.priority_level || 'NORMAL').toUpperCase()
+    // 2. Change the fallback from 'NORMAL' to 'OTHER'
+    const prio = (t.priority_level || 'OTHER').toUpperCase()
+
     if (!query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)) {
       if (!map[prio]) map[prio] = []
       map[prio].push(t)
     }
   })
+
   const sortedMap = {}
   priorityOrder.forEach((p) => {
     if (map[p]) sortedMap[p] = map[p]
   })
+
   return sortedMap
 })
 
@@ -800,6 +894,7 @@ const selectReportType = (t) => {
 }
 
 const openManualModal = () => (showManualModal.value = true)
+
 const closeManualModal = () => {
   showManualModal.value = false
   manualReport.value = {
@@ -813,9 +908,16 @@ const closeManualModal = () => {
   selectedTypeObj.value = null
 }
 
+const closeValidationModal = () => {
+  showValidationModal.value = false
+}
+
 const submitManualReport = async () => {
-  if (!manualReport.value.barangay_id || !manualReport.value.type_id)
-    return alert('Please select both Barangay and Issue Type.')
+  if (!manualReport.value.barangay_id || !manualReport.value.type_id) {
+    showValidationModal.value = true
+    return
+  }
+
   const { error } = await supabase.from('reports').insert([
     {
       description: manualReport.value.description || 'EMPTY',
@@ -850,3 +952,76 @@ onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval)
 })
 </script>
+
+<style scoped>
+/* Validation Required Modal Styles (Matches Dashboard Theme) */
+.validation-modal-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #a5b4fc;
+  width: 360px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.validation-content {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.validation-icon-wrapper {
+  background: #f1f5f9;
+  padding: 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.validation-icon {
+  background: #1e1b4b;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+.validation-text {
+  flex: 1;
+}
+.validation-text h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.15rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+.validation-text p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.4;
+}
+.validation-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-ok {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 10px 28px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-ok:hover {
+  opacity: 0.9;
+}
+</style>

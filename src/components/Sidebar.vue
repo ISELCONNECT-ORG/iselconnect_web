@@ -23,6 +23,25 @@
       <router-link to="/admin/advisory" class="nav-link" active-class="active">
         <Megaphone :size="20" /> Power Advisory
       </router-link>
+
+      <!-- REPORTS SECTION -->
+      <div class="section-title mt-4">REPORTS</div>
+      <div class="dropdown-container">
+        <button class="nav-link dropdown-toggle" @click="toggleReports">
+          <div class="dropdown-label"><Printer :size="20" /> Reports & Documents</div>
+          <ChevronUp v-if="isReportsOpen" :size="16" />
+          <ChevronDown v-else :size="16" />
+        </button>
+        <div v-if="isReportsOpen" class="dropdown-menu">
+          <router-link
+            to="/admin/reports/best-lineman"
+            class="nav-link sub-link"
+            active-class="active"
+          >
+            <Award :size="18" /> Best Lineman
+          </router-link>
+        </div>
+      </div>
     </nav>
 
     <div class="footer-nav">
@@ -118,6 +137,8 @@ import {
   LogOut,
   ChevronDown,
   ChevronUp,
+  Printer,
+  Award,
 } from 'lucide-vue-next'
 import { supabase } from '@/services/supabase'
 import { useRouter } from 'vue-router'
@@ -127,6 +148,7 @@ const router = useRouter()
 // Dropdown and Modal States
 const isUserMgmtOpen = ref(false)
 const isSettingsOpen = ref(false)
+const isReportsOpen = ref(false)
 const showLogoutModal = ref(false)
 
 const toggleUserMgmt = () => {
@@ -135,6 +157,10 @@ const toggleUserMgmt = () => {
 
 const toggleSettings = () => {
   isSettingsOpen.value = !isSettingsOpen.value
+}
+
+const toggleReports = () => {
+  isReportsOpen.value = !isReportsOpen.value
 }
 
 const handleLogout = async () => {

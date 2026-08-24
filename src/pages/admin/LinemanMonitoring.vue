@@ -88,7 +88,8 @@
         </table>
       </div>
 
-      <AddLinemanModal v-if="showModal" @close="showModal = false" @refresh="fetchAllData" />
+      <!-- Updated to call handleLinemanAdded on @refresh -->
+      <AddLinemanModal v-if="showModal" @close="showModal = false" @refresh="handleLinemanAdded" />
     </main>
   </div>
 </template>
@@ -96,10 +97,13 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { supabase } from '@/services/supabase'
+import { useSystemAlerts } from '@/composables/useSystemAlerts'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import AddLinemanModal from '@/components/account/AddLinemanModal.vue'
 import { UserPlus } from 'lucide-vue-next'
+
+const { addAlert } = useSystemAlerts()
 
 const linemen = ref([])
 const branches = ref([])
@@ -146,6 +150,18 @@ const fetchAllData = async () => {
   stats.total = total || 0
   stats.ready = ready || 0
   stats.onRoute = route || 0
+}
+
+// Handler that triggers the alert and refreshes the data
+const handleLinemanAdded = () => {
+  fetchAllData()
+
+  // Show local success toast on the dashboard
+  addAlert({
+    title: 'System Confirmation',
+    message: 'New lineman profile has been successfully created.',
+    severity: 'low',
+  })
 }
 
 // Filter Logic

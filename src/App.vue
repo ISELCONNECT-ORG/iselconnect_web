@@ -38,9 +38,12 @@ onMounted(() => {
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'notifications' },
       (payload) => {
-        console.log('🔥 GLOBAL REALTIME INSERT DETECTED:', payload)
         const newNote = payload.new
         if (!newNote) return
+
+        // FIX: Ignore notifications meant for specific residents/linemen.
+        // This prevents the mass-popup bug during broadcasts.
+        if (newNote.residents_id !== null) return
 
         const severityLevel = analyzeNotification(newNote.title)
 
