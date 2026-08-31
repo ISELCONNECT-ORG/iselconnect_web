@@ -354,6 +354,31 @@
       </div>
     </div>
 
+    <!-- DISPATCH TIME VALIDATION MODAL (ADMIN LOCK) -->
+    <div
+      v-if="showTimeLockModal"
+      class="modal-overlay"
+      style="z-index: 1050"
+      @click.self="showTimeLockModal = false"
+    >
+      <div class="time-lock-card">
+        <div class="time-lock-header">
+          <Info class="info-icon" :size="20" />
+          <h3>Dispatch Time</h3>
+        </div>
+        <div class="time-lock-body">
+          <p>
+            Admin assigning is locked right now. 8:00 AM to 5:00 PM is reserved for Branch Only to
+            dispatch.
+          </p>
+          <p>Please wait for the Admin dispatch window (5:01 PM - 7:59 AM).</p>
+        </div>
+        <div class="time-lock-footer">
+          <button @click="showTimeLockModal = false" class="btn-primary-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ASSIGN LINEMAN MODAL -->
     <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
       <div class="assign-modal-card">
@@ -462,6 +487,7 @@ const barangays = ref([])
 
 const showManualModal = ref(false)
 const showValidationModal = ref(false)
+const showTimeLockModal = ref(false) // State for new Time Validation modal
 const manualReport = ref({
   type_id: null,
   barangay_id: null,
@@ -482,13 +508,32 @@ const showAssignModal = ref(false)
 const selectedReport = ref(null)
 const availableLinemen = ref([])
 const assignSearchQuery = ref('')
-const isWorkingHoursModal = ref(false)
 
 const assignedCount = ref(0)
 const totalReportsCount = ref(0)
 const onlineLinemenCount = ref(0)
 const currentPriorityFilter = ref('All')
 let refreshIntervalId = null
+
+const now = ref(new Date())
+let timerInterval = null
+
+// Admin can ONLY assign from 5:01 PM to 7:59 AM
+const isAdminPhase = computed(() => {
+  const hour = now.value.getHours()
+  const minute = now.value.getMinutes()
+
+  // 8:00 AM (8:00) to exactly 5:00 PM (17:00) belongs to the Branch
+  if (hour >= 8 && hour < 17) {
+    return false
+  }
+  if (hour === 17 && minute === 0) {
+    return false
+  }
+
+  // Outside of branch hours, it's Admin phase
+  return true
+})
 
 const setFilter = (priority) => {
   currentPriorityFilter.value = priority
@@ -749,49 +794,36 @@ const isAssigned = (uid) => {
 }
 
 const openAssign = async (r) => {
+  // Enforce Admin strict time block lock
+  if (!isAdminPhase.value) {
+    showTimeLockModal.value = true
+    return
+  }
+
   selectedReport.value = r
   assignSearchQuery.value = ''
 
-  const now = new Date()
-  const totalMinutes = now.getHours() * 60 + now.getMinutes()
-  isWorkingHoursModal.value = totalMinutes >= 480 && totalMinutes <= 1020
+  // Load Linemen for Admin to dispatch globally
+  const { data: usersData } = await supabase
+    .from('users')
+    .select('id, first_name, last_name, is_active')
+    .eq('role_id', 9)
+  const { data: empData } = await supabase
+    .from('employees')
+    .select('user_id, branch_id, is_available')
+  const { data: branchData } = await supabase.from('iselco_branch').select('branch_id, branch_name')
 
-  if (isWorkingHoursModal.value) {
-    const { data } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, is_active')
-      .eq('role_id', 6)
-    availableLinemen.value =
-      data?.map((user) => ({
+  availableLinemen.value =
+    usersData?.map((user) => {
+      const emp = empData?.find((e) => e.user_id === user.id)
+      const branch = branchData?.find((b) => b.branch_id === emp?.branch_id)
+      return {
         id: user.id,
         name: `${user.first_name} ${user.last_name}`,
-        branch: 'Branch Admin',
-        status: user.is_active ? 'Available' : 'Unavailable',
-      })) || []
-  } else {
-    const { data: usersData } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, is_active')
-      .eq('role_id', 9)
-    const { data: empData } = await supabase
-      .from('employees')
-      .select('user_id, branch_id, is_available')
-    const { data: branchData } = await supabase
-      .from('iselco_branch')
-      .select('branch_id, branch_name')
-
-    availableLinemen.value =
-      usersData?.map((user) => {
-        const emp = empData?.find((e) => e.user_id === user.id)
-        const branch = branchData?.find((b) => b.branch_id === emp?.branch_id)
-        return {
-          id: user.id,
-          name: `${user.first_name} ${user.last_name}`,
-          branch: branch?.branch_name || 'Unassigned Branch',
-          status: user.is_active ? 'Available' : 'On Job',
-        }
-      }) || []
-  }
+        branch: branch?.branch_name || 'Unassigned Branch',
+        status: user.is_active ? 'Available' : 'On Job',
+      }
+    }) || []
 
   showAssignModal.value = true
 }
@@ -827,10 +859,12 @@ const assignSingleLineman = async (uid) => {
 onMounted(() => {
   fetchAll()
   refreshIntervalId = setInterval(fetchAll, 5000)
+  timerInterval = setInterval(() => (now.value = new Date()), 1000)
 })
 
 onUnmounted(() => {
   if (refreshIntervalId) clearInterval(refreshIntervalId)
+  if (timerInterval) clearInterval(timerInterval)
 })
 </script>
 
@@ -844,8 +878,12 @@ onUnmounted(() => {
 }
 .content {
   flex-grow: 1;
-  padding: 16px 24px;
+  padding: 0 16px 16px;
   overflow-x: hidden;
+}
+
+:deep(.topbar-container) {
+  margin-bottom: 16px;
 }
 
 /* Hero Section */
@@ -1159,11 +1197,70 @@ onUnmounted(() => {
   z-index: 1000;
 }
 
-/* Validation Required Modal (Image Matched) */
+/* Dispatch Time Validation Modal (Design Match) */
+.time-lock-card {
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #a5b4fc;
+  width: 460px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+.time-lock-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.time-lock-header .info-icon {
+  color: #2563eb;
+}
+.time-lock-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+.time-lock-body {
+  padding: 24px 20px;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.time-lock-body p {
+  margin: 0 0 16px 0;
+}
+.time-lock-body p:last-child {
+  margin-bottom: 0;
+}
+.time-lock-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-primary-ok {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary-ok:hover {
+  background: #1d4ed8;
+}
+
+/* Validation Required Modal */
 .validation-modal-card {
   background: white;
   border-radius: 16px;
-  border: 1px solid #a5b4fc; /* matching the purple-ish light blue outer stroke */
+  border: 1px solid #a5b4fc;
   width: 360px;
   padding: 24px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);

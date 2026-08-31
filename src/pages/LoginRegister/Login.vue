@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/services/supabase'
 
@@ -11,7 +11,56 @@ const errorMsg = ref('')
 
 const router = useRouter()
 
+// --- Rate Limiting State ---
+const MAX_FAILED_ATTEMPTS = 5
+const LOCKOUT_DURATION = 30 // seconds
+const failedAttempts = ref(0)
+const isLockedOut = ref(false)
+const lockoutTimer = ref(0)
+let intervalId = null
+
+// Handles the countdown timer
+const startLockoutTimer = (duration) => {
+  isLockedOut.value = true
+  lockoutTimer.value = duration
+  errorMsg.value = `Too many attempts. Try again in ${lockoutTimer.value}s.`
+
+  intervalId = setInterval(() => {
+    lockoutTimer.value--
+    if (lockoutTimer.value > 0) {
+      errorMsg.value = `Too many attempts. Try again in ${lockoutTimer.value}s.`
+    } else {
+      // Reset after timer finishes
+      clearInterval(intervalId)
+      isLockedOut.value = false
+      failedAttempts.value = 0
+      errorMsg.value = ''
+      localStorage.removeItem('loginLockoutUntil')
+    }
+  }, 1000)
+}
+
+// Check for existing lockout on page load
+onMounted(() => {
+  const lockoutUntil = localStorage.getItem('loginLockoutUntil')
+  if (lockoutUntil) {
+    const remainingTime = Math.ceil((parseInt(lockoutUntil) - Date.now()) / 1000)
+    if (remainingTime > 0) {
+      startLockoutTimer(remainingTime)
+    } else {
+      localStorage.removeItem('loginLockoutUntil')
+    }
+  }
+})
+
+// Cleanup interval when component is destroyed
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId)
+})
+
 const handleLogin = async () => {
+  if (isLockedOut.value) return // Guard clause to prevent bypass
+
   loading.value = true
   errorMsg.value = ''
 
@@ -20,11 +69,25 @@ const handleLogin = async () => {
     password: password.value,
   })
 
+  // Handle Failed Auth
   if (authError) {
-    errorMsg.value = 'Invalid email or password.'
+    failedAttempts.value++
     loading.value = false
+
+    if (failedAttempts.value >= MAX_FAILED_ATTEMPTS) {
+      const lockoutEndTime = Date.now() + LOCKOUT_DURATION * 1000
+      localStorage.setItem('loginLockoutUntil', lockoutEndTime.toString())
+      startLockoutTimer(LOCKOUT_DURATION)
+    } else {
+      const attemptsLeft = MAX_FAILED_ATTEMPTS - failedAttempts.value
+      errorMsg.value = `Invalid email or password. ${attemptsLeft} attempts remaining.`
+    }
     return
   }
+
+  // Handle Successful Auth
+  failedAttempts.value = 0
+  localStorage.removeItem('loginLockoutUntil')
 
   const { data: userData, error: userError } = await supabase
     .from('users')
@@ -93,8 +156,8 @@ const handleLogin = async () => {
           </div>
         </div>
 
-        <button type="submit" class="submit-btn" :disabled="loading">
-          {{ loading ? 'Verifying...' : 'Sign in' }}
+        <button type="submit" class="submit-btn" :disabled="loading || isLockedOut">
+          {{ loading ? 'Verifying...' : isLockedOut ? 'Locked Out' : 'Sign in' }}
         </button>
       </form>
     </div>

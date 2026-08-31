@@ -33,6 +33,11 @@
           <ChevronDown v-else :size="16" />
         </button>
         <div v-if="isReportsOpen" class="dropdown-menu">
+          <!-- Newly Added Reports Link -->
+          <router-link to="/admin/reports" class="nav-link sub-link" active-class="active">
+            <FileText :size="18" /> System Reports
+          </router-link>
+
           <router-link
             to="/admin/reports/best-lineman"
             class="nav-link sub-link"

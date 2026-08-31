@@ -580,8 +580,12 @@ onMounted(fetchData)
 
 .content {
   flex-grow: 1;
-  padding: 16px 24px;
+  padding: 0 16px 16px;
   overflow-x: hidden;
+}
+
+:deep(.topbar-container) {
+  margin-bottom: 16px;
 }
 
 .hero-banner {

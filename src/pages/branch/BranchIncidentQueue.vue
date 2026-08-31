@@ -1,3 +1,4 @@
+<!-- BranchIncidentQueue.vue -->
 <template>
   <div class="dashboard-root">
     <BranchSidebar />
@@ -100,6 +101,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width: 40px">No.</th>
               <th>STATUS</th>
               <th>PRIORITY</th>
               <th>CUSTOMER</th>
@@ -113,7 +115,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in activeReports" :key="r.id">
+            <tr v-for="(r, index) in activeReports" :key="r.id">
+              <td style="font-weight: 600; color: #64748b">
+                {{ index + 1 }}
+              </td>
               <td>
                 <span class="status-pill">{{ r.report_statuses?.name || 'In Progress' }}</span>
               </td>
@@ -143,7 +148,7 @@
               </td>
             </tr>
             <tr v-if="activeReports.length === 0">
-              <td colspan="10" class="text-center">
+              <td colspan="11" class="text-center">
                 No active incidents found for {{ branchName }}.
               </td>
             </tr>
@@ -159,6 +164,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width: 40px">No.</th>
               <th>STATUS</th>
               <th>PRIORITY</th>
               <th>CUSTOMER</th>
@@ -172,7 +178,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in resolvedReports" :key="r.id">
+            <tr v-for="(r, index) in resolvedReports" :key="r.id">
+              <td style="font-weight: 600; color: #64748b">
+                {{ index + 1 }}
+              </td>
               <td><span class="status-pill">Resolved</span></td>
               <td>
                 <span :class="['priority-pill', getPriorityClass(r.report_types?.priority_level)]">
@@ -200,7 +209,7 @@
               </td>
             </tr>
             <tr v-if="resolvedReports.length === 0">
-              <td colspan="10" class="text-center">No resolved incidents found.</td>
+              <td colspan="11" class="text-center">No resolved incidents found.</td>
             </tr>
           </tbody>
         </table>
@@ -324,6 +333,54 @@
       </div>
     </div>
 
+    <!-- CUSTOM VALIDATION MODAL -->
+    <div
+      v-if="showValidationModal"
+      class="modal-overlay"
+      style="z-index: 1050"
+      @click.self="closeValidationModal"
+    >
+      <div class="validation-modal-card">
+        <div class="validation-content">
+          <div class="validation-icon-wrapper">
+            <div class="validation-icon">!</div>
+          </div>
+          <div class="validation-text">
+            <h3>Validation Required</h3>
+            <p>Please select both Barangay and Issue Type.</p>
+          </div>
+        </div>
+        <div class="validation-footer">
+          <button @click="closeValidationModal" class="btn-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISPATCH TIME VALIDATION MODAL -->
+    <div
+      v-if="showTimeLockModal"
+      class="modal-overlay"
+      style="z-index: 1050"
+      @click.self="showTimeLockModal = false"
+    >
+      <div class="time-lock-card">
+        <div class="time-lock-header">
+          <Info class="info-icon" :size="20" />
+          <h3>Dispatch Time</h3>
+        </div>
+        <div class="time-lock-body">
+          <p>
+            Branch assigning is locked right now. 5:01 PM to 7:59 AM is reserved for Admin Only to
+            dispatch.
+          </p>
+          <p>Please wait for the Branch dispatch window (8:00 AM - 5:00 PM).</p>
+        </div>
+        <div class="time-lock-footer">
+          <button @click="showTimeLockModal = false" class="btn-primary-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ASSIGN LINEMAN MODAL -->
     <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
       <div class="assign-modal-card">
@@ -403,6 +460,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import { sendNotification } from '@/utils/notifications.js'
+import { useSystemAlerts } from '@/composables/useSystemAlerts'
 import BranchSidebar from '@/components/BranchSidebar.vue'
 import Topbar from '@/components/BranchTopbar.vue'
 
@@ -423,11 +481,15 @@ import {
   ChevronDown,
 } from 'lucide-vue-next'
 
+const { addAlert } = useSystemAlerts()
+
 const pendingReports = ref([])
 const reportTypes = ref([])
 const barangays = ref([])
 
 const showManualModal = ref(false)
+const showValidationModal = ref(false)
+const showTimeLockModal = ref(false) // Added new modal ref
 const manualReport = ref({
   type_id: null,
   barangay_id: null,
@@ -461,10 +523,18 @@ let refreshIntervalId = null
 const now = ref(new Date())
 let timerInterval = null
 
-// Time window check: Branch can assign from 8:00 AM (8) to 5:00 PM (17)
+// Time window check: Branch can assign from 8:00 AM (8:00) to exactly 5:00 PM (17:00)
 const isBranchPhase = computed(() => {
   const hour = now.value.getHours()
-  return hour >= 8 && hour < 17
+  const minute = now.value.getMinutes()
+
+  if (hour >= 8 && hour < 17) {
+    return true
+  }
+  if (hour === 17 && minute === 0) {
+    return true
+  }
+  return false
 })
 
 const setFilter = (priority) => {
@@ -515,11 +585,9 @@ const groupedReportTypes = computed(() => {
   const query = typeSearchQuery.value.toLowerCase().trim()
   const map = {}
 
-  // Added 'OTHER' to the priority order array
   const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW', 'OTHER']
 
   reportTypes.value.forEach((t) => {
-    // Changed fallback from 'NORMAL' to 'OTHER'
     const prio = (t.priority_level || 'OTHER').toUpperCase()
     if (!query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)) {
       if (!map[prio]) map[prio] = []
@@ -563,6 +631,7 @@ const selectReportType = (t) => {
 const openManualModal = () => {
   showManualModal.value = true
 }
+
 const closeManualModal = () => {
   showManualModal.value = false
   isBarangayDropdownOpen.value = false
@@ -578,6 +647,10 @@ const closeManualModal = () => {
   }
   selectedBarangayObj.value = null
   selectedTypeObj.value = null
+}
+
+const closeValidationModal = () => {
+  showValidationModal.value = false
 }
 
 const activeReports = computed(() => {
@@ -720,7 +793,7 @@ const fetchAll = async () => {
 const submitManualReport = async () => {
   if (!branchId.value) return
   if (!manualReport.value.barangay_id || !manualReport.value.type_id) {
-    alert('Please select both Barangay and Issue Type.')
+    showValidationModal.value = true
     return
   }
 
@@ -739,8 +812,15 @@ const submitManualReport = async () => {
     },
   ])
 
-  if (error) alert('Error: ' + error.message)
-  else {
+  if (error) {
+    alert('Error: ' + error.message)
+  } else {
+    addAlert({
+      title: 'Manual Report Submitted',
+      message: `The incident has been successfully logged for ${branchName.value}.`,
+      severity: 'low',
+    })
+
     closeManualModal()
     await sendNotification(
       'New Report Received',
@@ -750,6 +830,7 @@ const submitManualReport = async () => {
   }
 }
 
+// Assignment Modal Logic
 const filteredLinemen = computed(() => {
   if (!assignSearchQuery.value) return availableLinemen.value
   const q = assignSearchQuery.value.toLowerCase()
@@ -763,11 +844,9 @@ const isAssigned = (uid) => {
 }
 
 const openAssign = async (r) => {
-  // Time Validation: Branch can only assign between 8:00 AM and 5:00 PM
+  // If we're outside the branch phase, show the designed modal instead of native alert
   if (!isBranchPhase.value) {
-    alert(
-      'Branch assigning is locked right now. 5:00 PM to 8:00 AM is reserved for Admin Only to dispatch.\n\nPlease wait for the Branch dispatch window (8:00 AM - 5:00 PM).',
-    )
+    showTimeLockModal.value = true
     return
   }
 
@@ -807,6 +886,14 @@ const assignSingleLineman = async (uid) => {
     sendNotification('Assignment Updated', `Assigned to report ${selectedReport.value.id}`, uid)
     if (!selectedReport.value.assignments) selectedReport.value.assignments = []
     selectedReport.value.assignments.push({ lineman_id: uid })
+
+    addAlert({
+      title: 'Lineman Dispatched',
+      message: 'The selected branch lineman has been successfully assigned to the incident.',
+      severity: 'low',
+    })
+  } else {
+    alert('Error assigning lineman: ' + error.message)
   }
 
   fetchAll()
@@ -834,8 +921,12 @@ onUnmounted(() => {
 }
 .content {
   flex-grow: 1;
-  padding: 16px 24px;
+  padding: 0 16px 16px;
   overflow-x: hidden;
+}
+
+:deep(.topbar-container) {
+  margin-bottom: 16px;
 }
 
 /* Hero Section */
@@ -1147,6 +1238,136 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+}
+
+/* Dispatch Time Validation Modal (Design Match) */
+.time-lock-card {
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #a5b4fc;
+  width: 460px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+.time-lock-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.time-lock-header .info-icon {
+  color: #2563eb;
+}
+.time-lock-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+.time-lock-body {
+  padding: 24px 20px;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.time-lock-body p {
+  margin: 0 0 16px 0;
+}
+.time-lock-body p:last-child {
+  margin-bottom: 0;
+}
+.time-lock-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-primary-ok {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary-ok:hover {
+  background: #1d4ed8;
+}
+
+/* Validation Required Modal */
+.validation-modal-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #a5b4fc;
+  width: 360px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.validation-content {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.validation-icon-wrapper {
+  background: #f1f5f9;
+  padding: 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.validation-icon {
+  background: #1e1b4b;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+.validation-text {
+  flex: 1;
+}
+.validation-text h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.15rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+.validation-text p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.4;
+}
+.validation-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-ok {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 10px 28px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-ok:hover {
+  opacity: 0.9;
 }
 
 /* Manual Report Modal */

@@ -1,3 +1,4 @@
+<!-- BranchDashboard.vue -->
 <template>
   <div class="dashboard-root">
     <BranchSidebar />
@@ -315,6 +316,54 @@
       </div>
     </div>
 
+    <!-- CUSTOM VALIDATION MODAL -->
+    <div
+      v-if="showValidationModal"
+      class="modal-overlay"
+      style="z-index: 1050"
+      @click.self="closeValidationModal"
+    >
+      <div class="validation-modal-card">
+        <div class="validation-content">
+          <div class="validation-icon-wrapper">
+            <div class="validation-icon">!</div>
+          </div>
+          <div class="validation-text">
+            <h3>Validation Required</h3>
+            <p>Please select both Barangay and Issue Type.</p>
+          </div>
+        </div>
+        <div class="validation-footer">
+          <button @click="closeValidationModal" class="btn-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISPATCH TIME VALIDATION MODAL -->
+    <div
+      v-if="showTimeLockModal"
+      class="modal-overlay"
+      style="z-index: 1050"
+      @click.self="showTimeLockModal = false"
+    >
+      <div class="time-lock-card">
+        <div class="time-lock-header">
+          <Info class="info-icon" :size="20" />
+          <h3>Dispatch Time</h3>
+        </div>
+        <div class="time-lock-body">
+          <p>
+            Branch assigning is locked right now. 5:01 PM to 7:59 AM is reserved for Admin Only to
+            dispatch.
+          </p>
+          <p>Please wait for the Branch dispatch window (8:00 AM - 5:00 PM).</p>
+        </div>
+        <div class="time-lock-footer">
+          <button @click="showTimeLockModal = false" class="btn-primary-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ASSIGN LINEMAN MODAL -->
     <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
       <div class="assign-modal-card">
@@ -401,6 +450,7 @@ import {
   AlertTriangle,
   FilePlus,
   Clock,
+  Info,
 } from 'lucide-vue-next'
 import BranchSidebar from '@/components/BranchSidebar.vue'
 import Topbar from '@/components/BranchTopbar.vue'
@@ -410,10 +460,13 @@ import MetricSummaryCards from '@/components/analytics/MetricSummaryCards.vue'
 import OutageStatusPie from '@/components/analytics/OutageStatusPie.vue'
 import { supabase } from '@/services/supabase'
 import { sendNotification } from '@/utils/notifications.js'
+import { useSystemAlerts } from '@/composables/useSystemAlerts'
 
 import '@/assets/style/Dashboard.css'
 
 const router = useRouter()
+const { addAlert } = useSystemAlerts()
+
 const activeIncidentsList = ref([])
 const systemAlerts = ref([])
 const recentActivities = ref([])
@@ -428,6 +481,8 @@ const stats = ref([
 ])
 
 const showManualModal = ref(false)
+const showValidationModal = ref(false)
+const showTimeLockModal = ref(false)
 const manualReport = ref({
   type_id: null,
   barangay_id: null,
@@ -452,17 +507,25 @@ const assignSearchQuery = ref('')
 const now = ref(new Date())
 let timerInterval = null
 
-// Exact time tracking as the Admin Dashboard
+// Synchronized Dispatch Window Logic (8:00 AM to 5:00 PM exactly)
 const isBranchPhase = computed(() => {
   const hour = now.value.getHours()
-  return hour >= 6 && hour < 17
+  const minute = now.value.getMinutes()
+
+  if (hour >= 8 && hour < 17) {
+    return true
+  }
+  if (hour === 17 && minute === 0) {
+    return true
+  }
+  return false
 })
 
 const currentDispatchPhase = computed(() => (isBranchPhase.value ? 'Branch Only' : 'Admin Only'))
 const dispatchInfoText = computed(() =>
   isBranchPhase.value
-    ? '6am to 5pm is Branch Only to Dispatch'
-    : '5pm to 6am is Admin Only to Dispatch',
+    ? '8:00am to 5:00pm branch only assigned but the admin is not assigned'
+    : '5:00pm to 8:00am admin only assigned but the branch is not assigned',
 )
 
 const timeUntilNextPhase = computed(() => {
@@ -473,7 +536,7 @@ const timeUntilNextPhase = computed(() => {
   if (isBranchPhase.value) {
     target.setHours(17, 0, 0, 0)
   } else {
-    target.setHours(6, 0, 0, 0)
+    target.setHours(8, 0, 0, 0)
     if (hour >= 17) target.setDate(target.getDate() + 1)
   }
 
@@ -503,10 +566,6 @@ const handleMetricsUpdate = (newMetrics) => {
   globalMetrics.value = newMetrics
   stats.value[0].value = newMetrics.totalReports.toString()
 }
-
-// ----------------------------------------------------------------------
-// INITIAL LOAD & BRANCH ISOLATION
-// ----------------------------------------------------------------------
 
 const fetchCurrentBranch = async () => {
   const {
@@ -581,9 +640,6 @@ const fetchLinemenStats = async () => {
   stats.value[1].value = (count || 0).toString()
 }
 
-// ----------------------------------------------------------------------
-// DYNAMIC BARANGAY FILTERING BY BRANCH NAME
-// ----------------------------------------------------------------------
 const fetchDropdownData = async () => {
   const { data: types } = await supabase.from('report_types').select('*')
   reportTypes.value = types || []
@@ -606,7 +662,6 @@ const fetchDropdownData = async () => {
   })
 }
 
-// Helpers
 const timeAgo = (dateString) => {
   if (!dateString) return ''
   const seconds = Math.floor((now.value - new Date(dateString)) / 1000)
@@ -631,7 +686,6 @@ const getPriorityColorClass = (level) => {
   return 'text-blue'
 }
 
-// Assignment Modal Logic
 const filteredLinemen = computed(() => {
   if (!assignSearchQuery.value) return availableLinemen.value
   const q = assignSearchQuery.value.toLowerCase()
@@ -642,9 +696,7 @@ const filteredLinemen = computed(() => {
 
 const openAssign = async (incident) => {
   if (!isBranchPhase.value) {
-    alert(
-      'Branch assigning is locked right now. 5:00 PM to 6:00 AM is reserved for Admin Only to dispatch.\n\nPlease wait for the Branch dispatch window (6:00 AM - 5:00 PM).',
-    )
+    showTimeLockModal.value = true
     return
   }
 
@@ -655,11 +707,6 @@ const openAssign = async (incident) => {
     .from('users')
     .select('id, first_name, last_name, is_active')
     .eq('role_id', 9)
-    .eq('branch_id', branchId.value)
-
-  const { data: empData } = await supabase
-    .from('employees')
-    .select('user_id, branch_id, is_available')
     .eq('branch_id', branchId.value)
 
   availableLinemen.value = (usersData || []).map((user) => {
@@ -687,6 +734,13 @@ const assignSingleLineman = async (uid) => {
 
   if (!error) {
     sendNotification('Assignment Updated', `Assigned to report ${selectedReport.value.id}`, uid)
+
+    addAlert({
+      title: 'System Confirmation',
+      message: 'Lineman successfully dispatched to the incident.',
+      severity: 'low',
+    })
+
     const linemanIndex = availableLinemen.value.findIndex((l) => l.id === uid)
     if (linemanIndex !== -1) {
       availableLinemen.value[linemanIndex].isJustAssigned = true
@@ -697,7 +751,6 @@ const assignSingleLineman = async (uid) => {
   }
 }
 
-// Modals Setup
 const groupedBarangays = computed(() => {
   const query = barangaySearchQuery.value.toLowerCase().trim()
   const map = {}
@@ -714,22 +767,21 @@ const groupedBarangays = computed(() => {
 const groupedReportTypes = computed(() => {
   const query = typeSearchQuery.value.toLowerCase().trim()
   const map = {}
-
-  // Added 'OTHER' to the priority order array
   const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW', 'OTHER']
 
   reportTypes.value.forEach((t) => {
-    // Changed fallback from 'NORMAL' to 'OTHER'
     const prio = (t.priority_level || 'OTHER').toUpperCase()
     if (!query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)) {
       if (!map[prio]) map[prio] = []
       map[prio].push(t)
     }
   })
+
   const sortedMap = {}
   priorityOrder.forEach((p) => {
     if (map[p]) sortedMap[p] = map[p]
   })
+
   return sortedMap
 })
 
@@ -769,9 +821,16 @@ const closeManualModal = () => {
   selectedTypeObj.value = null
 }
 
+const closeValidationModal = () => {
+  showValidationModal.value = false
+}
+
 const submitManualReport = async () => {
-  if (!manualReport.value.barangay_id || !manualReport.value.type_id)
-    return alert('Please select both Barangay and Issue Type.')
+  if (!manualReport.value.barangay_id || !manualReport.value.type_id) {
+    showValidationModal.value = true
+    return
+  }
+
   const { error } = await supabase.from('reports').insert([
     {
       description: manualReport.value.description || 'EMPTY',
@@ -802,3 +861,134 @@ onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval)
 })
 </script>
+
+<style scoped>
+/* Dispatch Time Validation Modal (Design Match) */
+.time-lock-card {
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #a5b4fc;
+  width: 460px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+.time-lock-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.time-lock-header .info-icon {
+  color: #2563eb;
+}
+.time-lock-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+.time-lock-body {
+  padding: 24px 20px;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.time-lock-body p {
+  margin: 0 0 16px 0;
+}
+.time-lock-body p:last-child {
+  margin-bottom: 0;
+}
+.time-lock-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-primary-ok {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary-ok:hover {
+  background: #1d4ed8;
+}
+
+.validation-modal-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #a5b4fc;
+  width: 360px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.validation-content {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.validation-icon-wrapper {
+  background: #f1f5f9;
+  padding: 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.validation-icon {
+  background: #1e1b4b;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+.validation-text {
+  flex: 1;
+}
+.validation-text h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.15rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+.validation-text p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.4;
+}
+.validation-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-ok {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 10px 28px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-ok:hover {
+  opacity: 0.9;
+}
+</style>

@@ -4,11 +4,6 @@
     <div class="main-area">
       <Topbar />
       <main class="content-area">
-        <div class="page-header">
-          <h1>{{ branchName }} Map View</h1>
-          <p>Branch-specific outage locations, status, and map feed.</p>
-        </div>
-
         <div class="map-stage">
           <IncidentMap :reports="reports" :filter="currentFilter" />
 
@@ -26,14 +21,6 @@
               <div class="legend-row">
                 <span class="legend-dot inprogress"></span>
                 <span class="legend-label">In Progress</span>
-              </div>
-            </div>
-
-            <div class="glass-card health-card">
-              <h3>GRID HEALTH</h3>
-              <div class="health-val">{{ gridHealth }}%</div>
-              <div class="progress-bar">
-                <div class="fill" :style="{ width: gridHealth + '%' }"></div>
               </div>
             </div>
 
@@ -108,7 +95,6 @@ import IncidentMap from '@/components/map/IncidentMap.vue'
 import BranchSidebar from '@/components/BranchSidebar.vue'
 import Topbar from '@/components/BranchTopbar.vue'
 
-const branchName = ref('Branch')
 const branchId = ref(null)
 const stats = ref({ resolved: 0, pending: 0, inProgress: 0 })
 const reports = ref([])
@@ -127,7 +113,7 @@ const fetchBranchInfo = async () => {
 
   const { data, error } = await supabase
     .from('users')
-    .select('branch_id, iselco_branch(branch_name)')
+    .select('branch_id')
     .eq('id', user.id)
     .single()
 
@@ -137,7 +123,6 @@ const fetchBranchInfo = async () => {
   }
 
   branchId.value = data?.branch_id || null
-  branchName.value = data?.iselco_branch?.branch_name || 'Branch'
 
   if (!branchId.value) return
 
@@ -165,11 +150,6 @@ onMounted(fetchBranchInfo)
 const filteredReports = computed(() => {
   if (currentFilter.value === 'all') return reports.value
   return reports.value.filter((r) => r.statusLabel === currentFilter.value)
-})
-
-const gridHealth = computed(() => {
-  const total = stats.value.resolved + stats.value.pending + stats.value.inProgress
-  return total === 0 ? 0 : ((stats.value.resolved / total) * 100).toFixed(1)
 })
 </script>
 
@@ -271,12 +251,18 @@ const gridHealth = computed(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding: 0 16px 16px;
+  gap: 16px;
 }
 
 .content-area {
   flex: 1;
-  padding: 16px;
+  min-height: 0;
   overflow: hidden;
+}
+
+:deep(.topbar-container) {
+  margin-bottom: 0;
 }
 
 .page-header {
@@ -297,7 +283,7 @@ const gridHealth = computed(() => {
 .map-stage {
   position: relative;
   width: 100%;
-  height: calc(100vh - 112px);
+  height: calc(100vh - 96px);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
@@ -315,7 +301,7 @@ const gridHealth = computed(() => {
   position: absolute;
   top: 20px;
   right: 20px;
-  width: 320px;
+  width: 300px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -416,7 +402,7 @@ const gridHealth = computed(() => {
   text-align: center;
   background: rgba(68, 112, 213, 0.32);
   border-radius: 10px;
-  padding: 10px 8px;
+  padding: 8px 6px;
 }
 
 .stat-box span {
@@ -444,7 +430,7 @@ const gridHealth = computed(() => {
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   cursor: pointer;
   color: #0f172a;

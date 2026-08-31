@@ -196,20 +196,21 @@ const filteredGroupedNotifications = computed(() => {
 
 <style scoped>
 .topbar-container {
-  padding: 0;
+  padding: 12px 0;
   background: transparent;
   position: relative;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  margin-bottom: 16px;
 }
 .topbar-inner-box {
   background: #283593;
-  border-radius: 0;
+  border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 24px;
+  padding: 10px 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  box-sizing: border-box;
 }
 .topbar-left {
   display: flex;

@@ -138,7 +138,7 @@ const filteredReports = computed(() => {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #ffffff;
+  background: #f3f4f6;
 }
 
 .main-area {
@@ -146,11 +146,13 @@ const filteredReports = computed(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding: 0 16px 16px;
+  gap: 16px;
 }
 
 .content-area {
   flex: 1;
-  padding: 16px;
+  min-height: 0;
   overflow: hidden;
 }
 

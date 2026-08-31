@@ -69,10 +69,10 @@
             </section>
           </div>
 
-          <!-- SYSTEM LOAD & CONSUMPTION (Removed wrapper to prevent duplication) -->
+          <!-- SYSTEM LOAD & CONSUMPTION -->
           <IncidentChart :branchId="branchId" />
 
-          <!-- TOP BARANGAYS (Removed wrapper to prevent duplication) -->
+          <!-- TOP BARANGAYS -->
           <TopBarangaysChart :branchId="branchId" />
 
           <section class="table-container">
@@ -184,7 +184,7 @@
             </div>
             <div class="ttd-timer-box">
               <h3>{{ timeUntilNextPhase }}</h3>
-              <span>Time until {{ isBranchPhase ? 'Admin' : 'Branch' }} Window</span>
+              <span>{{ nextPhaseSubtitle }}</span>
             </div>
             <div class="ttd-footer">{{ dispatchInfoText }}</div>
           </div>
@@ -215,13 +215,7 @@
                 }}
               </div>
               <div class="inc-actions">
-                <button
-                  class="inc-btn"
-                  :class="{ 'disabled-btn': isBranchPhase }"
-                  @click="openAssign(inc)"
-                >
-                  ASSIGN
-                </button>
+                <button class="inc-btn" @click="openAssign(inc)">ASSIGN</button>
                 <router-link :to="`/admin/reports/${inc.id}`" class="inc-btn" style="display: block"
                   >DETAILS</router-link
                 >
@@ -383,7 +377,7 @@
             <label>Description</label>
             <textarea
               v-model="manualReport.description"
-              placeholder="Provide additional details about the incident..."
+              placeholder="Provide additional details about the incident, exact landmarks, or potential hazards..."
               class="std-textarea"
             ></textarea>
           </div>
@@ -417,6 +411,31 @@
         </div>
         <div class="validation-footer">
           <button @click="closeValidationModal" class="btn-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISPATCH TIME VALIDATION MODAL (ADMIN LOCK) -->
+    <div
+      v-if="showTimeLockModal"
+      class="modal-overlay"
+      style="z-index: 1050"
+      @click.self="showTimeLockModal = false"
+    >
+      <div class="time-lock-card">
+        <div class="time-lock-header">
+          <Info class="info-icon" :size="20" />
+          <h3>Dispatch Time</h3>
+        </div>
+        <div class="time-lock-body">
+          <p>
+            Admin assigning is locked right now. 8:00 AM to 5:00 PM is reserved for Branch Only to
+            dispatch.
+          </p>
+          <p>Please wait for the Admin dispatch window (5:01 PM - 7:59 AM).</p>
+        </div>
+        <div class="time-lock-footer">
+          <button @click="showTimeLockModal = false" class="btn-primary-ok">OK</button>
         </div>
       </div>
     </div>
@@ -513,6 +532,7 @@ import {
   HelpCircle,
   Bell,
   Clock,
+  Info,
 } from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
@@ -544,6 +564,7 @@ const stats = ref([
 
 const showManualModal = ref(false)
 const showValidationModal = ref(false)
+const showTimeLockModal = ref(false) // Added state for Admin Lock Modal
 const manualReport = ref({
   type_id: null,
   barangay_id: null,
@@ -568,15 +589,21 @@ const assignSearchQuery = ref('')
 const now = ref(new Date())
 let timerInterval = null
 
-// Changed from 6 AM to 8 AM
+// Branch Phase Window Logic (Exactly 8:00 AM to 5:00 PM)
 const isBranchPhase = computed(() => {
   const hour = now.value.getHours()
-  return hour >= 8 && hour < 17
+  const minute = now.value.getMinutes()
+
+  if (hour >= 8 && hour < 17) {
+    return true
+  }
+  if (hour === 17 && minute === 0) {
+    return true
+  }
+  return false
 })
 
 const currentDispatchPhase = computed(() => (isBranchPhase.value ? 'Branch Only' : 'Admin Only'))
-
-// Changed labels to match requirements
 const dispatchInfoText = computed(() =>
   isBranchPhase.value
     ? '8:00am to 5:00pm branch only assigned but the admin is not assigned'
@@ -595,7 +622,6 @@ const timeUntilNextPhase = computed(() => {
   if (isBranchPhase.value) {
     target.setHours(17, 0, 0, 0)
   } else {
-    // Changed target target hour from 6 to 8
     target.setHours(8, 0, 0, 0)
     if (hour >= 17) target.setDate(target.getDate() + 1)
   }
@@ -727,7 +753,6 @@ const acceptReport = async (report) => {
   const { error } = await supabase.from('reports').update({ status_id: 2 }).eq('id', report.id)
 
   if (!error) {
-    // Show local success toast on the dashboard
     addAlert({
       title: 'System Confirmation',
       message: `Report in ${report.barangays?.name || 'the area'} accepted and moved to active queue.`,
@@ -743,7 +768,6 @@ const rejectReport = async (report) => {
   const { error } = await supabase.from('reports').update({ status_id: 5 }).eq('id', report.id)
 
   if (!error) {
-    // Show local success toast on the dashboard
     addAlert({
       title: 'System Confirmation',
       message: 'Report was rejected and removed from pending.',
@@ -764,10 +788,8 @@ const filteredLinemen = computed(() => {
 
 const openAssign = async (incident) => {
   if (isBranchPhase.value) {
-    // Updated alert box string
-    alert(
-      'Admin assigning is locked. 8:00 AM to 5:00 PM is reserved for Branch Only to dispatch.\n\nPlease wait for the Admin dispatch window (5:01 PM - 7:59 AM).',
-    )
+    // Show validation modal if it's currently the branch dispatching window
+    showTimeLockModal.value = true
     return
   }
 
@@ -809,14 +831,12 @@ const assignSingleLineman = async (uid) => {
   })
 
   if (!error) {
-    // Alert the lineman via database notification
     sendNotification(
       'System: Dispatch Update',
       `Assigned to report ${selectedReport.value.id}`,
       uid,
     )
 
-    // Trigger the local visual pop-up on the admin dashboard
     addAlert({
       title: 'System Confirmation',
       message: 'Lineman successfully dispatched to the incident.',
@@ -849,12 +869,9 @@ const groupedBarangays = computed(() => {
 const groupedReportTypes = computed(() => {
   const query = typeSearchQuery.value.toLowerCase().trim()
   const map = {}
-
-  // 1. Add 'OTHER' to the priority order array
   const priorityOrder = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW', 'OTHER']
 
   reportTypes.value.forEach((t) => {
-    // 2. Change the fallback from 'NORMAL' to 'OTHER'
     const prio = (t.priority_level || 'OTHER').toUpperCase()
 
     if (!query || t.name.toLowerCase().includes(query) || prio.toLowerCase().includes(query)) {
@@ -954,6 +971,65 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Dispatch Time Validation Modal (Admin Lock) */
+.time-lock-card {
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #a5b4fc;
+  width: 460px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+.time-lock-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.time-lock-header .info-icon {
+  color: #2563eb;
+}
+.time-lock-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+.time-lock-body {
+  padding: 24px 20px;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.time-lock-body p {
+  margin: 0 0 16px 0;
+}
+.time-lock-body p:last-child {
+  margin-bottom: 0;
+}
+.time-lock-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-primary-ok {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary-ok:hover {
+  background: #1d4ed8;
+}
+
 /* Validation Required Modal Styles (Matches Dashboard Theme) */
 .validation-modal-card {
   background: white;

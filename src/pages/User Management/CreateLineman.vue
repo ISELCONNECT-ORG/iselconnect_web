@@ -8,25 +8,42 @@
       <!-- Centered Container with Blurred Background -->
       <div class="wizard-page-wrapper">
         <div class="wizard-card">
-          <!-- Wizard Left Panel (Yellow) -->
-          <div class="wizard-left">
-            <h3>CREATE LINEMAN ACCOUNT</h3>
-            <div class="stepper">
-              <div class="step" :class="{ active: step === 1, done: step > 1 }">
-                <div class="circle"><Check v-if="step > 1" :size="12" /></div>
-                BRANCH
+          <!-- Wizard Left Panel (Dynamic Background) -->
+          <div class="wizard-left" :class="{ 'auth-sidebar': step === 4 }">
+            <template v-if="step < 4">
+              <h3>CREATE LINEMAN ACCOUNT</h3>
+              <div class="stepper">
+                <div class="step" :class="{ active: step === 1, done: step > 1 }">
+                  <div class="circle"><Check v-if="step > 1" :size="12" /></div>
+                  BRANCH
+                </div>
+                <div class="line"></div>
+                <div class="step" :class="{ active: step === 2, done: step > 2 }">
+                  <div class="circle"><Check v-if="step > 2" :size="12" /></div>
+                  PERSONAL INFORMATION
+                </div>
+                <div class="line"></div>
+                <div class="step" :class="{ active: step === 3, done: step > 3 }">
+                  <div class="circle"><Check v-if="step > 3" :size="12" /></div>
+                  SECURITY
+                </div>
               </div>
-              <div class="line"></div>
-              <div class="step" :class="{ active: step === 2, done: step > 2 }">
-                <div class="circle"><Check v-if="step > 2" :size="12" /></div>
-                PERSONAL INFORMATION
+            </template>
+
+            <!-- STEP 4 SIDEBAR -->
+            <template v-else>
+              <div class="auth-brand">
+                <h2>ISELCONNECT</h2>
+                <p>Utility Management Platform</p>
               </div>
-              <div class="line"></div>
-              <div class="step" :class="{ active: step === 3, done: step > 3 }">
-                <div class="circle"><Check v-if="step > 3" :size="12" /></div>
-                SECURITY
+              <div class="auth-info">
+                <h4>Secure Authentication</h4>
+                <p>
+                  Verify your identity to access critical infrastructure monitoring and management
+                  tools.
+                </p>
               </div>
-            </div>
+            </template>
           </div>
 
           <!-- Wizard Right Panel (White) -->
@@ -146,17 +163,65 @@
               </div>
             </div>
 
+            <!-- STEP 4: Email Verification -->
+            <div v-if="step === 4" class="step-content verification-container">
+              <div class="verification-header">
+                <MailCheck :size="56" color="#1e1b4b" stroke-width="1.5" />
+                <h2>EMAIL VERIFICATION</h2>
+                <p>
+                  A 6-digit code has been sent to your email. Please enter it below to verify your
+                  account.
+                </p>
+              </div>
+
+              <div class="otp-inputs">
+                <input
+                  v-for="(digit, i) in otpValues"
+                  :key="i"
+                  :ref="
+                    (el) => {
+                      if (el) otpRefs[i] = el
+                    }
+                  "
+                  v-model="otpValues[i]"
+                  @input="onOtpInput(i, $event)"
+                  @keydown="onOtpKeydown(i, $event)"
+                  @paste="onOtpPaste"
+                  type="text"
+                  maxlength="1"
+                  class="otp-box"
+                />
+              </div>
+
+              <button
+                @click="verifyAndCreateAccount"
+                class="btn-verify-block"
+                :disabled="isOtpIncomplete || loading"
+              >
+                {{ loading ? 'VERIFYING...' : 'VERIFY ACCOUNT' }}
+              </button>
+
+              <div class="verification-footer">
+                <button @click="resendCode" class="btn-text">
+                  <RefreshCw :size="14" /> RESEND CODE
+                </button>
+                <button @click="step = 3" class="btn-text">
+                  <ArrowLeft :size="14" /> BACK TO REGISTRATION
+                </button>
+              </div>
+            </div>
+
             <!-- Wizard Footer Buttons -->
-            <div class="wizard-footer">
+            <div v-if="step < 4" class="wizard-footer">
               <button v-if="step > 1" @click="step--" class="btn-back">BACK</button>
               <button v-if="step < 3" @click="step++" class="btn-next">NEXT</button>
               <button
                 v-if="step === 3"
-                @click="createLinemanAccount"
+                @click="sendVerificationCode"
                 class="btn-next"
                 :disabled="!isFormValid || loading"
               >
-                {{ loading ? 'CREATING...' : 'CREATE ACCOUNT' }}
+                {{ loading ? 'SENDING...' : 'CREATE ACCOUNT' }}
               </button>
             </div>
           </div>
@@ -170,9 +235,10 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import Sidebar from '@/components/Sidebar.vue'
-import { Check, Info } from 'lucide-vue-next'
+import Topbar from '@/components/Topbar.vue' /* Added Topbar import just in case */
+import { Check, Info, MailCheck, RefreshCw, ArrowLeft } from 'lucide-vue-next'
 
-// Attempt to import the notification utility from your source file, fallback safely if unavailable
+// Attempt to import the notification utility safely
 let sendNotification = async () => {}
 try {
   import('@/utils/notifications.js').then((module) => {
@@ -202,6 +268,10 @@ const form = reactive({
   municipality: '',
 })
 
+// OTP State
+const otpValues = ref(['', '', '', '', '', ''])
+const otpRefs = ref([])
+
 // Dynamic Password Validation logic
 const pwdReqs = computed(() => {
   const p = form.password
@@ -214,17 +284,14 @@ const pwdReqs = computed(() => {
   }
 })
 
-const isPasswordValid = computed(() => {
-  return Object.values(pwdReqs.value).every((val) => val)
-})
-
-const passwordMismatch = computed(() => {
-  return form.confirmPassword.length > 0 && form.password !== form.confirmPassword
-})
-
-const isFormValid = computed(() => {
-  return isPasswordValid.value && !passwordMismatch.value && form.password.length > 0
-})
+const isPasswordValid = computed(() => Object.values(pwdReqs.value).every((val) => val))
+const passwordMismatch = computed(
+  () => form.confirmPassword.length > 0 && form.password !== form.confirmPassword,
+)
+const isFormValid = computed(
+  () => isPasswordValid.value && !passwordMismatch.value && form.password.length > 0,
+)
+const isOtpIncomplete = computed(() => otpValues.value.some((val) => val === '' || val === null))
 
 // Reset Wizard Function
 const resetWizard = () => {
@@ -241,6 +308,7 @@ const resetWizard = () => {
   form.purok = ''
   form.barangay = ''
   form.municipality = ''
+  otpValues.value = ['', '', '', '', '', '']
 }
 
 // Fetch Branches
@@ -254,40 +322,87 @@ const fetchBranches = async () => {
 
 onMounted(fetchBranches)
 
-// Handle Account Creation
-const createLinemanAccount = async () => {
-  if (!form.branchId) {
-    alert('Please select a branch.')
-    return
+// OTP Input Handling
+const onOtpInput = (index, event) => {
+  let val = event.target.value.replace(/[^a-zA-Z0-9]/g, '')
+  otpValues.value[index] = val
+  if (val && index < 5) {
+    otpRefs.value[index + 1].focus()
   }
-  if (!isPasswordValid.value) {
-    alert('Please ensure all password requirements are met.')
-    return
+}
+
+const onOtpKeydown = (index, event) => {
+  if (event.key === 'Backspace' && !otpValues.value[index] && index > 0) {
+    otpRefs.value[index - 1].focus()
   }
-  if (passwordMismatch.value) {
-    alert('Passwords do not match.')
-    return
+}
+
+const onOtpPaste = (event) => {
+  event.preventDefault()
+  const pastedData = event.clipboardData
+    .getData('text')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 6)
+    .split('')
+
+  if (pastedData.length > 0) {
+    pastedData.forEach((char, i) => {
+      if (i < 6) otpValues.value[i] = char
+    })
+    const focusIndex = Math.min(pastedData.length, 5)
+    if (otpRefs.value[focusIndex]) otpRefs.value[focusIndex].focus()
   }
+}
+
+// 1. Send Verification Code (Sign Up trigger)
+const sendVerificationCode = async () => {
+  if (!form.branchId) return alert('Please select a branch.')
+  if (!isPasswordValid.value) return alert('Please ensure all password requirements are met.')
+  if (passwordMismatch.value) return alert('Passwords do not match.')
 
   loading.value = true
 
   try {
-    // 1. Create Auth User
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: form.email,
+    const cleanEmail = form.email.trim()
+    const { error: authError } = await supabase.auth.signUp({
+      email: cleanEmail,
       password: form.password,
     })
     if (authError) throw authError
 
-    const userId = authData.user.id
+    step.value = 4
+  } catch (err) {
+    alert('Registration Error: ' + err.message)
+  } finally {
+    loading.value = false
+  }
+}
 
-    // 2. Insert into Users Table
+// 2. Verify OTP and Create Database Records
+const verifyAndCreateAccount = async () => {
+  const token = otpValues.value.join('').trim()
+  const cleanEmail = form.email.trim()
+
+  loading.value = true
+
+  try {
+    const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+      email: cleanEmail,
+      token: token,
+      type: 'signup',
+    })
+    if (verifyError) throw verifyError
+
+    const userId = verifyData.user?.id || verifyData.session?.user?.id
+    if (!userId) throw new Error('Could not retrieve user context after verification.')
+
+    // Insert into Users Table
     const { error: userError } = await supabase.from('users').insert({
       id: userId,
       first_name: form.firstName,
       middle_name: form.middleName,
       last_name: form.lastName,
-      email: form.email,
+      email: cleanEmail,
       mobile_number: form.mobileNumber,
       role_id: 9, // Lineman
       branch_id: form.branchId,
@@ -295,7 +410,7 @@ const createLinemanAccount = async () => {
     })
     if (userError) throw userError
 
-    // 3. Insert into Employees Table
+    // Insert into Employees Table
     const { error: empError } = await supabase.from('employees').insert({
       user_id: userId,
       employee_id_no: form.employeeId,
@@ -305,14 +420,28 @@ const createLinemanAccount = async () => {
     })
     if (empError) throw empError
 
-    // Complete Process
-    alert('Lineman account successfully created!')
+    alert('Lineman account successfully verified and created!')
     await sendNotification('Welcome, Lineman', 'Account created and ready.', userId)
-    resetWizard() // Return to step 1 automatically
+    resetWizard()
   } catch (err) {
-    alert('Error: ' + err.message)
+    alert('Verification Error: ' + err.message)
   } finally {
     loading.value = false
+  }
+}
+
+// 3. Resend OTP functionality
+const resendCode = async () => {
+  try {
+    const cleanEmail = form.email.trim()
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: cleanEmail,
+    })
+    if (error) throw error
+    alert('A new verification code has been sent to your email.')
+  } catch (err) {
+    alert('Error resending code: ' + err.message)
   }
 }
 </script>
@@ -332,9 +461,7 @@ const createLinemanAccount = async () => {
   flex-direction: column;
 }
 
-/*
-  Centering wrapper with blurred background image
-*/
+/* Centering wrapper with blurred background image */
 .wizard-page-wrapper {
   position: relative;
   flex-grow: 1;
@@ -342,21 +469,19 @@ const createLinemanAccount = async () => {
   justify-content: center;
   align-items: center;
   padding: 40px 20px;
-  overflow: hidden; /* Prevent blur edges from overflowing */
+  overflow: hidden;
 }
 
 /* The Blurred Background Pseudo-element */
 .wizard-page-wrapper::before {
   content: '';
   position: absolute;
-  /* Negative inset prevents white glowing edges from the blur effect */
   top: -20px;
   left: -20px;
   right: -20px;
   bottom: -20px;
   background: url('@/assets/Background/HomeBackground.jpg') no-repeat center center;
   background-size: cover;
-  /* Adjust blur intensity and darken for better contrast */
   filter: blur(12px) brightness(0.65);
   z-index: 0;
 }
@@ -364,14 +489,13 @@ const createLinemanAccount = async () => {
 /* Base Wizard Card */
 .wizard-card {
   position: relative;
-  z-index: 1; /* Keeps the form strictly above the blurred background */
+  z-index: 1;
   display: flex;
   width: 100%;
   max-width: 800px;
   height: 500px;
   background: white;
   border-radius: 8px;
-  /* Enhanced shadow to make it pop off the blurred background */
   box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.5),
     0 0 20px rgba(0, 0, 0, 0.2);
@@ -384,6 +508,34 @@ const createLinemanAccount = async () => {
   width: 250px;
   padding: 40px 24px;
   color: #1e1b4b;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Authentication Sidebar Specific Styles */
+.auth-sidebar {
+  justify-content: space-between;
+}
+
+.auth-brand h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+.auth-brand p {
+  margin: 4px 0 0 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.auth-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+}
+.auth-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .wizard-left h3 {
@@ -424,11 +576,7 @@ const createLinemanAccount = async () => {
   transition: all 0.3s;
 }
 
-.step.active .circle {
-  background: #1e1b4b;
-  border-color: #1e1b4b;
-}
-
+.step.active .circle,
 .step.done .circle {
   background: #1e1b4b;
   border-color: #1e1b4b;
@@ -565,6 +713,99 @@ label {
 .req-item.met span {
   color: #1e1b4b;
   font-weight: 700;
+}
+
+/* Verification Step Styles */
+.verification-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 20px;
+}
+
+.verification-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.verification-header h2 {
+  color: #1e1b4b;
+  font-weight: 800;
+  margin: 16px 0 8px 0;
+}
+
+.verification-header p {
+  color: #64748b;
+  font-size: 0.85rem;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.otp-inputs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.otp-box {
+  width: 46px;
+  height: 52px;
+  border: 1px solid #1e1b4b;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e1b4b;
+  outline: none;
+}
+.otp-box:focus {
+  box-shadow: 0 0 0 2px rgba(30, 27, 75, 0.2);
+}
+
+.btn-verify-block {
+  width: 100%;
+  max-width: 380px;
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-bottom: 24px;
+}
+.btn-verify-block:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+.btn-verify-block:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+.verification-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: #1e1b4b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn-text:hover {
+  text-decoration: underline;
 }
 
 /* Wizard Footer Controls */
