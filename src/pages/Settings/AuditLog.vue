@@ -292,7 +292,7 @@ onMounted(() => {
 /* Hero Banner */
 .hero-banner {
   position: relative;
-  background: url('@/assets/Background/audit-banner.jpg') no-repeat right center;
+  background: url('@/assets/Background/bannerdashboard.jpg') no-repeat right center;
   background-size: cover;
   background-color: #4b6cb7;
   border-radius: 8px;

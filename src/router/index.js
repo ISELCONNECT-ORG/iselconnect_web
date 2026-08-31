@@ -255,6 +255,12 @@ const router = createRouter({
       component: () => import('@/pages/printables/Reports.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin/reports/power-advisory',
+      name: 'PowerAdvisoryReport',
+      component: () => import('@/pages/printables/PowerAdvisoryReport.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
