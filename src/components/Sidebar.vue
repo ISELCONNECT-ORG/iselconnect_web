@@ -10,10 +10,15 @@
       <router-link to="/admin/dashboard" class="nav-link" active-class="active">
         <LayoutDashboard :size="20" /> Dashboard
       </router-link>
-      <!-- Renamed text to 'Incident List' and mapped to our new separated route -->
+
       <router-link to="/admin/incident-list" class="nav-link" active-class="active">
-        <AlertTriangle :size="20" /> Incident List
+        <ClipboardList :size="20" /> Incident List
       </router-link>
+
+      <router-link to="/admin/incident" class="nav-link" active-class="active">
+        <AlertTriangle :size="20" /> Incident Queue
+      </router-link>
+
       <router-link to="/admin/map" class="nav-link" active-class="active">
         <MapIcon :size="20" /> Map View
       </router-link>
@@ -135,6 +140,7 @@
 import { ref } from 'vue'
 import {
   LayoutDashboard,
+  ClipboardList,
   AlertTriangle,
   Map as MapIcon,
   Users,
@@ -330,110 +336,5 @@ const cancelLogout = () => {
 
 .logout-btn:hover {
   background-color: #1e2a78;
-}
-</style>
-
-<style>
-/* GLOBAL MODAL STYLES */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  backdrop-filter: blur(4px);
-}
-
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  padding: 32px 24px;
-  width: 90%;
-  max-width: 400px;
-  text-align: center;
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  animation: modalIn 0.2s ease-out;
-}
-
-@keyframes modalIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.modal-icon-container {
-  background-color: #fee2e2;
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 20px;
-}
-
-.modal-icon {
-  color: #b91c1c;
-}
-
-.modal-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 8px;
-}
-
-.modal-text {
-  color: #64748b;
-  font-size: 0.95rem;
-  margin-bottom: 24px;
-  line-height: 1.5;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-}
-
-.btn-cancel {
-  background-color: #f1f5f9;
-  color: #475569;
-  border: none;
-  padding: 10px 0;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  flex: 1;
-  transition: background-color 0.2s;
-}
-
-.btn-cancel:hover {
-  background-color: #e2e8f0;
-}
-
-.btn-logout {
-  background-color: #1e1b4b;
-  color: white;
-  border: none;
-  padding: 10px 0;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  flex: 1;
-  transition: background-color 0.2s;
-}
-
-.btn-logout:hover {
-  background-color: #151336;
 }
 </style>
