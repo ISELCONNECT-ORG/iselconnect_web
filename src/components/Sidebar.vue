@@ -1,3 +1,4 @@
+<!-- Sidebar.vue -->
 <template>
   <aside class="sidebar">
     <div class="logo-area">
@@ -9,8 +10,9 @@
       <router-link to="/admin/dashboard" class="nav-link" active-class="active">
         <LayoutDashboard :size="20" /> Dashboard
       </router-link>
-      <router-link to="/admin/incident" class="nav-link" active-class="active">
-        <AlertTriangle :size="20" /> Incident Queue
+      <!-- Renamed text to 'Incident List' and mapped to our new separated route -->
+      <router-link to="/admin/incident-list" class="nav-link" active-class="active">
+        <AlertTriangle :size="20" /> Incident List
       </router-link>
       <router-link to="/admin/map" class="nav-link" active-class="active">
         <MapIcon :size="20" /> Map View
