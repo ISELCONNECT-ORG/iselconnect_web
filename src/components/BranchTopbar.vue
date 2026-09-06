@@ -3,18 +3,20 @@
   <header class="topbar-container" @click="closeDropdown">
     <div class="topbar-inner-box">
       <div class="topbar-left">
-        <span class="brand-logo-icon">⚡</span>
-        <span class="brand-title">ISELCONNECT • BRANCH</span>
+        <span class="brand-logo-icon"></span>
+        <span class="brand-title">ISELCONNECT</span>
       </div>
 
       <div class="topbar-right">
-        <!-- Notification Bell Trigger -->
+        <!-- Notification Button -->
         <div class="notification-bell-wrapper" @click.stop="toggleNotifications">
           <button class="bell-btn" title="Notifications">
-            🔔<span class="notification-dot"></span>
+            <Bell :size="18" class="bell-icon" />
+            <span class="bell-text">Notifications</span>
+            <span v-if="hasUnreadNotifications" class="notification-dot"></span>
           </button>
 
-          <!-- Notification Dropdown Panel (Branch Account Only) -->
+          <!-- Notification Dropdown Panel -->
           <div v-if="showNotifications" class="notification-dropdown-card" @click.stop>
             <div class="dropdown-header">
               <h3 class="dropdown-title">Branch Notifications</h3>
@@ -65,30 +67,75 @@
             </div>
           </div>
         </div>
-
-        <!-- Profile Pill Button -->
-        <div class="profile-pill">
-          <span class="profile-icon">👤</span>
-          <span class="profile-name">Branch Profile</span>
-          <span class="profile-chevron">▼</span>
-        </div>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase } from '@/services/supabase'
-import { AlertTriangle, Zap, CheckCircle2, Truck, Info } from 'lucide-vue-next'
+import { AlertTriangle, Zap, CheckCircle2, Truck, Info, Bell } from 'lucide-vue-next'
 
 const showNotifications = ref(false)
 const notifications = ref([])
 const selectedFilter = ref('All')
 
+// State to track unread notifications
+const hasUnreadNotifications = ref(false)
+let knownTotal = 0
+let pollingInterval = null
+
+const fetchBranchNotifications = async () => {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (!error && data) {
+    // Filter out duplicate notifications generated for multiple residents
+    const uniqueNotifications = data.filter(
+      (note, index, self) =>
+        index ===
+        self.findIndex(
+          (n) =>
+            n.title === note.title &&
+            n.message === note.message &&
+            n.created_at === note.created_at,
+        ),
+    )
+
+    // If dropdown is closed and new items arrived, trigger the red dot
+    if (!showNotifications.value && uniqueNotifications.length > knownTotal) {
+      hasUnreadNotifications.value = true
+    }
+
+    knownTotal = uniqueNotifications.length
+    notifications.value = uniqueNotifications
+  }
+}
+
+// Start auto-refresh polling on component mount
+onMounted(() => {
+  fetchBranchNotifications() // Initial fetch
+
+  // Refresh every 3 seconds (3000 ms)
+  pollingInterval = setInterval(() => {
+    fetchBranchNotifications()
+  }, 3000)
+})
+
+// Stop polling when navigating away from the page
+onUnmounted(() => {
+  if (pollingInterval) clearInterval(pollingInterval)
+})
+
 const toggleNotifications = () => {
   showNotifications.value = !showNotifications.value
+
   if (showNotifications.value) {
+    // Remove the red dot when the dropdown is opened
+    hasUnreadNotifications.value = false
     fetchBranchNotifications()
   }
 }
@@ -108,24 +155,6 @@ const formatTimeAgo = (dateString) => {
   if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
   return `${days}d ago`
-}
-
-const fetchBranchNotifications = async () => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  let query = supabase.from('notifications').select('*').order('created_at', { ascending: false })
-
-  if (user && user.id) {
-    query = query.or(`residents_id.eq.${user.id},residents_id.is.null`)
-  }
-
-  const { data, error } = await query
-
-  if (!error) {
-    notifications.value = data || []
-  }
 }
 
 const getType = (note) => {
@@ -234,56 +263,46 @@ const filteredGroupedNotifications = computed(() => {
 }
 .notification-bell-wrapper {
   position: relative;
-  cursor: pointer;
 }
+
+/* Styled Notification Button (Text + Icon) */
 .bell-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: transparent;
-  border: none;
-  font-size: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 6px;
-  border-radius: 50%;
+  padding: 6px 16px;
+  border-radius: 999px;
   transition: background 0.2s;
   position: relative;
 }
 .bell-btn:hover {
   background: rgba(255, 255, 255, 0.1);
 }
+.bell-icon {
+  color: #ffffff;
+}
 .notification-dot {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 6px;
-  height: 6px;
+  top: 4px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
   background: #ef4444;
   border-radius: 50%;
-}
-.profile-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 6px 14px;
-  border-radius: 999px;
-  color: #ffffff;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.profile-icon {
-  font-size: 0.85rem;
-}
-.profile-chevron {
-  font-size: 0.65rem;
-  opacity: 0.8;
+  box-shadow: 0 0 0 2px #283593;
 }
 
 /* Dropdown Styles */
 .notification-dropdown-card {
   position: absolute;
-  top: 55px;
-  right: 20px;
+  top: 50px;
+  right: 0;
   width: 400px;
   max-height: 560px;
   background: #ffffff;

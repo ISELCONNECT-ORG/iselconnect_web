@@ -594,6 +594,10 @@ onMounted(fetchData)
   background-size: cover;
   padding: 24px 32px;
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
   margin-bottom: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -608,6 +612,8 @@ onMounted(fetchData)
 .hero-overlay-content {
   position: relative;
   z-index: 2;
+  text-align: left;
+  width: 100%;
 }
 .hero-overlay-content h1 {
   margin: 0 0 4px 0;

@@ -235,6 +235,7 @@ const printReport = () => {
   margin: 0 0 8px 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: #f8fafc;
 }
 
 .banner-content p {

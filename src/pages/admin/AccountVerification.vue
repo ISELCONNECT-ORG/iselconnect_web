@@ -1,3 +1,4 @@
+<!-- src/pages/admin/AccountVerification.vue -->
 <template>
   <div class="dashboard-root">
     <Sidebar />
@@ -485,10 +486,13 @@ onMounted(() => {
   position: relative;
   background: url('@/assets/Background/bannerdashboard.jpg') no-repeat center center;
   background-size: cover;
-  padding: 24px;
+  padding: 24px 32px;
   border-radius: 8px;
-  color: white;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 .hero-banner::before {
@@ -501,6 +505,8 @@ onMounted(() => {
 .hero-overlay-content {
   position: relative;
   z-index: 2;
+  text-align: left;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -710,7 +716,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 20px 24px;
+  padding: 20px 32px;
 }
 .btn-back {
   background: transparent;

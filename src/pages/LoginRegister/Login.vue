@@ -161,8 +161,6 @@ const handleLogin = async () => {
         </button>
       </form>
     </div>
-
-    <router-link to="/" class="home-btn">BACK TO HOME</router-link>
   </div>
 </template>
 
@@ -302,24 +300,5 @@ input {
 .submit-btn:disabled {
   opacity: 0.75;
   cursor: not-allowed;
-}
-
-.home-btn {
-  position: relative;
-  z-index: 2;
-  margin-top: 34px;
-  padding: 10px 20px;
-  border-radius: 20px;
-  background: rgba(120, 120, 120, 0.45);
-  color: #fff;
-  text-decoration: none;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  backdrop-filter: blur(8px);
-}
-
-.home-btn:hover {
-  background: rgba(120, 120, 120, 0.6);
 }
 </style>
