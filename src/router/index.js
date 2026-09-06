@@ -267,6 +267,12 @@ const router = createRouter({
       component: () => import('@/pages/admin/IncidentList.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/branch/security',
+      name: 'BranchSecurity',
+      component: () => import('@/pages/branch/BranchSettings.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
