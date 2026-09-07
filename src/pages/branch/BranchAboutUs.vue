@@ -2,61 +2,77 @@
   <div class="dashboard-root">
     <Sidebar />
 
-    <main class="content">
-      <Topbar />
-
-      <div class="page-wrapper">
-        <!-- Page header -->
-        <header class="page-header">
-          <h1>Support & About</h1>
-          <p class="subtitle">Find help resources and learn more about the ISELCONNECT platform.</p>
-        </header>
-
-        <!-- Help Center -->
-        <section class="card glass-card">
-          <h3 class="card-title">Help Center</h3>
-          <p class="card-text">
-            If you encounter issues with the ISELCONNECT platform, please check our resources below:
-          </p>
-
-          <div class="support-actions">
-            <button class="btn-action primary">View FAQ</button>
-            <button class="btn-action secondary">Download User Manual</button>
-          </div>
-
-          <p class="contact-info">
-            For urgent technical concerns, contact us at:
-            <strong> support@iselconnect.com</strong>
-          </p>
-        </section>
-
-        <!-- System Credits -->
-        <section class="card glass-card">
-          <h3 class="card-title">System Credits</h3>
-          <p class="card-text">
-            ISELCONNECT is a capstone project developed by the senior IT students of Isabela State
-            University.
-          </p>
-
-          <div class="developers-list">
-            <div class="dev-item">
-              <strong>Allysa B. Reyes</strong>
-              <span>Developer</span>
-            </div>
-            <div class="dev-item">
-              <strong>Mark Justin F. Balisacan</strong>
-              <span>Web Developer</span>
-            </div>
-            <div class="dev-item">
-              <strong>John Lloyd A. Binuya</strong>
-              <span>Mobile Developer</span>
+    <main class="main-content">
+      <!-- Centered Content Wrapper with Profile UI Layout -->
+      <div class="content-wrapper">
+        <div class="profile-card">
+          <!-- Image Banner -->
+          <div class="card-banner">
+            <div class="banner-overlay"></div>
+            <div class="banner-content">
+              <h2 class="banner-name">Support & About</h2>
+              <p class="banner-email">
+                Find help resources and learn more about the ISELCONNECT platform.
+              </p>
             </div>
           </div>
 
-          <p class="copyright">
-            © 2026 Isabela State University - Web and Mobile Application Development
-          </p>
-        </section>
+          <!-- Card Body Layout -->
+          <div class="card-body">
+            <!-- Platform Overview Section (Left) -->
+            <div class="form-section">
+              <div class="inner-card-section">
+                <h3 class="section-title">Platform Overview</h3>
+                <p class="section-text">
+                  ISELCONNECT is an integrated real-time reporting and monitoring platform
+                  engineered specifically for electric cooperatives to streamline incident queues
+                  and field operations. The application bridges communication between field teams
+                  and branch dispatchers through specialized modules including live map views,
+                  incident tracking, and lineman monitoring, and is designed to optimize electricity
+                  distribution workflows, service outage management, and rapid response times for
+                  cooperative service areas. Built as a dedicated capstone project by information
+                  technology students from Isabela State University, it serves as a modern tool to
+                  elevate cooperative utility management and operational efficiency.
+                </p>
+
+                <p class="contact-info">
+                  For urgent technical concerns, contact us at:
+                  <strong>support@iselconnect.com</strong>
+                </p>
+              </div>
+            </div>
+
+            <!-- System Credits Section (Right) -->
+            <div class="status-section">
+              <div class="status-card">
+                <h3 class="status-label">SYSTEM CREDITS</h3>
+                <p class="status-desc">
+                  ISELCONNECT is a capstone project developed by the senior IT students of Isabela
+                  State University.
+                </p>
+
+                <div class="developers-list">
+                  <div class="dev-item">
+                    <strong>Allysa B. Reyes</strong>
+                    <span>Developer</span>
+                  </div>
+                  <div class="dev-item">
+                    <strong>Mark Justin F. Balisacan</strong>
+                    <span>Web Developer</span>
+                  </div>
+                  <div class="dev-item">
+                    <strong>John Lloyd A. Binuya</strong>
+                    <span>Mobile Developer</span>
+                  </div>
+                </div>
+
+                <p class="copyright">
+                  © 2026 Isabela State University - Web and Mobile Application Development
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -67,111 +83,131 @@ import Sidebar from '@/components/BranchSidebar.vue'
 </script>
 
 <style scoped>
+/* Base Layout with HomeBackground.jpg */
 .dashboard-root {
   display: flex;
   min-height: 100vh;
-  background: #f8fafc;
+  background-image: url('@/assets/Background/HomeBackground.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   font-family:
-    system-ui,
+    'Inter',
     -apple-system,
     BlinkMacSystemFont,
-    'Inter',
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
     sans-serif;
 }
 
-.content {
+.main-content {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
 }
 
-/* Wrapper to align the content below Topbar properly */
-.page-wrapper {
-  padding: 32px 40px 40px;
-  max-width: 900px;
+/* Center Layout */
+.content-wrapper {
+  padding: 40px;
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-/* Page header */
-.page-header h1 {
-  margin: 0;
-  font-size: 1.6rem;
-  color: #0f172a;
+/* Profile Card */
+.profile-card {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  max-width: 1100px;
 }
 
-.page-header .subtitle {
-  margin: 4px 0 24px;
+/* Image Banner using bannerdashboard.jpg */
+.card-banner {
+  position: relative;
+  background-image: url('@/assets/Background/bannerdashboard.jpg');
+  background-size: cover;
+  background-position: center;
+  padding: 40px 32px 32px 32px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  color: #ffffff;
+}
+
+/* Gradient overlay for banner text readability */
+.banner-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.4) 100%);
+  z-index: 1;
+}
+
+.banner-content {
+  position: relative;
+  z-index: 2;
+}
+
+.banner-name {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: #ffffff !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.banner-email {
   font-size: 0.9rem;
-  color: #64748b;
-}
-
-/* Glass cards */
-.card {
-  margin-bottom: 24px;
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.9);
-  padding: 24px 28px;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  box-shadow: 0 8px 22px rgba(148, 163, 184, 0.35);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-/* Card content */
-.card-title {
+  opacity: 0.95;
   margin: 0;
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Card Body Layout */
+.card-body {
+  display: flex;
+  padding: 32px;
+  gap: 48px;
+}
+
+.form-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Inner section styling */
+.inner-card-section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: space-between;
+}
+
+.section-title {
+  margin: 0 0 8px 0;
   font-size: 1.1rem;
   font-weight: 700;
   color: #0f172a;
 }
 
-.card-text {
-  margin: 8px 0 16px;
+.section-text {
+  margin: 0 0 16px 0;
   font-size: 0.9rem;
-  line-height: 1.5;
+  line-height: 1.6;
   color: #4b5563;
-}
-
-/* Support actions buttons */
-.support-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin: 16px 0;
-}
-
-.btn-action {
-  padding: 10px 20px;
-  border-radius: 999px;
-  border: 1px solid #cbd5e1;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-  background: #ffffff;
-  color: #1f2933;
-  transition: all 0.2s ease;
-}
-
-.btn-action.primary {
-  background: #1e3a8a;
-  border-color: #1e3a8a;
-  color: #ffffff;
-}
-
-.btn-action.primary:hover {
-  background: #1e2a78;
-}
-
-.btn-action.secondary {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #1e3a8a;
-}
-
-.btn-action.secondary:hover {
-  background: #dbeafe;
+  text-align: justify;
 }
 
 /* Contact info */
@@ -187,30 +223,64 @@ import Sidebar from '@/components/BranchSidebar.vue'
   color: #1e3a8a;
 }
 
-/* Developers */
+/* Status Section (Right side card matching Profile UI) */
+.status-section {
+  width: 360px;
+  flex-shrink: 0;
+}
+
+.status-card {
+  background-color: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 24px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+.status-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 0 0 12px 0;
+}
+
+.status-desc {
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+/* Developers List */
 .developers-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-top: 12px;
   border-top: 1px solid #e2e8f0;
 }
 
 .dev-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .dev-item strong {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: #111827;
 }
 
 .dev-item span {
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -218,9 +288,21 @@ import Sidebar from '@/components/BranchSidebar.vue'
 
 /* Footer text */
 .copyright {
-  font-size: 0.8rem;
-  margin-top: 32px;
+  font-size: 0.75rem;
   color: #94a3b8;
-  text-align: center;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+  margin: 0;
+  text-align: left;
+}
+
+/* Responsive adjustments */
+@media (max-width: 868px) {
+  .card-body {
+    flex-direction: column;
+  }
+  .status-section {
+    width: 100%;
+  }
 }
 </style>
