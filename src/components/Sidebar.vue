@@ -5,119 +5,166 @@
       <img src="@/assets/Background/iselconnectlogo.png" alt="ISELCONNECT Logo" class="logo-img" />
     </div>
 
+    <!-- MAIN TOP NAVIGATION -->
     <nav class="nav-menu">
       <div class="section-title">OVERVIEW</div>
       <router-link to="/admin/dashboard" class="nav-link" active-class="active">
-        <LayoutDashboard :size="20" /> Dashboard
+        <div class="dropdown-label"><LayoutDashboard :size="20" /> Dashboard</div>
       </router-link>
 
       <router-link to="/admin/incident-list" class="nav-link" active-class="active">
-        <ClipboardList :size="20" /> Incident Queue
+        <div class="dropdown-label"><ClipboardList :size="20" /> Incident Queue</div>
       </router-link>
 
       <router-link to="/admin/incident" class="nav-link" active-class="active">
-        <AlertTriangle :size="20" /> Incident List
+        <div class="dropdown-label"><AlertTriangle :size="20" /> Incident List</div>
       </router-link>
 
       <router-link to="/admin/map" class="nav-link" active-class="active">
-        <MapIcon :size="20" /> Map View
+        <div class="dropdown-label"><MapIcon :size="20" /> Map View</div>
       </router-link>
 
       <div class="section-title mt-4">FIELD OPS</div>
       <router-link to="/admin/linemen" class="nav-link" active-class="active">
-        <Users :size="20" /> Lineman Monitoring
+        <div class="dropdown-label"><Users :size="20" /> Lineman Monitoring</div>
       </router-link>
       <router-link to="/admin/advisory" class="nav-link" active-class="active">
-        <Megaphone :size="20" /> Power Advisory
+        <div class="dropdown-label"><Megaphone :size="20" /> Power Advisory</div>
       </router-link>
 
-      <!-- REPORTS SECTION -->
       <div class="section-title mt-4">REPORTS</div>
-      <div class="dropdown-container">
-        <button class="nav-link dropdown-toggle" @click="toggleReports">
-          <div class="dropdown-label"><Printer :size="20" /> Reports & Documents</div>
-          <ChevronUp v-if="isReportsOpen" :size="16" />
-          <ChevronDown v-else :size="16" />
+
+      <!-- Reports & Docs Flyout -->
+      <div class="nav-item-container">
+        <button
+          class="nav-link"
+          :class="{ 'active-flyout': activeMenu === 'reports' }"
+          @click="toggleMenu('reports', $event)"
+        >
+          <div class="dropdown-label"><Printer :size="20" /> Reports & Docs</div>
+          <div class="nav-right-icons">
+            <span v-if="activeMenu === 'reports'" class="active-dot"></span>
+            <ChevronRight :size="16" />
+          </div>
         </button>
-        <div v-if="isReportsOpen" class="dropdown-menu">
-          <router-link to="/admin/reports" class="nav-link sub-link" active-class="active">
-            <FileText :size="18" /> System Reports
-          </router-link>
 
-          <router-link
-            to="/admin/reports/power-advisory"
-            class="nav-link sub-link"
-            active-class="active"
-          >
-            <Megaphone :size="18" /> Advisory Reports
-          </router-link>
-
-          <router-link
-            to="/admin/reports/best-lineman"
-            class="nav-link sub-link"
-            active-class="active"
-          >
-            <Award :size="18" /> Best Lineman
-          </router-link>
+        <!-- Flyout Menu Overlay -->
+        <div v-if="activeMenu === 'reports'" class="flyout-menu dark-theme top-aligned">
+          <div class="flyout-header">
+            <div class="flyout-icon-box"><Printer :size="20" /></div>
+            <div class="flyout-titles">
+              <span class="flyout-title">Reports & Docs</span>
+              <span class="flyout-subtitle">Export & Analytics</span>
+            </div>
+          </div>
+          <div class="flyout-links">
+            <router-link to="/admin/reports" class="flyout-link" active-class="active">
+              <FileText :size="16" /> System Reports
+            </router-link>
+            <router-link
+              to="/admin/reports/power-advisory"
+              class="flyout-link"
+              active-class="active"
+            >
+              <Megaphone :size="16" /> Advisory Reports
+            </router-link>
+            <router-link to="/admin/reports/best-lineman" class="flyout-link" active-class="active">
+              <Award :size="16" /> Best Lineman
+            </router-link>
+          </div>
         </div>
       </div>
     </nav>
 
+    <!-- BOTTOM FOOTER NAVIGATION -->
     <div class="footer-nav">
-      <div class="dropdown-container">
-        <button class="nav-link dropdown-toggle" @click="toggleUserMgmt">
+      <!-- User Management Flyout -->
+      <div class="nav-item-container">
+        <button
+          class="nav-link"
+          :class="{ 'active-flyout': activeMenu === 'users' }"
+          @click="toggleMenu('users', $event)"
+        >
           <div class="dropdown-label"><Users :size="20" /> User Management</div>
-          <ChevronUp v-if="isUserMgmtOpen" :size="16" />
-          <ChevronDown v-else :size="16" />
+          <div class="nav-right-icons">
+            <span v-if="activeMenu === 'users'" class="active-dot"></span>
+            <ChevronRight :size="16" />
+          </div>
         </button>
-        <div v-if="isUserMgmtOpen" class="dropdown-menu">
-          <router-link to="/user-management" class="nav-link sub-link" active-class="active">
-            <Users :size="18" /> All Users
-          </router-link>
-          <router-link
-            to="/admin/account-verification"
-            class="nav-link sub-link"
-            active-class="active"
-          >
-            <ShieldCheck :size="18" /> Account Verification
-          </router-link>
-          <router-link to="/admin/create-lineman" class="nav-link sub-link" active-class="active">
-            <UserPlus :size="18" /> Create Lineman Account
-          </router-link>
-          <router-link to="/admin/create-branch" class="nav-link sub-link" active-class="active">
-            <Landmark :size="18" /> Create Branch Account
-          </router-link>
-          <router-link to="/admin/archive" class="nav-link sub-link" active-class="active">
-            <Archive :size="18" /> Archive
-          </router-link>
+
+        <!-- Flyout Menu Overlay (Bottom-aligned) -->
+        <div v-if="activeMenu === 'users'" class="flyout-menu dark-theme bottom-aligned">
+          <div class="flyout-header">
+            <div class="flyout-icon-box"><Users :size="20" /></div>
+            <div class="flyout-titles">
+              <span class="flyout-title">User Management</span>
+              <span class="flyout-subtitle">Accounts & Roles</span>
+            </div>
+          </div>
+          <div class="flyout-links scrollable">
+            <router-link to="/user-management" class="flyout-link" active-class="active">
+              <Users :size="16" /> All Users
+            </router-link>
+            <router-link to="/admin/account-verification" class="flyout-link" active-class="active">
+              <ShieldCheck :size="16" /> Account Verification
+            </router-link>
+            <router-link to="/admin/create-lineman" class="flyout-link" active-class="active">
+              <UserPlus :size="16" /> Create Lineman
+            </router-link>
+            <router-link to="/admin/create-branch" class="flyout-link" active-class="active">
+              <Landmark :size="16" /> Create Branch
+            </router-link>
+            <router-link to="/admin/archive" class="flyout-link" active-class="active">
+              <Archive :size="16" /> Archive
+            </router-link>
+          </div>
         </div>
       </div>
 
-      <div class="dropdown-container">
-        <button class="nav-link dropdown-toggle" @click="toggleSettings">
-          <div class="dropdown-label"><Settings :size="20" /> Settings</div>
-          <ChevronUp v-if="isSettingsOpen" :size="16" />
-          <ChevronDown v-else :size="16" />
+      <!-- System Settings Flyout -->
+      <div class="nav-item-container">
+        <button
+          class="nav-link"
+          :class="{ 'active-flyout': activeMenu === 'settings' }"
+          @click="toggleMenu('settings', $event)"
+        >
+          <div class="dropdown-label"><Settings :size="20" /> System Settings</div>
+          <div class="nav-right-icons">
+            <span v-if="activeMenu === 'settings'" class="active-dot"></span>
+            <ChevronRight :size="16" />
+          </div>
         </button>
-        <div v-if="isSettingsOpen" class="dropdown-menu">
-          <router-link to="/admin/profile" class="nav-link sub-link" active-class="active">
-            <User :size="18" /> Profile
-          </router-link>
-          <router-link to="/admin/security" class="nav-link sub-link" active-class="active">
-            <Shield :size="18" /> Security
-          </router-link>
-          <router-link to="/admin/audit-log" class="nav-link sub-link" active-class="active">
-            <FileText :size="18" /> Audit Log
-          </router-link>
-          <router-link to="/admin/about" class="nav-link sub-link" active-class="active">
-            <Info :size="18" /> About Us
-          </router-link>
+
+        <!-- Flyout Menu Overlay (Bottom-aligned) -->
+        <div v-if="activeMenu === 'settings'" class="flyout-menu dark-theme bottom-aligned">
+          <div class="flyout-header">
+            <div class="flyout-icon-box"><Settings :size="20" /></div>
+            <div class="flyout-titles">
+              <span class="flyout-title">System Settings</span>
+              <span class="flyout-subtitle">Preferences & Config</span>
+            </div>
+          </div>
+          <div class="flyout-links scrollable">
+            <router-link to="/admin/profile" class="flyout-link" active-class="active">
+              <User :size="16" /> Profile
+            </router-link>
+            <router-link to="/admin/security" class="flyout-link" active-class="active">
+              <Shield :size="16" /> Security
+            </router-link>
+            <router-link to="/admin/audit-log" class="flyout-link" active-class="active">
+              <FileText :size="16" /> Audit Log
+            </router-link>
+            <router-link to="/admin/about" class="flyout-link" active-class="active">
+              <Info :size="16" /> About Us
+            </router-link>
+          </div>
         </div>
       </div>
 
       <button @click="confirmLogout" class="logout-btn mt-4"><LogOut :size="20" /> Logout</button>
     </div>
 
+    <!-- Logout Modal -->
     <Teleport to="body">
       <div v-if="showLogoutModal" class="modal-overlay" @click.self="cancelLogout">
         <div class="modal-content">
@@ -137,7 +184,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import {
   LayoutDashboard,
   ClipboardList,
@@ -155,8 +202,7 @@ import {
   FileText,
   Info,
   LogOut,
-  ChevronDown,
-  ChevronUp,
+  ChevronRight,
   Printer,
   Award,
 } from 'lucide-vue-next'
@@ -165,23 +211,31 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-// Dropdown and Modal States
-const isUserMgmtOpen = ref(false)
-const isSettingsOpen = ref(false)
-const isReportsOpen = ref(false)
+// Flyout State
+const activeMenu = ref(null)
+
+const toggleMenu = (menu, event) => {
+  if (event) event.stopPropagation()
+  activeMenu.value = activeMenu.value === menu ? null : menu
+}
+
+// Close menus when clicking outside
+const closeMenus = (e) => {
+  if (!e.target.closest('.nav-item-container')) {
+    activeMenu.value = null
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', closeMenus)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeMenus)
+})
+
+// Modal States
 const showLogoutModal = ref(false)
-
-const toggleUserMgmt = () => {
-  isUserMgmtOpen.value = !isUserMgmtOpen.value
-}
-
-const toggleSettings = () => {
-  isSettingsOpen.value = !isSettingsOpen.value
-}
-
-const toggleReports = () => {
-  isReportsOpen.value = !isReportsOpen.value
-}
 
 const handleLogout = async () => {
   const { error } = await supabase.auth.signOut()
@@ -215,7 +269,8 @@ const cancelLogout = () => {
   padding: 0 16px 20px;
   position: sticky;
   top: 0;
-  overflow-y: auto;
+  overflow: visible;
+  z-index: 9999;
 }
 
 /* Logo Area */
@@ -242,54 +297,29 @@ const cancelLogout = () => {
 
 .section-title {
   font-size: 0.75rem;
-  font-weight: 600;
-  color: #94a3b8;
-  padding: 12px 12px 4px;
+  font-weight: 700;
+  color: #64748b;
+  padding: 16px 12px 8px;
   letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-.mt-4 {
-  margin-top: 16px;
-}
-
-/* Links and Buttons */
+/* Base Nav Links */
 .nav-link {
   color: #64748b;
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
   padding: 10px 12px;
   border-radius: 8px;
   font-weight: 500;
   font-size: 0.95rem;
   transition: all 0.2s ease;
   cursor: pointer;
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   width: 100%;
-}
-
-.nav-link:hover {
-  background-color: #f1f5f9;
-  color: #1e293b;
-}
-
-.nav-link.active {
-  background-color: #eef2ff;
-  color: #283593;
-  font-weight: 600;
-}
-
-/* Dropdown specific styles */
-.dropdown-container {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 4px;
-}
-
-.dropdown-toggle {
-  justify-content: space-between;
 }
 
 .dropdown-label {
@@ -298,25 +328,163 @@ const cancelLogout = () => {
   gap: 12px;
 }
 
-.dropdown-menu {
+.nav-link:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+.nav-link.active {
+  background-color: #f1f5f9;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+/* Active Flyout State Trigger */
+.nav-link.active-flyout {
+  background-color: #eff6ff;
+  color: #1e3a8a;
+  border: 1px solid #dbeafe;
+  font-weight: 600;
+}
+
+.nav-right-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.active-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #1e3a8a;
+  border-radius: 50%;
+}
+
+/* Flyout Container & Menu */
+.nav-item-container {
+  position: relative;
+  margin-bottom: 2px;
+}
+
+.flyout-menu.dark-theme {
+  position: absolute;
+  left: 100%;
+  margin-left: 16px;
+  width: 260px;
+  background-color: #0f172a;
+  border-radius: 12px;
+  padding: 16px;
+  z-index: 99999;
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.4),
+    0 8px 10px -6px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-top: 2px;
+  gap: 12px;
+  border: 1px solid #1e293b;
 }
 
-.sub-link {
-  padding-left: 40px;
+/* Layer & Alignment Fixes */
+.flyout-menu.dark-theme.top-aligned {
+  top: -8px;
+}
+
+.flyout-menu.dark-theme.bottom-aligned {
+  top: auto;
+  bottom: 0;
+}
+
+.flyout-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #1f2937;
+}
+
+.flyout-icon-box {
+  background-color: #1e293b;
+  padding: 8px;
+  border-radius: 8px;
+  color: #60a5fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flyout-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.flyout-title {
   font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
 }
 
-/* Footer & Logout Button */
+.flyout-subtitle {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* SCROLLABLE LINKS BOX */
+.flyout-links.scrollable {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+/* Custom Scrollbar for Flyout */
+.flyout-links.scrollable::-webkit-scrollbar {
+  width: 4px;
+}
+.flyout-links.scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+.flyout-links.scrollable::-webkit-scrollbar-thumb {
+  background-color: #334155;
+  border-radius: 10px;
+}
+
+.flyout-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  color: #94a3b8;
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.flyout-link:hover {
+  background-color: #1f2937;
+  color: #e2e8f0;
+}
+
+.flyout-link.active {
+  background-color: #1e3a8a;
+  color: #93c5fd;
+  font-weight: 500;
+}
+
+/* Separated Footer / Bottom Nav */
 .footer-nav {
   margin-top: auto;
   display: flex;
   flex-direction: column;
+  gap: 4px;
   border-top: 1px solid #e2e8f0;
   padding-top: 16px;
+}
+
+.mt-4 {
+  margin-top: 16px;
 }
 
 .logout-btn {
@@ -340,11 +508,7 @@ const cancelLogout = () => {
 </style>
 
 <style>
-/*
-  MODAL STYLES MOVED TO GLOBAL SCOPE
-  Because we used <Teleport>, the modal now lives in the <body>,
-  so these styles cannot be 'scoped' to the sidebar anymore.
-*/
+/* Global Modal Styles for Teleported Elements */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -352,7 +516,7 @@ const cancelLogout = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 999999;
   backdrop-filter: blur(4px);
 }
 

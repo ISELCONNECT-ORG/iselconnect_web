@@ -273,6 +273,24 @@ const router = createRouter({
       component: () => import('@/pages/branch/BranchSettings.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/branch/about',
+      name: 'BranchAboutUs',
+      component: () => import('@/pages/Settings/AboutUs.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/about',
+      name: 'BranchAboutUs',
+      component: () => import('@/pages/branch/BranchAboutUs.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/branch/audit-log',
+      name: 'BranchAuditLog',
+      component: () => import('@/pages/Settings/BranchAuditLog.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
