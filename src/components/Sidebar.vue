@@ -12,11 +12,11 @@
       </router-link>
 
       <router-link to="/admin/incident-list" class="nav-link" active-class="active">
-        <ClipboardList :size="20" /> Incident List
+        <ClipboardList :size="20" /> Incident Queue
       </router-link>
 
       <router-link to="/admin/incident" class="nav-link" active-class="active">
-        <AlertTriangle :size="20" /> Incident Queue
+        <AlertTriangle :size="20" /> Incident List
       </router-link>
 
       <router-link to="/admin/map" class="nav-link" active-class="active">

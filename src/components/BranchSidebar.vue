@@ -12,7 +12,7 @@
         <LayoutDashboard :size="20" /> Dashboard
       </router-link>
       <router-link to="/branch/incident" class="nav-link" active-class="active">
-        <AlertTriangle :size="20" /> Incident Queue
+        <AlertTriangle :size="20" /> Incident List
       </router-link>
       <router-link to="/branch/map" class="nav-link" active-class="active">
         <MapIcon :size="20" /> Map View

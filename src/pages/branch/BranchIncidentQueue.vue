@@ -8,7 +8,7 @@
       <!-- HERO HEADER -->
       <header class="hero-section">
         <div class="hero-text">
-          <h1>{{ branchName }} INCIDENT QUEUE</h1>
+          <h1>{{ branchName }} INCIDENT LIST</h1>
           <p>Comprehensive incident management and dispatch operations for {{ branchName }}.</p>
         </div>
         <button @click="openManualModal" class="manual-dispatch-btn">

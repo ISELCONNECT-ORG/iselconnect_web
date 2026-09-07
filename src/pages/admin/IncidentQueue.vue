@@ -8,7 +8,7 @@
       <!-- HERO HEADER -->
       <header class="hero-section">
         <div class="hero-text">
-          <h1>INCIDENT QUEUE</h1>
+          <h1>INCIDENT LIST</h1>
           <p>Comprehensive profile management for the ISELCONNECT field engineering team.</p>
         </div>
         <button @click="openManualModal" class="manual-dispatch-btn">

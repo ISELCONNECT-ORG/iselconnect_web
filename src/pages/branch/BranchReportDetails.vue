@@ -133,7 +133,7 @@
             <button
               v-if="(!assignment || !assignment.is_verified_by_admin) && report?.status_id !== 6"
               :disabled="!resolvedPhotoUrl"
-              @click="validateResolution"
+              @click="handleVerifyClick"
               class="verify-btn"
               :style="{
                 opacity: !resolvedPhotoUrl ? 0.6 : 1,
@@ -201,6 +201,32 @@
         </div>
       </div>
     </main>
+
+    <!-- Verification Confirmation Modal -->
+    <div v-if="showVerifyModal" class="modal-overlay" @click.self="showVerifyModal = false">
+      <div class="confirm-modal">
+        <div class="modal-header">
+          <ShieldCheck :size="20" class="header-icon" />
+          <h2>Confirm Report Verification</h2>
+        </div>
+        <div class="modal-body">
+          <div class="modal-icon-box">
+            <CheckCircle :size="24" class="body-icon" />
+          </div>
+          <div class="modal-text-content">
+            <h3>Are you sure you want to verify this report?</h3>
+            <p>
+              This action will officially mark the incident resolution and repair evidence as
+              validated, compute total resolution duration, and close the incident ticket.
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="showVerifyModal = false">Cancel</button>
+          <button class="btn-verify" @click="executeVerification">Verify Report</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -209,7 +235,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import BranchSidebar from '@/components/BranchSidebar.vue'
-import { CheckCircle, ImageOff } from 'lucide-vue-next'
+import { CheckCircle, ImageOff, ShieldCheck } from 'lucide-vue-next'
 
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -223,6 +249,8 @@ const reportTypes = ref([])
 const evidenceUrls = ref([])
 const resolvedPhotoUrl = ref(null)
 const branchId = ref(null)
+
+const showVerifyModal = ref(false)
 
 const LOCATIONIQ_TOKEN = import.meta.env.VITE_LOCATIONIQ_TOKEN
 let mapInstance = null
@@ -244,7 +272,7 @@ const fetchReportDetails = async () => {
     return
   }
 
-  // Validate Branch Account User Session[cite: 3]
+  // Validate Branch Account User Session
   const {
     data: { user },
     error: userError,
@@ -270,7 +298,7 @@ const fetchReportDetails = async () => {
 
   branchId.value = userData.branch_id
 
-  // Fetch Report restricted strictly to this branch account[cite: 3]
+  // Fetch Report restricted strictly to this branch account
   const { data, error } = await supabase
     .from('reports')
     .select('*, users(first_name, last_name), municipalities(name)')
@@ -520,6 +548,10 @@ const lifecycleMilestones = computed(() => {
 })
 
 const resolutionDuration = computed(() => {
+  if (report.value?.resolution_time) {
+    return report.value.resolution_time
+  }
+
   if (!assignment.value || !assignment.value.assigned_at) return 'NOT ASSIGNED'
 
   const start = new Date(assignment.value.assigned_at).getTime()
@@ -607,7 +639,7 @@ const fetchResolvedPhoto = async (fieldValue) => {
   }
 }
 
-const validateResolution = async () => {
+const handleVerifyClick = () => {
   if (!report.value || !resolvedPhotoUrl.value) return
 
   // TIME WINDOW RESTRICTION CHECK (Branch: 8:00 AM to 5:00 PM)
@@ -621,6 +653,12 @@ const validateResolution = async () => {
     return
   }
 
+  // If validation passes, show the custom modal
+  showVerifyModal.value = true
+}
+
+const executeVerification = async () => {
+  showVerifyModal.value = false // Close the modal
   const currentTime = new Date().toISOString()
   let assignError = null
 
@@ -1041,5 +1079,117 @@ onUnmounted(() => {
   color: #475569;
   margin: 0;
   line-height: 1.4;
+}
+
+/* CONFIRMATION MODAL */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.confirm-modal {
+  background: white;
+  width: 100%;
+  max-width: 500px;
+  border-radius: 8px;
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: white;
+  border-bottom: 1px solid #f1f5f9;
+}
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+.header-icon {
+  color: #1e1b4b;
+}
+.modal-body {
+  padding: 24px;
+  background: #f8fafc;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+.modal-icon-box {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.body-icon {
+  color: #1e1b4b;
+}
+.modal-text-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.modal-text-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+  line-height: 1.5;
+}
+.modal-footer {
+  padding: 16px 24px;
+  background: white;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+.btn-cancel {
+  background: white;
+  border: 1px solid #cbd5e1;
+  color: #1e1b4b;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-cancel:hover {
+  background: #f1f5f9;
+}
+.btn-verify {
+  background: #1e1b4b;
+  border: none;
+  color: white;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-verify:hover {
+  background: #312e81;
 }
 </style>
