@@ -63,7 +63,6 @@
 import { ref } from 'vue'
 import { supabase } from '@/services/supabase'
 import BranchSidebar from '@/components/BranchSidebar.vue'
-import BranchTopbar from '@/components/BranchTopbar.vue'
 
 const newPassword = ref('')
 const confirmPassword = ref('')

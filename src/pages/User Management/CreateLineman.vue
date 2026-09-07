@@ -235,7 +235,6 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import Sidebar from '@/components/Sidebar.vue'
-import Topbar from '@/components/Topbar.vue' /* Added Topbar import just in case */
 import { Check, Info, MailCheck, RefreshCw, ArrowLeft } from 'lucide-vue-next'
 
 // Attempt to import the notification utility safely

@@ -133,7 +133,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import Sidebar from '@/components/Sidebar.vue'
-import Topbar from '@/components/Topbar.vue'
 import { FileText, Search, Calendar, Filter, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 // --- State Variables ---

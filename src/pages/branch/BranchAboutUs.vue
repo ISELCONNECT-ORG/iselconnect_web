@@ -64,7 +64,6 @@
 
 <script setup>
 import Sidebar from '@/components/BranchSidebar.vue'
-import Topbar from '@/components/BranchTopbar.vue'
 </script>
 
 <style scoped>

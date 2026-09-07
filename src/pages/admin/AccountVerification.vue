@@ -313,7 +313,6 @@
 import { ref, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import Sidebar from '@/components/Sidebar.vue'
-import Topbar from '@/components/Topbar.vue'
 import {
   ClipboardList,
   Ban,
