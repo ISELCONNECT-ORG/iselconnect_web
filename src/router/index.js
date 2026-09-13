@@ -291,6 +291,12 @@ const router = createRouter({
       component: () => import('@/pages/Settings/BranchAuditLog.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin/create-lineman-team',
+      name: 'CreateLinemanTeam',
+      component: () => import('@/pages/admin/CreateLinemanTeam.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

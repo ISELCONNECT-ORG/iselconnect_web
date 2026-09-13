@@ -100,10 +100,10 @@
           <h3>Confirm Approval</h3>
         </div>
         <div class="modal-body">
-          <p><strong>Are you sure you want to verify?</strong></p>
+          <p><strong>Are you sure you want to accept this report?</strong></p>
           <p>
-            This action will officially verify the report, mark the resolved evidence as validated,
-            and close the incident ticket.
+            This action will officially accept the report and move it to the "On Queue" status for
+            dispatching.
           </p>
         </div>
         <div class="modal-footer">
@@ -150,15 +150,16 @@ const promptAccept = (report) => {
 const confirmAccept = async () => {
   if (!selectedReport.value) return
 
+  // Update status to 7 (On Queue)
   const { error } = await supabase
     .from('reports')
-    .update({ status_id: 2 })
+    .update({ status_id: 7 })
     .eq('id', selectedReport.value.id)
 
   if (!error) {
     addAlert({
       title: 'System Confirmation',
-      message: `Report in ${selectedReport.value.barangays?.name || 'the area'} accepted and moved to active queue.`,
+      message: `Report in ${selectedReport.value.barangays?.name || 'the area'} accepted and moved to On Queue.`,
       severity: 'low',
     })
   }

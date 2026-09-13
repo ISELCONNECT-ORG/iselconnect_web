@@ -1,31 +1,125 @@
+<!-- src/pages/branch/BranchMapView.vue -->
 <template>
   <div class="dashboard-shell">
     <BranchSidebar />
+
     <div class="main-area">
-      <Topbar />
+      <BranchTopbar />
+
       <main class="content-area">
         <div class="map-stage">
-          <IncidentMap :reports="reports" :filter="currentFilter" />
+          <!-- FULL MAP -->
+          <IncidentMap
+            :reports="reports"
+            :filter="currentFilter"
+            :mapMode="mapMode"
+            :focusedReport="focusedReport"
+          />
 
+          <!-- FLOATING REPORT DETAILS CARD (Appears when a report is clicked) -->
+          <div v-if="focusedReport" class="floating-detail-card">
+            <div class="fd-header">
+              <div class="fd-title-row">
+                <span class="fd-title">{{
+                  focusedReport.report_types?.name || 'General Incident'
+                }}</span>
+                <span :class="['badge', focusedReport.statusClass]">{{
+                  focusedReport.statusLabel
+                }}</span>
+              </div>
+              <button class="btn-close-fd" @click="focusedReport = null"><X :size="18" /></button>
+            </div>
+            <div class="fd-body">
+              <div class="fd-row">
+                <span class="fd-label">Date Submitted:</span>
+                <span class="fd-val">{{ formatDateTime(focusedReport.created_at) }}</span>
+              </div>
+              <div class="fd-row">
+                <span class="fd-label">Priority:</span>
+                <span class="fd-val" style="font-weight: bold">
+                  {{ focusedReport.priorityLevel || 'Normal' }}
+                </span>
+              </div>
+              <div class="fd-row">
+                <span class="fd-label">Reporter:</span>
+                <span class="fd-val">
+                  {{
+                    focusedReport.users?.first_name
+                      ? `${focusedReport.users.first_name} ${focusedReport.users.last_name}`
+                      : 'Walk-in / Anonymous'
+                  }}
+                </span>
+              </div>
+              <div class="fd-row">
+                <span class="fd-label">Location:</span>
+                <span class="fd-val"
+                  >{{ focusedReport.landmark }} ({{
+                    focusedReport.barangays?.name || 'Unknown'
+                  }})</span
+                >
+              </div>
+              <div class="fd-row">
+                <span class="fd-label">Description:</span>
+                <span class="fd-val">{{
+                  focusedReport.description || 'No additional details provided.'
+                }}</span>
+              </div>
+            </div>
+            <div class="fd-footer">
+              <router-link :to="`/branch/reports/${focusedReport.id}`" class="btn-view-full">
+                View Full Report
+              </router-link>
+            </div>
+          </div>
+
+          <!-- RIGHT OVERLAY PANEL STACK -->
           <div class="overlay-stack">
-            <div class="glass-card legend-card">
-              <h4>LEGEND</h4>
-              <div class="legend-row">
-                <span class="legend-dot resolved"></span>
-                <span class="legend-label">Resolved</span>
-              </div>
-              <div class="legend-row">
-                <span class="legend-dot pending"></span>
-                <span class="legend-label">Pending</span>
-              </div>
-              <div class="legend-row">
-                <span class="legend-dot inprogress"></span>
-                <span class="legend-label">In Progress</span>
+            <!-- VIEW MODE TOGGLE (Markers vs Heatmap) -->
+            <div class="glass-card toggle-card">
+              <div class="view-toggle">
+                <button @click="mapMode = 'markers'" :class="{ active: mapMode === 'markers' }">
+                  Markers
+                </button>
+                <button @click="mapMode = 'heatmap'" :class="{ active: mapMode === 'heatmap' }">
+                  Heat Map
+                </button>
               </div>
             </div>
 
+            <!-- MARKERS LEGEND (PRIORITY BASED) -->
+            <div class="glass-card legend-card" v-if="mapMode === 'markers'">
+              <h4>PRIORITY LEGEND - {{ branchName }}</h4>
+              <div class="legend-row">
+                <span class="legend-dot critical"></span>
+                <span class="legend-label">Critical</span>
+              </div>
+              <div class="legend-row">
+                <span class="legend-dot high"></span>
+                <span class="legend-label">High</span>
+              </div>
+              <div class="legend-row">
+                <span class="legend-dot normal"></span>
+                <span class="legend-label">Normal</span>
+              </div>
+              <div class="legend-row">
+                <span class="legend-dot low"></span>
+                <span class="legend-label">Low</span>
+              </div>
+            </div>
+
+            <!-- HEATMAP LEGEND -->
+            <div class="glass-card legend-card" v-else-if="mapMode === 'heatmap'">
+              <h4>INCIDENT DENSITY</h4>
+              <div class="heatmap-gradient-bar"></div>
+              <div class="heatmap-labels">
+                <span>Low (1)</span>
+                <span>High (4+)</span>
+              </div>
+            </div>
+
+            <!-- GRID OPERATIONS STATUS -->
             <div class="glass-card ops-card">
-              <h3>GRID OPERATIONS STATUS</h3>
+              <h3>GRID STATUS - {{ branchName }}</h3>
               <div class="stats-row">
                 <div class="stat-box">
                   <span>RESOLVED</span>
@@ -42,6 +136,7 @@
               </div>
             </div>
 
+            <!-- FILTER BAR -->
             <div class="filter-bar">
               <button @click="currentFilter = 'all'" :class="{ active: currentFilter === 'all' }">
                 All
@@ -66,6 +161,7 @@
               </button>
             </div>
 
+            <!-- REPORTS LIST -->
             <div class="glass-card reports-card">
               <div class="list-header">
                 <span>REPORT</span>
@@ -73,11 +169,21 @@
               </div>
 
               <div class="reports-list">
-                <div v-for="r in filteredReports" :key="r.id" class="report-item">
+                <div
+                  v-for="r in tableReports"
+                  :key="r.id"
+                  class="report-item clickable"
+                  @click="focusOnReport(r)"
+                >
                   <div class="report-info">
-                    <strong>{{ r.landmark }}</strong>
+                    <strong>{{ r.landmark || 'Incident Report' }}</strong>
                   </div>
-                  <span :class="['badge', r.statusClass]">{{ r.statusLabel }}</span>
+                  <span :class="['badge', r.statusClass]">
+                    {{ r.statusLabel }}
+                  </span>
+                </div>
+                <div v-if="tableReports.length === 0" class="empty-list-text">
+                  No active reports in list.
                 </div>
               </div>
             </div>
@@ -93,157 +199,96 @@ import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/services/supabase'
 import IncidentMap from '@/components/map/IncidentMap.vue'
 import BranchSidebar from '@/components/BranchSidebar.vue'
-import Topbar from '@/components/BranchTopbar.vue'
+import BranchTopbar from '@/components/BranchTopbar.vue'
+import { X } from 'lucide-vue-next'
 
-const branchId = ref(null)
 const stats = ref({ resolved: 0, pending: 0, inProgress: 0 })
 const reports = ref([])
 const currentFilter = ref('all')
+const mapMode = ref('markers')
+const branchName = ref('Branch')
+const focusedReport = ref(null)
 
-const fetchBranchInfo = async () => {
+const focusOnReport = (report) => {
+  focusedReport.value = report
+}
+
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return 'N/A'
+  return new Date(dateStr).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+onMounted(async () => {
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser()
+  if (!user) return
 
-  if (userError || !user) {
-    console.error('Unable to get branch user for map view:', userError)
-    return
-  }
-
-  const { data, error } = await supabase
+  const { data: userData } = await supabase
     .from('users')
-    .select('branch_id')
+    .select('branch_id, iselco_branch(branch_name)')
     .eq('id', user.id)
     .single()
 
-  if (error) {
-    console.error('Error loading branch map data:', error)
-    return
-  }
+  if (!userData?.branch_id) return
+  branchName.value = userData.iselco_branch?.branch_name || 'Branch'
 
-  branchId.value = data?.branch_id || null
-
-  if (!branchId.value) return
-
-  const { data: branchReports = [] } = await supabase
+  // Added priority_level to the report_types extraction
+  const { data: all = [] } = await supabase
     .from('reports')
-    .select('*')
-    .eq('branch_id', branchId.value)
-    .order('created_at', { ascending: false })
+    .select(
+      '*, report_types(name, priority_level), barangays(name), municipalities(name), users:residents_id(first_name, last_name)',
+    )
+    .eq('branch_id', userData.branch_id)
+    .neq('status_id', 5)
+
+  reports.value = all.map((r) => {
+    let label = 'PENDING'
+    let cssClass = 'red'
+
+    if (r.status_id >= 4 && r.status_id !== 5) {
+      label = 'RESOLVED'
+      cssClass = 'blue'
+    } else if (r.status_id === 2 || r.status_id === 7) {
+      label = 'IN PROGRESS'
+      cssClass = 'orange'
+    }
+
+    const priority = r.report_types?.priority_level || 'Normal'
+
+    return { ...r, statusLabel: label, statusClass: cssClass, priorityLevel: priority }
+  })
 
   stats.value = {
-    pending: branchReports.filter((r) => r.status_id === 1).length,
-    inProgress: branchReports.filter((r) => r.status_id === 2).length,
-    resolved: branchReports.filter((r) => r.status_id === 3).length,
+    pending: reports.value.filter((r) => r.statusLabel === 'PENDING').length,
+    inProgress: reports.value.filter((r) => r.statusLabel === 'IN PROGRESS').length,
+    resolved: reports.value.filter((r) => r.statusLabel === 'RESOLVED').length,
   }
-
-  reports.value = branchReports.map((r) => ({
-    ...r,
-    statusLabel: r.status_id === 3 ? 'RESOLVED' : r.status_id === 2 ? 'IN PROGRESS' : 'PENDING',
-    statusClass: r.status_id === 3 ? 'blue' : r.status_id === 2 ? 'orange' : 'red',
-  }))
-}
-
-onMounted(fetchBranchInfo)
+})
 
 const filteredReports = computed(() => {
   if (currentFilter.value === 'all') return reports.value
   return reports.value.filter((r) => r.statusLabel === currentFilter.value)
 })
+
+const tableReports = computed(() => {
+  return filteredReports.value.filter((r) => r.landmark !== 'Walk-in Report')
+})
 </script>
 
 <style scoped>
-.dashboard-wrapper {
-  display: flex;
-  width: 100vw;
-  height: 100vh;
-  background: #f8fafc;
-  color: #000;
-  overflow: hidden;
-}
-.main-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.content-area {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-}
-.layout-grid {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 20px;
-  align-items: start;
-  height: calc(100vh - 100px);
-}
-.map-wrapper {
-  background: #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
-  height: 100%;
-}
-.sidebar-panels {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 360px;
-}
-.glass-card {
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-.reports-list {
-  max-height: 400px;
-  overflow-y: auto;
-}
-.filter-bar {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.filter-bar button {
-  flex: 1;
-  padding: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.7rem;
-  font-weight: bold;
-}
-.filter-bar button.active {
-  background: #3b82f6;
-  color: white;
-  border-color: #3b82f6;
-}
-.stats-row {
-  display: flex;
-  justify-content: space-between;
-  text-align: center;
-  margin-top: 15px;
-}
-.stat-box span {
-  font-size: 0.6rem;
-  color: #64748b;
-}
-.stat-box p {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin: 5px 0 0 0;
-}
 .dashboard-shell {
   display: flex;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #ffffff;
+  background: #f3f4f6;
 }
 
 .main-area {
@@ -259,25 +304,6 @@ const filteredReports = computed(() => {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-
-:deep(.topbar-container) {
-  margin-bottom: 0;
-}
-
-.page-header {
-  margin-bottom: 18px;
-}
-
-.page-header h1 {
-  margin: 0;
-  font-size: 1.75rem;
-  color: #0f172a;
-}
-
-.page-header p {
-  margin: 8px 0 0;
-  color: #475569;
 }
 
 .map-stage {
@@ -325,40 +351,185 @@ const filteredReports = computed(() => {
   letter-spacing: 0.3px;
 }
 
+/* FLOATING DETAILS CARD */
+.floating-detail-card {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  width: 320px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  border: 1px solid #e2e8f0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fd-header {
+  padding: 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.fd-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.fd-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.btn-close-fd {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.btn-close-fd:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.fd-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.fd-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fd-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.fd-val {
+  font-size: 0.85rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.fd-footer {
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-view-full {
+  display: block;
+  text-align: center;
+  background: #2563eb;
+  color: white;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.btn-view-full:hover {
+  background: #1d4ed8;
+}
+
+/* TOGGLE CARD FOR HEATMAP */
+.toggle-card {
+  padding: 8px;
+}
+.view-toggle {
+  display: flex;
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 8px;
+  padding: 4px;
+  gap: 4px;
+}
+.view-toggle button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 8px 0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.view-toggle button:hover {
+  color: #ffffff;
+}
+.view-toggle button.active {
+  background: #3b82f6;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* LEGENDS */
 .legend-card {
   padding-top: 10px;
   padding-bottom: 12px;
 }
-
 .legend-card h4 {
   font-size: 0.78rem;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
 }
-
 .legend-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
 }
-
 .legend-dot {
   width: 9px;
   height: 9px;
   border-radius: 999px;
 }
 
-.legend-dot.resolved {
-  background: #22c55e;
+/* Priority Marker Colors */
+.legend-dot.critical {
+  background: #ef4444; /* Red */
 }
-
-.legend-dot.pending {
-  background: #eab308;
+.legend-dot.high {
+  background: #f97316; /* Orange */
 }
-
-.legend-dot.inprogress {
-  background: #3b82f6;
+.legend-dot.normal {
+  background: #3b82f6; /* Blue */
+}
+.legend-dot.low {
+  background: #eab308; /* Yellow */
 }
 
 .legend-label {
@@ -366,37 +537,28 @@ const filteredReports = computed(() => {
   color: rgba(255, 255, 255, 0.9);
 }
 
-.health-card {
+/* Heatmap specific legend styles */
+.heatmap-gradient-bar {
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(to right, blue, cyan, lime, yellow, red);
+  margin-top: 10px;
+  margin-bottom: 6px;
+}
+.heatmap-labels {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.health-card .health-val {
-  font-size: 2rem;
-  font-weight: 800;
-  color: #ffffff;
-}
-
-.health-card .progress-bar {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.health-card .fill {
-  height: 100%;
-  background: #fbbf24;
-  transition: width 0.4s ease;
-}
-
+/* GRID OPS STATS */
 .ops-card .stats-row {
   display: flex;
   justify-content: space-between;
   gap: 8px;
 }
-
 .stat-box {
   flex: 1;
   text-align: center;
@@ -404,27 +566,25 @@ const filteredReports = computed(() => {
   border-radius: 10px;
   padding: 8px 6px;
 }
-
 .stat-box span {
   display: block;
   font-size: 0.65rem;
   color: rgba(255, 255, 255, 0.78);
   font-weight: 600;
 }
-
 .stat-box p {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   font-size: 1.05rem;
   font-weight: 800;
   color: #ffffff;
 }
 
+/* FILTER BAR */
 .filter-bar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
 }
-
 .filter-bar button {
   padding: 7px 6px;
   border-radius: 8px;
@@ -439,22 +599,20 @@ const filteredReports = computed(() => {
     color 0.15s ease,
     border-color 0.15s ease;
 }
-
 .filter-bar button:hover {
   background: #e5edf5;
 }
-
 .filter-bar button.active {
   background: #2563eb;
   color: #ffffff;
   border-color: #2563eb;
 }
 
+/* REPORTS LIST CARD */
 .reports-card {
   padding-top: 12px;
   padding-bottom: 12px;
 }
-
 .list-header {
   display: flex;
   justify-content: space-between;
@@ -463,22 +621,24 @@ const filteredReports = computed(() => {
   color: rgba(255, 255, 255, 0.9);
   margin-bottom: 6px;
 }
-
 .reports-list {
   max-height: 220px;
   overflow-y: auto;
   padding-right: 3px;
 }
-
 .reports-list::-webkit-scrollbar {
   width: 6px;
 }
-
 .reports-list::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.5);
   border-radius: 999px;
 }
-
+.empty-list-text {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  padding: 16px 0;
+}
 .report-item {
   display: flex;
   justify-content: space-between;
@@ -488,29 +648,45 @@ const filteredReports = computed(() => {
   margin-bottom: 4px;
   background: rgba(48, 60, 87, 0.32);
 }
+.report-item.clickable {
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    transform 0.1s;
+}
+.report-item.clickable:hover {
+  background: rgba(71, 116, 174, 0.5);
+  transform: translateY(-1px);
+}
+.report-item.clickable:active {
+  transform: translateY(0);
+}
 
 .report-info strong {
   color: #ffffff;
   font-size: 0.86rem;
+  display: block;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* STATUS BADGES */
 .badge {
   padding: 3px 9px;
   border-radius: 999px;
   font-size: 0.62rem;
   font-weight: 800;
 }
-
 .blue {
   background: #dbeafe;
   color: #1d4ed8;
 }
-
 .red {
   background: #fee2e2;
   color: #b91c1c;
 }
-
 .orange {
   background: #fef3c7;
   color: #92400e;

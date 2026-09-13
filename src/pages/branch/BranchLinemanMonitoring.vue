@@ -49,6 +49,7 @@
               <th>NAME</th>
               <th>BRANCH</th>
               <th>EMPLOYEE ID</th>
+              <th>TEAM</th>
               <th>ACTIONS</th>
             </tr>
           </thead>
@@ -62,13 +63,23 @@
               </td>
               <td class="muted">{{ lineman.employee_id_no }}</td>
               <td>
+                <span
+                  :class="[
+                    'team-badge',
+                    lineman.team_name === 'No Team' ? 'badge-none' : 'badge-assigned',
+                  ]"
+                >
+                  {{ lineman.team_name }}
+                </span>
+              </td>
+              <td>
                 <router-link :to="`/branch/lineman/${lineman.id}`" class="btn-view-profile">
                   View Profile
                 </router-link>
               </td>
             </tr>
             <tr v-if="filteredLinemen.length === 0">
-              <td colspan="4" style="text-align: center; padding: 24px; color: #64748b">
+              <td colspan="5" style="text-align: center; padding: 24px; color: #64748b">
                 No linemen found matching the current filters.
               </td>
             </tr>
@@ -117,7 +128,8 @@ const fetchAllData = async () => {
 
   if (!branchId.value) return
 
-  const { data } = await supabase
+  // 1. Fetch Linemen Data for this branch
+  const { data: empData } = await supabase
     .from('employees')
     .select(
       `id, user_id, employee_id_no, is_available, users!inner(first_name, last_name, role_id, branch_id, iselco_branch(branch_name))`,
@@ -125,7 +137,30 @@ const fetchAllData = async () => {
     .eq('users.role_id', 9)
     .eq('users.branch_id', branchId.value)
 
-  linemen.value = data || []
+  // 2. Fetch Teams Data to map assignments dynamically
+  const { data: teamData } = await supabase
+    .from('lineman_teams')
+    .select('team_name, team_leader, team_members')
+    .eq('assigned_service_area_id', branchId.value)
+
+  // Create a fast lookup map: user_id -> team_name
+  const teamMap = {}
+  if (teamData) {
+    teamData.forEach((team) => {
+      if (team.team_leader) teamMap[team.team_leader] = team.team_name
+      if (team.team_members) {
+        team.team_members.forEach((memberId) => {
+          teamMap[memberId] = team.team_name
+        })
+      }
+    })
+  }
+
+  // 3. Combine Data
+  linemen.value = (empData || []).map((lineman) => ({
+    ...lineman,
+    team_name: teamMap[lineman.user_id] || 'No Team',
+  }))
 
   const { count: total } = await supabase
     .from('employees')
@@ -321,6 +356,25 @@ onMounted(fetchAllData)
 }
 .muted {
   color: #475569;
+}
+
+/* Team Badges */
+.team-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+}
+.badge-assigned {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+.badge-none {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .btn-view-profile {

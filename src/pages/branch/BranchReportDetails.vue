@@ -19,7 +19,15 @@
             </p>
           </div>
         </div>
-        <div class="hero-right">
+        <div class="hero-right" style="display: flex; gap: 12px; align-items: center">
+          <!-- Changed logic to ensure it shows for ALL active reports, including walk-ins -->
+          <button
+            v-if="report && report.status_id !== 6 && report.status_id !== 5"
+            @click="openAssign"
+            class="hero-assign-btn"
+          >
+            <UserPlus :size="16" /> ASSIGN DISPATCH
+          </button>
           <span class="status-pill">{{ getStatusName(report?.status_id) }}</span>
         </div>
       </div>
@@ -81,24 +89,45 @@
             </div>
           </div>
 
-          <div class="info-card">
-            <div class="remarks-header">
-              <h3>Remarks</h3>
-              <div class="res-time">
-                RESOLUTION TIME<br />
-                <b
-                  :style="{
-                    color:
-                      !assignment?.completion_at && assignment?.assigned_at ? '#2563eb' : '#1e1b4b',
-                  }"
-                >
-                  {{ resolutionDuration }}
-                </b>
+          <!-- Stacked Right Column for Assigned Personnel & Remarks -->
+          <div class="right-col-stack">
+            <!-- ASSIGNED PERSONNEL BOX -->
+            <div class="info-card" style="padding-bottom: 20px">
+              <h3>Assigned Personnel</h3>
+              <div
+                class="gray-box"
+                :class="{ 'unassigned-box': assignedLinemenDisplay === 'Not Assigned' }"
+              >
+                <span v-if="assignedLinemenDisplay !== 'Not Assigned'" class="assigned-text">
+                  <Users :size="16" />
+                  {{ assignedLinemenDisplay }}
+                </span>
+                <span v-else class="unassigned-text"> Not Assigned </span>
               </div>
             </div>
-            <!-- REMARKS DISPLAY ONLY -->
-            <div class="remarks-box">
-              {{ report.remarks || 'No remarks provided by lineman yet.' }}
+
+            <!-- REMARKS BOX -->
+            <div class="info-card flex-grow-card">
+              <div class="remarks-header">
+                <h3>Remarks</h3>
+                <div class="res-time">
+                  RESOLUTION TIME<br />
+                  <b
+                    :style="{
+                      color:
+                        !assignment?.completion_at && assignment?.assigned_at
+                          ? '#2563eb'
+                          : '#1e1b4b',
+                    }"
+                  >
+                    {{ resolutionDuration }}
+                  </b>
+                </div>
+              </div>
+              <!-- REMARKS DISPLAY ONLY -->
+              <div class="remarks-box">
+                {{ report.remarks || 'No remarks provided by lineman yet.' }}
+              </div>
             </div>
           </div>
         </div>
@@ -143,7 +172,7 @@
               <CheckCircle :size="16" /> VERIFY EVIDENCE
             </button>
             <button v-else class="verify-btn verified" disabled>
-              <CheckCircle :size="16" /> VERIFIED
+              <CheckCircle :size="16" /> MARKED AS COMPLETE
             </button>
           </div>
         </div>
@@ -227,6 +256,149 @@
         </div>
       </div>
     </div>
+
+    <!-- DISPATCH TIME VALIDATION MODAL -->
+    <div
+      v-if="showTimeLockModal"
+      class="modal-overlay"
+      style="z-index: 1050"
+      @click.self="showTimeLockModal = false"
+    >
+      <div class="time-lock-card">
+        <div class="time-lock-header">
+          <Info class="info-icon" :size="20" />
+          <h3>Dispatch Time</h3>
+        </div>
+        <div class="time-lock-body">
+          <p>
+            Branch assigning is locked right now. 5:01 PM to 7:59 AM is reserved for Admin Only to
+            dispatch.
+          </p>
+          <p>Please wait for the Branch dispatch window (8:00 AM - 5:00 PM).</p>
+        </div>
+        <div class="time-lock-footer">
+          <button @click="showTimeLockModal = false" class="btn-primary-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASSIGN MODAL (TEAMS & LINEMEN) -->
+    <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
+      <div class="assign-modal-card">
+        <h3>Assign Dispatch</h3>
+        <p>Select an available lineman or team to dispatch to this location.</p>
+
+        <!-- Toggle Tabs for Teams / Linemen (Teams First) -->
+        <div class="assign-tabs">
+          <button :class="{ active: assignTab === 'teams' }" @click="assignTab = 'teams'">
+            Lineman Teams
+          </button>
+          <button :class="{ active: assignTab === 'linemen' }" @click="assignTab = 'linemen'">
+            Individual Linemen
+          </button>
+        </div>
+
+        <div class="assign-search-row">
+          <div class="search-input-wrapper">
+            <Search class="search-icon" :size="16" />
+            <input
+              v-model="assignSearchQuery"
+              type="text"
+              :placeholder="
+                assignTab === 'teams' ? 'Search teams by name...' : 'Search linemen by name...'
+              "
+              class="assign-search-input"
+            />
+          </div>
+        </div>
+
+        <div class="table-scroll-wrapper">
+          <!-- TEAMS TABLE -->
+          <table v-if="assignTab === 'teams'" class="lineman-table">
+            <thead>
+              <tr>
+                <th>Team Name</th>
+                <th>Branch</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="t in filteredTeams" :key="t.id">
+                <td>
+                  <strong>{{ t.team_name }}</strong>
+                </td>
+                <td class="muted-text">{{ t.branch }}</td>
+                <td>
+                  <button
+                    class="assign-action-btn"
+                    :disabled="isTeamAssigned(t)"
+                    @click="assignTeam(t)"
+                  >
+                    {{ isTeamAssigned(t) ? 'Assigned' : 'Assign Team' }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="filteredTeams.length === 0">
+                <td colspan="3" class="text-center" style="padding: 24px">
+                  No matching teams found.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- INDIVIDUAL LINEMEN TABLE -->
+          <table v-else class="lineman-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Branch</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="l in filteredLinemen" :key="l.id">
+                <td>
+                  <strong>{{ l.name }}</strong>
+                </td>
+                <td class="muted-text">{{ l.branch }}</td>
+                <td>
+                  <span
+                    :class="[
+                      'lineman-status',
+                      l.status === 'Available' ? 'status-available' : 'status-on-job',
+                    ]"
+                  >
+                    {{ l.status || 'Available' }}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    class="assign-action-btn"
+                    :disabled="isAssigned(l.id)"
+                    @click="assignSingleLineman(l.id)"
+                  >
+                    {{ isAssigned(l.id) ? 'Assigned' : 'Assign' }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="filteredLinemen.length === 0">
+                <td colspan="4" class="text-center" style="padding: 24px">
+                  No matching linemen found.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          class="modal-footer"
+          style="padding: 0; background: transparent; border: none; margin-top: 16px"
+        >
+          <button @click="showAssignModal = false" class="btn-close-modal">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -235,12 +407,16 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import BranchSidebar from '@/components/BranchSidebar.vue'
-import { CheckCircle, ImageOff, ShieldCheck } from 'lucide-vue-next'
+import { CheckCircle, ImageOff, ShieldCheck, UserPlus, Search, Info, Users } from 'lucide-vue-next'
+import { useSystemAlerts } from '@/composables/useSystemAlerts'
+import { sendNotification } from '@/utils/notifications.js'
 
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 
 const route = useRoute()
+const { addAlert } = useSystemAlerts()
+
 const report = ref(null)
 const assignment = ref(null)
 const loading = ref(true)
@@ -251,6 +427,14 @@ const resolvedPhotoUrl = ref(null)
 const branchId = ref(null)
 
 const showVerifyModal = ref(false)
+
+// --- Assign State variables ---
+const showAssignModal = ref(false)
+const showTimeLockModal = ref(false)
+const assignTab = ref('teams')
+const availableLinemen = ref([])
+const availableTeams = ref([])
+const assignSearchQuery = ref('')
 
 const LOCATIONIQ_TOKEN = import.meta.env.VITE_LOCATIONIQ_TOKEN
 let mapInstance = null
@@ -264,6 +448,33 @@ let realtimeChannel = null
 const nowTime = ref(Date.now())
 let timerIntervalSec = null
 const frozenResolutionTime = ref(null)
+
+const isBranchPhase = computed(() => {
+  const current = new Date(nowTime.value)
+  const hour = current.getHours()
+  const minute = current.getMinutes()
+
+  if (hour >= 8 && hour < 17) {
+    return true
+  }
+  if (hour === 17 && minute === 0) {
+    return true
+  }
+  return false
+})
+
+// --- Format assigned linemen for the new box ---
+const assignedLinemenDisplay = computed(() => {
+  if (!report.value?.assignments || report.value.assignments.length === 0) return 'Not Assigned'
+
+  const names = report.value.assignments.map((a) => {
+    const f = a.users?.first_name || ''
+    const l = a.users?.last_name || ''
+    return `${f} ${l}`.trim() || 'Unknown Lineman'
+  })
+
+  return [...new Set(names)].join(', ')
+})
 
 const fetchReportDetails = async () => {
   const reportId = route.params.id
@@ -319,20 +530,24 @@ const fetchReportDetails = async () => {
     await fetchResolvedPhoto(resolvedPhotoPath)
   }
 
-  const { data: assignData, error: assignError } = await supabase
+  // Include users(first_name, last_name) to populate the Assigned Personnel box
+  const { data: allAssigns, error: assignError } = await supabase
     .from('assignments')
-    .select('*')
+    .select('*, users!lineman_id(first_name, last_name)')
     .eq('report_id', reportId)
     .order('assigned_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
-  if (!assignError && assignData) {
-    assignment.value = assignData
-    if (!resolvedPhotoUrl.value) {
-      const assignPhotoPath =
-        assignData.resolved_photo_url || assignData.resolved_evidence || assignData.photo_url
-      if (assignPhotoPath) await fetchResolvedPhoto(assignPhotoPath)
+  if (!assignError && allAssigns) {
+    report.value.assignments = allAssigns
+    if (allAssigns.length > 0) {
+      assignment.value = allAssigns[0]
+      if (!resolvedPhotoUrl.value) {
+        const assignPhotoPath =
+          assignment.value.resolved_photo_url ||
+          assignment.value.resolved_evidence ||
+          assignment.value.photo_url
+        if (assignPhotoPath) await fetchResolvedPhoto(assignPhotoPath)
+      }
     }
   }
 
@@ -679,9 +894,16 @@ const executeVerification = async () => {
     })
     .eq('id', report.value.id)
 
-  if (assignError || repError)
+  if (assignError || repError) {
     alert('Failed to validate: ' + (assignError?.message || repError?.message))
-  else fetchReportDetails()
+  } else {
+    addAlert({
+      title: 'Mark as Complete',
+      message: 'The report has been successfully verified and marked as complete.',
+      severity: 'low',
+    })
+    fetchReportDetails()
+  }
 }
 
 const openImage = (url) => {
@@ -736,6 +958,153 @@ const formatTime = (dateStr) => {
     minute: '2-digit',
     hour12: true,
   })
+}
+
+// --- Assign Modals & Logic ---
+
+const filteredLinemen = computed(() => {
+  if (!assignSearchQuery.value) return availableLinemen.value
+  const q = assignSearchQuery.value.toLowerCase()
+  return availableLinemen.value.filter(
+    (l) => l.name.toLowerCase().includes(q) || l.branch.toLowerCase().includes(q),
+  )
+})
+
+const filteredTeams = computed(() => {
+  if (!assignSearchQuery.value) return availableTeams.value
+  const q = assignSearchQuery.value.toLowerCase()
+  return availableTeams.value.filter(
+    (t) => t.team_name?.toLowerCase().includes(q) || t.branch?.toLowerCase().includes(q),
+  )
+})
+
+const isAssigned = (uid) => {
+  return report.value?.assignments?.some((a) => a.lineman_id === uid)
+}
+
+const isTeamAssigned = (team) => {
+  if (!report.value) return false
+
+  const allMembers = [team.team_leader, ...(team.team_members || [])]
+  const uniqueMembers = [...new Set(allMembers)].filter((id) => id)
+
+  if (uniqueMembers.length === 0) return true
+
+  const existingAssigns = report.value.assignments?.map((a) => a.lineman_id) || []
+  return uniqueMembers.every((uid) => existingAssigns.includes(uid))
+}
+
+const openAssign = async () => {
+  if (!isBranchPhase.value) {
+    showTimeLockModal.value = true
+    return
+  }
+
+  assignSearchQuery.value = ''
+  assignTab.value = 'teams'
+
+  const { data: usersData } = await supabase
+    .from('users')
+    .select('id, first_name, last_name, is_active')
+    .eq('role_id', 9)
+    .eq('branch_id', branchId.value)
+
+  const { data: empData } = await supabase
+    .from('employees')
+    .select('user_id, branch_id, is_available')
+    .eq('branch_id', branchId.value)
+
+  const { data: branchData } = await supabase.from('iselco_branch').select('branch_id, branch_name')
+
+  const { data: teamsData } = await supabase
+    .from('lineman_teams')
+    .select('*')
+    .eq('assigned_service_area_id', branchId.value)
+
+  availableLinemen.value =
+    usersData?.map((user) => {
+      const emp = empData?.find((e) => e.user_id === user.id)
+      const branch = branchData?.find((b) => b.branch_id === emp?.branch_id)
+      return {
+        id: user.id,
+        name: `${user.first_name} ${user.last_name}`,
+        branch: branch?.branch_name || 'Unassigned Branch',
+        status: user.is_active ? 'Available' : 'On Job',
+      }
+    }) || []
+
+  availableTeams.value =
+    teamsData?.map((t) => {
+      const branch = branchData?.find((b) => b.branch_id === t.assigned_service_area_id)
+      return {
+        ...t,
+        branch: branch?.branch_name || 'Unassigned Branch',
+      }
+    }) || []
+
+  showAssignModal.value = true
+}
+
+const assignSingleLineman = async (uid) => {
+  if (!report.value) return
+
+  const { error } = await supabase.from('assignments').insert({
+    report_id: report.value.id,
+    lineman_id: uid,
+    assigned_at: new Date().toISOString(),
+    inprogress_at: new Date().toISOString(),
+  })
+
+  if (!error) {
+    sendNotification('System: Dispatch Update', `Assigned to report ${report.value.id}`, uid)
+
+    addAlert({
+      title: 'Lineman Dispatched',
+      message: 'The selected lineman has been successfully assigned to the incident.',
+      severity: 'low',
+    })
+
+    fetchReportDetails()
+  } else {
+    alert('Error assigning lineman: ' + error.message)
+  }
+}
+
+const assignTeam = async (team) => {
+  if (!report.value) return
+
+  const allMembers = [team.team_leader, ...(team.team_members || [])]
+  let uniqueMembers = [...new Set(allMembers)].filter((id) => id)
+
+  const existingAssigns = report.value.assignments?.map((a) => a.lineman_id) || []
+  uniqueMembers = uniqueMembers.filter((uid) => !existingAssigns.includes(uid))
+
+  if (uniqueMembers.length === 0) return
+
+  const inserts = uniqueMembers.map((uid) => ({
+    report_id: report.value.id,
+    lineman_id: uid,
+    assigned_at: new Date().toISOString(),
+    inprogress_at: new Date().toISOString(),
+  }))
+
+  const { error } = await supabase.from('assignments').insert(inserts)
+
+  if (!error) {
+    uniqueMembers.forEach((uid) => {
+      sendNotification('System: Dispatch Update', `Assigned to report ${report.value.id}`, uid)
+    })
+
+    addAlert({
+      title: 'Team Dispatched',
+      message: `Team '${team.team_name}' has been successfully assigned to the incident.`,
+      severity: 'low',
+    })
+
+    fetchReportDetails()
+  } else {
+    alert('Error assigning team: ' + error.message)
+  }
 }
 
 onMounted(() => {
@@ -820,6 +1189,23 @@ onUnmounted(() => {
   font-weight: 800;
   text-transform: uppercase;
 }
+.hero-assign-btn {
+  background: white;
+  color: #1e1b4b;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+.hero-assign-btn:hover {
+  background: #f1f5f9;
+}
 
 /* DETAILS TOP ROW */
 .details-top-row {
@@ -883,10 +1269,40 @@ onUnmounted(() => {
   font-size: 1rem;
 }
 
-/* REMARKS TEXT BOX UPDATED */
+/* STACKED RIGHT COLUMN (Assigned + Remarks) */
+.right-col-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.flex-grow-card {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+.flex-grow-card .remarks-box {
+  flex-grow: 1;
+}
+
+.unassigned-box {
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1;
+}
+.assigned-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #2563eb;
+  font-weight: 700;
+}
+.unassigned-text {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* REMARKS TEXT BOX */
 .remarks-box {
   width: 100%;
-  height: 100px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 12px;
@@ -1191,5 +1607,198 @@ onUnmounted(() => {
 }
 .btn-verify:hover {
   background: #312e81;
+}
+
+/* Dispatch Time Validation Modal */
+.time-lock-card {
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #a5b4fc;
+  width: 460px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+.time-lock-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.time-lock-header .info-icon {
+  color: #2563eb;
+}
+.time-lock-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+.time-lock-body {
+  padding: 24px 20px;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.time-lock-body p {
+  margin: 0 0 16px 0;
+}
+.time-lock-body p:last-child {
+  margin-bottom: 0;
+}
+.time-lock-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-primary-ok {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary-ok:hover {
+  background: #1d4ed8;
+}
+
+/* Assign Modal Styles */
+.assign-modal-card {
+  background: white;
+  border-radius: 8px;
+  width: 600px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+.assign-modal-card h3 {
+  margin: 0 0 4px 0;
+  font-size: 1.1rem;
+  color: #1e1b4b;
+}
+.assign-modal-card p {
+  margin: 0 0 16px 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.assign-tabs {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 4px;
+  margin-bottom: 12px;
+  width: fit-content;
+}
+.assign-tabs button {
+  background: transparent;
+  border: none;
+  padding: 6px 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.assign-tabs button.active {
+  background: #1e1b4b;
+  color: white;
+}
+
+.assign-search-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.search-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+.assign-search-input {
+  width: 100%;
+  padding: 8px 10px 8px 32px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  box-sizing: border-box;
+}
+.table-scroll-wrapper {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+.lineman-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lineman-table th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  text-align: left;
+  font-size: 0.65rem;
+  color: #64748b;
+  padding: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  z-index: 10;
+}
+.lineman-table td {
+  padding: 10px;
+  font-size: 0.8rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+.lineman-status {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+.status-available {
+  background: #dcfce7;
+  color: #166534;
+}
+.status-on-job {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.assign-action-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.assign-action-btn:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+.btn-close-modal {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 </style>

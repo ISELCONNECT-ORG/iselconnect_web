@@ -53,7 +53,6 @@
         <div class="table-container">
           <div class="table-header">
             <h3>Pending Queue</h3>
-            <!-- Filters removed as requested -->
           </div>
 
           <div v-if="loading" class="empty-state">
@@ -70,8 +69,7 @@
               <tr>
                 <th>APPLICANT</th>
                 <th>DATE APPLIED</th>
-                <th>DOCUMENT PREVIEW</th>
-                <th class="align-right">ACTIONS</th>
+                <th class="align-right">DOCUMENT PREVIEW</th>
               </tr>
             </thead>
             <tbody>
@@ -86,18 +84,8 @@
                   </div>
                 </td>
                 <td class="muted-text">{{ formatDate(item.created_at) }}</td>
-                <td>
-                  <button @click="openDetails(item)" class="btn-outline-gray">View Details</button>
-                </td>
                 <td class="align-right">
-                  <div class="action-group">
-                    <button @click="promptAction(item, 'reject')" class="btn-outline-gold">
-                      Reject
-                    </button>
-                    <button @click="promptAction(item, 'approve')" class="btn-solid-navy">
-                      Approve
-                    </button>
-                  </div>
+                  <button @click="openDetails(item)" class="btn-outline-gray">View Details</button>
                 </td>
               </tr>
             </tbody>
@@ -666,39 +654,6 @@ onMounted(() => {
   background: #f8fafc;
 }
 
-.action-group {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-.btn-outline-gold {
-  background: white;
-  border: 1px solid #d97706;
-  color: #b45309;
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-outline-gold:hover {
-  background: #fef3c7;
-}
-
-.btn-solid-navy {
-  background: #1e1b4b;
-  border: none;
-  color: white;
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-solid-navy:hover {
-  background: #312e81;
-}
-
 .empty-state {
   padding: 32px;
   text-align: center;
@@ -833,7 +788,7 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 180px; /* Shrunk down heavily */
+  min-height: 180px;
 }
 .img-container img {
   max-width: 100%;
@@ -909,7 +864,7 @@ onMounted(() => {
 .modal-content {
   background: white;
   border-radius: 8px;
-  width: 400px; /* Reduced width */
+  width: 400px;
   overflow: hidden;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   animation: slideDown 0.2s ease-out;
@@ -933,7 +888,6 @@ onMounted(() => {
   background: white;
   border-bottom: 1px solid #e2e8f0;
 }
-/* FORCED VISIBLE COLOR FOR MODAL TITLES */
 .modal-title-text {
   margin: 0;
   font-size: 1rem;
@@ -958,7 +912,7 @@ onMounted(() => {
 }
 
 .modal-body {
-  background: #f1f5f9; /* Ensured light gray for contrast */
+  background: #f1f5f9;
   padding: 20px;
 }
 .modal-alert-box {
@@ -994,7 +948,6 @@ onMounted(() => {
   color: #dc2626;
 }
 
-/* STRICT LEFT ALIGNMENT AND FORCED VISIBLE COLORS FOR PROMPTS */
 .alert-text {
   display: flex;
   flex-direction: column;
@@ -1007,7 +960,6 @@ onMounted(() => {
   color: #0f172a !important;
   text-align: left;
 }
-
 .alert-text p,
 .modal-subtext {
   margin: 0;

@@ -130,19 +130,13 @@
                 }}
               </div>
               <div class="inc-actions">
-                <button
-                  class="inc-btn"
-                  :class="{ 'disabled-btn': !isBranchPhase }"
-                  @click="openAssign(inc)"
-                >
-                  ASSIGN
-                </button>
                 <router-link
                   :to="`/branch/reports/${inc.id}`"
                   class="inc-btn"
-                  style="display: block"
-                  >DETAILS</router-link
+                  style="display: block; width: 100%; text-align: center"
                 >
+                  DETAILS
+                </router-link>
               </div>
             </div>
           </div>
@@ -338,103 +332,6 @@
         </div>
       </div>
     </div>
-
-    <!-- DISPATCH TIME VALIDATION MODAL -->
-    <div
-      v-if="showTimeLockModal"
-      class="modal-overlay"
-      style="z-index: 1050"
-      @click.self="showTimeLockModal = false"
-    >
-      <div class="time-lock-card">
-        <div class="time-lock-header">
-          <Info class="info-icon" :size="20" />
-          <h3>Dispatch Time</h3>
-        </div>
-        <div class="time-lock-body">
-          <p>
-            Branch assigning is locked right now. 5:01 PM to 7:59 AM is reserved for Admin Only to
-            dispatch.
-          </p>
-          <p>Please wait for the Branch dispatch window (8:00 AM - 5:00 PM).</p>
-        </div>
-        <div class="time-lock-footer">
-          <button @click="showTimeLockModal = false" class="btn-primary-ok">OK</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ASSIGN LINEMAN MODAL -->
-    <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
-      <div class="assign-modal-card">
-        <h3>Assign Lineman</h3>
-        <p>Select an available lineman to dispatch to this location.</p>
-
-        <div class="assign-search-row">
-          <div class="search-input-wrapper">
-            <Search class="search-input-icon" :size="16" style="left: 10px" />
-            <input
-              v-model="assignSearchQuery"
-              type="text"
-              placeholder="Search linemen by name or branch..."
-              class="assign-search-input"
-            />
-          </div>
-        </div>
-
-        <div class="table-scroll-wrapper">
-          <table class="lineman-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Branch</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="l in filteredLinemen" :key="l.id">
-                <td>
-                  <strong>{{ l.name }}</strong>
-                </td>
-                <td class="muted-text">{{ l.branch }}</td>
-                <td>
-                  <span
-                    :class="[
-                      'lineman-status',
-                      l.status === 'Available' ? 'status-available' : 'status-on-job',
-                    ]"
-                  >
-                    {{ l.status || 'Available' }}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    class="assign-action-btn"
-                    :disabled="l.status !== 'Available' || l.isJustAssigned"
-                    @click="assignSingleLineman(l.id)"
-                  >
-                    {{ l.isJustAssigned ? 'Assigned' : 'Assign' }}
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="filteredLinemen.length === 0">
-                <td colspan="4" class="text-center" style="padding: 24px">
-                  No matching linemen found.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div
-          class="modal-footer"
-          style="padding: 0; background: transparent; border: none; margin-top: 16px"
-        >
-          <button @click="showAssignModal = false" class="btn-close-modal">Close</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -459,7 +356,6 @@ import TopBarangaysChart from '@/components/analytics/TopBarangaysChart.vue'
 import MetricSummaryCards from '@/components/analytics/MetricSummaryCards.vue'
 import OutageStatusPie from '@/components/analytics/OutageStatusPie.vue'
 import { supabase } from '@/services/supabase'
-import { sendNotification } from '@/utils/notifications.js'
 import { useSystemAlerts } from '@/composables/useSystemAlerts'
 
 import '@/assets/style/Dashboard.css'
@@ -482,7 +378,7 @@ const stats = ref([
 
 const showManualModal = ref(false)
 const showValidationModal = ref(false)
-const showTimeLockModal = ref(false)
+
 const manualReport = ref({
   type_id: null,
   barangay_id: null,
@@ -498,11 +394,6 @@ const barangaySearchQuery = ref('')
 const typeSearchQuery = ref('')
 const selectedBarangayObj = ref(null)
 const selectedTypeObj = ref(null)
-
-const showAssignModal = ref(false)
-const selectedReport = ref(null)
-const availableLinemen = ref([])
-const assignSearchQuery = ref('')
 
 const now = ref(new Date())
 let timerInterval = null
@@ -686,71 +577,6 @@ const getPriorityColorClass = (level) => {
   return 'text-blue'
 }
 
-const filteredLinemen = computed(() => {
-  if (!assignSearchQuery.value) return availableLinemen.value
-  const q = assignSearchQuery.value.toLowerCase()
-  return availableLinemen.value.filter(
-    (l) => l.name.toLowerCase().includes(q) || l.branch.toLowerCase().includes(q),
-  )
-})
-
-const openAssign = async (incident) => {
-  if (!isBranchPhase.value) {
-    showTimeLockModal.value = true
-    return
-  }
-
-  selectedReport.value = incident
-  assignSearchQuery.value = ''
-
-  const { data: usersData } = await supabase
-    .from('users')
-    .select('id, first_name, last_name, is_active')
-    .eq('role_id', 9)
-    .eq('branch_id', branchId.value)
-
-  availableLinemen.value = (usersData || []).map((user) => {
-    return {
-      id: user.id,
-      name: `${user.first_name} ${user.last_name}`,
-      branch: branchName.value,
-      status: user.is_active ? 'Available' : 'On Job',
-      isJustAssigned: false,
-    }
-  })
-
-  showAssignModal.value = true
-}
-
-const assignSingleLineman = async (uid) => {
-  if (!selectedReport.value) return
-
-  const { error } = await supabase.from('assignments').insert({
-    report_id: selectedReport.value.id,
-    lineman_id: uid,
-    assigned_at: new Date().toISOString(),
-    inprogress_at: new Date().toISOString(),
-  })
-
-  if (!error) {
-    sendNotification('Assignment Updated', `Assigned to report ${selectedReport.value.id}`, uid)
-
-    addAlert({
-      title: 'System Confirmation',
-      message: 'Lineman successfully dispatched to the incident.',
-      severity: 'low',
-    })
-
-    const linemanIndex = availableLinemen.value.findIndex((l) => l.id === uid)
-    if (linemanIndex !== -1) {
-      availableLinemen.value[linemanIndex].isJustAssigned = true
-    }
-    loadActiveIncidents()
-  } else {
-    alert('Error assigning lineman: ' + error.message)
-  }
-}
-
 const groupedBarangays = computed(() => {
   const query = barangaySearchQuery.value.toLowerCase().trim()
   const map = {}
@@ -863,65 +689,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Dispatch Time Validation Modal (Design Match) */
-.time-lock-card {
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #a5b4fc;
-  width: 460px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-}
-.time-lock-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f1f5f9;
-}
-.time-lock-header .info-icon {
-  color: #2563eb;
-}
-.time-lock-header h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #1e293b;
-  font-weight: 600;
-}
-.time-lock-body {
-  padding: 24px 20px;
-  color: #475569;
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-.time-lock-body p {
-  margin: 0 0 16px 0;
-}
-.time-lock-body p:last-child {
-  margin-bottom: 0;
-}
-.time-lock-footer {
-  padding: 14px 20px;
-  border-top: 1px solid #f1f5f9;
-  display: flex;
-  justify-content: flex-end;
-}
-.btn-primary-ok {
-  background: #2563eb;
-  color: white;
-  border: none;
-  padding: 8px 24px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-primary-ok:hover {
-  background: #1d4ed8;
-}
-
 .validation-modal-card {
   background: white;
   border-radius: 16px;
@@ -990,5 +757,220 @@ onUnmounted(() => {
 }
 .btn-ok:hover {
   opacity: 0.9;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.manual-modal-card {
+  background: white;
+  border-radius: 8px;
+  width: 460px;
+  overflow: visible;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+.manual-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.manual-modal-header h2 {
+  margin: 0 0 4px 0;
+  font-size: 1.15rem;
+  color: #1e1b4b;
+  font-weight: 700;
+}
+.manual-modal-header p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.manual-modal-body {
+  padding: 20px;
+}
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1e1b4b;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+}
+.section-label .icon {
+  color: #d97706;
+  width: 14px;
+  height: 14px;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.input-group label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+.input-group label span.req {
+  color: #ef4444;
+}
+.std-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #0f172a;
+  background: white;
+  box-sizing: border-box;
+}
+.std-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #0f172a;
+  min-height: 70px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+/* CUSTOM DROPDOWN STYLES */
+.custom-dropdown-container {
+  position: relative;
+  width: 100%;
+}
+.dropdown-trigger-btn {
+  width: 100%;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.dropdown-trigger-btn span {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #0f172a;
+}
+.dropdown-trigger-btn span.muted-trigger {
+  color: #94a3b8;
+}
+.dropdown-chevron {
+  color: #64748b;
+}
+.dropdown-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px;
+  z-index: 1050;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+.popover-search-box {
+  position: relative;
+  margin-bottom: 6px;
+}
+.search-input {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 6px 8px 6px 28px;
+  font-size: 0.75rem;
+  outline: none;
+  box-sizing: border-box;
+}
+.search-input-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+.popover-scroll-list {
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.group-header-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  margin: 4px 0 2px 4px;
+}
+.group-option-box {
+  padding: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #0f172a;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.group-option-box:hover {
+  background: #f1f5f9;
+}
+.no-result-text {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  padding: 6px;
+  text-align: center;
+}
+
+.modal-footer {
+  padding: 12px 20px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.btn-cancel {
+  background: white;
+  border: 1px solid #cbd5e1;
+  color: #1e1b4b;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.btn-submit {
+  background: #1e1b4b;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 </style>

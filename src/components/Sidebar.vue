@@ -28,6 +28,12 @@
       <router-link to="/admin/linemen" class="nav-link" active-class="active">
         <div class="dropdown-label"><Users :size="20" /> Lineman Monitoring</div>
       </router-link>
+
+      <!-- NEW: Create Lineman Team Link added here -->
+      <router-link to="/admin/create-lineman-team" class="nav-link" active-class="active">
+        <div class="dropdown-label"><UserPlus :size="20" /> Create Lineman Team</div>
+      </router-link>
+
       <router-link to="/admin/advisory" class="nav-link" active-class="active">
         <div class="dropdown-label"><Megaphone :size="20" /> Power Advisory</div>
       </router-link>

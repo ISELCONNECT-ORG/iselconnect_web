@@ -339,7 +339,23 @@ const fetchData = async () => {
 
   // Filter out the 'Other / Outside Coverage Area' municipality
   municipalities.value = (mData || []).filter((m) => !m.name.includes('Outside Coverage'))
-  barangays.value = bData || []
+
+  // Specific requirement: San Agustin should only display these 5 barangays
+  const allowedSanAgustinBrgys = [
+    'Masaya Centro',
+    'Masaya Norte',
+    'Masaya Sur',
+    'Santos',
+    'Nemmatan',
+  ]
+
+  barangays.value = (bData || []).filter((b) => {
+    const mun = mData?.find((m) => m.id === b.municipality_id)
+    if (mun && mun.name.toLowerCase() === 'san agustin') {
+      return allowedSanAgustinBrgys.includes(b.name)
+    }
+    return true
+  })
 
   const { data: advData } = await supabase
     .from('power_advisories')

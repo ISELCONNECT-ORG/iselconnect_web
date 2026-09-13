@@ -140,7 +140,6 @@
               <td>{{ formatTime(r.created_at) }}</td>
               <td>
                 <div class="action-buttons">
-                  <button @click="openAssign(r)" class="action-btn">Assign</button>
                   <router-link :to="`/branch/reports/${r.id}`" class="details-btn"
                     >See Details</router-link
                   >
@@ -199,9 +198,6 @@
               <td>{{ formatTime(r.created_at) }}</td>
               <td>
                 <div class="action-buttons">
-                  <button class="action-btn" disabled style="opacity: 0.6; cursor: not-allowed">
-                    Done
-                  </button>
                   <router-link :to="`/branch/reports/${r.id}`" class="details-btn"
                     >See Details</router-link
                   >
@@ -355,104 +351,6 @@
         </div>
       </div>
     </div>
-
-    <!-- DISPATCH TIME VALIDATION MODAL -->
-    <div
-      v-if="showTimeLockModal"
-      class="modal-overlay"
-      style="z-index: 1050"
-      @click.self="showTimeLockModal = false"
-    >
-      <div class="time-lock-card">
-        <div class="time-lock-header">
-          <Info class="info-icon" :size="20" />
-          <h3>Dispatch Time</h3>
-        </div>
-        <div class="time-lock-body">
-          <p>
-            Branch assigning is locked right now. 5:01 PM to 7:59 AM is reserved for Admin Only to
-            dispatch.
-          </p>
-          <p>Please wait for the Branch dispatch window (8:00 AM - 5:00 PM).</p>
-        </div>
-        <div class="time-lock-footer">
-          <button @click="showTimeLockModal = false" class="btn-primary-ok">OK</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ASSIGN LINEMAN MODAL -->
-    <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
-      <div class="assign-modal-card">
-        <h3>Assign Lineman - {{ branchName }}</h3>
-        <p>Select an available branch lineman to dispatch to this location.</p>
-
-        <div class="assign-search-row">
-          <div class="search-input-wrapper">
-            <Search class="search-icon" :size="16" />
-            <input
-              v-model="assignSearchQuery"
-              type="text"
-              placeholder="Search linemen by name..."
-              class="assign-search-input"
-            />
-          </div>
-          <button class="assign-filter-btn"><Filter :size="16" /> Filter</button>
-        </div>
-
-        <div class="table-scroll-wrapper">
-          <table class="lineman-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Branch</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="l in filteredLinemen" :key="l.id">
-                <td>
-                  <strong>{{ l.name }}</strong>
-                </td>
-                <td class="muted-text">{{ l.branch }}</td>
-                <td>
-                  <span
-                    :class="[
-                      'lineman-status',
-                      l.status === 'Available' ? 'status-available' : 'status-on-job',
-                    ]"
-                  >
-                    {{ l.status || 'Available' }}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    class="assign-action-btn"
-                    :disabled="l.status !== 'Available' || isAssigned(l.id)"
-                    @click="assignSingleLineman(l.id)"
-                  >
-                    {{ isAssigned(l.id) ? 'Assigned' : 'Assign' }}
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="filteredLinemen.length === 0">
-                <td colspan="4" class="text-center" style="padding: 24px">
-                  No matching linemen found for this branch.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div
-          class="modal-footer"
-          style="padding: 0; background: transparent; border: none; margin-top: 16px"
-        >
-          <button @click="showAssignModal = false" class="btn-close-modal">Close</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -477,7 +375,6 @@ import {
   FilePlus,
   MapPin,
   Search,
-  Filter,
   ChevronDown,
 } from 'lucide-vue-next'
 
@@ -489,7 +386,7 @@ const barangays = ref([])
 
 const showManualModal = ref(false)
 const showValidationModal = ref(false)
-const showTimeLockModal = ref(false) // Added new modal ref
+
 const manualReport = ref({
   type_id: null,
   barangay_id: null,
@@ -506,11 +403,6 @@ const typeSearchQuery = ref('')
 const selectedBarangayObj = ref(null)
 const selectedTypeObj = ref(null)
 
-const showAssignModal = ref(false)
-const selectedReport = ref(null)
-const availableLinemen = ref([])
-const assignSearchQuery = ref('')
-
 const assignedCount = ref(0)
 const totalReportsCount = ref(0)
 const onlineLinemenCount = ref(0)
@@ -522,20 +414,6 @@ let refreshIntervalId = null
 
 const now = ref(new Date())
 let timerInterval = null
-
-// Time window check: Branch can assign from 8:00 AM (8:00) to exactly 5:00 PM (17:00)
-const isBranchPhase = computed(() => {
-  const hour = now.value.getHours()
-  const minute = now.value.getMinutes()
-
-  if (hour >= 8 && hour < 17) {
-    return true
-  }
-  if (hour === 17 && minute === 0) {
-    return true
-  }
-  return false
-})
 
 const setFilter = (priority) => {
   currentPriorityFilter.value = priority
@@ -828,75 +706,6 @@ const submitManualReport = async () => {
     )
     fetchAll()
   }
-}
-
-// Assignment Modal Logic
-const filteredLinemen = computed(() => {
-  if (!assignSearchQuery.value) return availableLinemen.value
-  const q = assignSearchQuery.value.toLowerCase()
-  return availableLinemen.value.filter(
-    (l) => l.name.toLowerCase().includes(q) || l.branch.toLowerCase().includes(q),
-  )
-})
-
-const isAssigned = (uid) => {
-  return selectedReport.value?.assignments?.some((a) => a.lineman_id === uid)
-}
-
-const openAssign = async (r) => {
-  // If we're outside the branch phase, show the designed modal instead of native alert
-  if (!isBranchPhase.value) {
-    showTimeLockModal.value = true
-    return
-  }
-
-  selectedReport.value = r
-  assignSearchQuery.value = ''
-
-  const { data: usersData } = await supabase
-    .from('users')
-    .select('id, first_name, last_name, is_active')
-    .eq('role_id', 9)
-    .eq('branch_id', branchId.value)
-
-  availableLinemen.value =
-    usersData?.map((user) => {
-      return {
-        id: user.id,
-        name: `${user.first_name} ${user.last_name}`,
-        branch: branchName.value,
-        status: user.is_active ? 'Available' : 'On Job',
-      }
-    }) || []
-
-  showAssignModal.value = true
-}
-
-const assignSingleLineman = async (uid) => {
-  if (!selectedReport.value) return
-
-  const { error } = await supabase.from('assignments').insert({
-    report_id: selectedReport.value.id,
-    lineman_id: uid,
-    assigned_at: new Date().toISOString(),
-    inprogress_at: new Date().toISOString(),
-  })
-
-  if (!error) {
-    sendNotification('Assignment Updated', `Assigned to report ${selectedReport.value.id}`, uid)
-    if (!selectedReport.value.assignments) selectedReport.value.assignments = []
-    selectedReport.value.assignments.push({ lineman_id: uid })
-
-    addAlert({
-      title: 'Lineman Dispatched',
-      message: 'The selected branch lineman has been successfully assigned to the incident.',
-      severity: 'low',
-    })
-  } else {
-    alert('Error assigning lineman: ' + error.message)
-  }
-
-  fetchAll()
 }
 
 onMounted(() => {
@@ -1202,26 +1011,21 @@ onUnmounted(() => {
   display: flex;
   gap: 6px;
 }
-.action-btn {
-  background: #1e1b4b;
-  color: white;
-  border: none;
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-}
 .details-btn {
   background: white;
   border: 1px solid #cbd5e1;
   color: #475569;
-  padding: 3px 12px;
-  border-radius: 4px;
+  padding: 5px 16px;
+  border-radius: 6px;
   font-size: 0.7rem;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+  transition: all 0.2s;
+}
+.details-btn:hover {
+  background: #f8fafc;
+  color: #1e1b4b;
 }
 .text-center {
   text-align: center;
@@ -1238,65 +1042,6 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   z-index: 1000;
-}
-
-/* Dispatch Time Validation Modal (Design Match) */
-.time-lock-card {
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #a5b4fc;
-  width: 460px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-}
-.time-lock-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f1f5f9;
-}
-.time-lock-header .info-icon {
-  color: #2563eb;
-}
-.time-lock-header h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #1e293b;
-  font-weight: 600;
-}
-.time-lock-body {
-  padding: 24px 20px;
-  color: #475569;
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-.time-lock-body p {
-  margin: 0 0 16px 0;
-}
-.time-lock-body p:last-child {
-  margin-bottom: 0;
-}
-.time-lock-footer {
-  padding: 14px 20px;
-  border-top: 1px solid #f1f5f9;
-  display: flex;
-  justify-content: flex-end;
-}
-.btn-primary-ok {
-  background: #2563eb;
-  color: white;
-  border: none;
-  padding: 8px 24px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-primary-ok:hover {
-  background: #1d4ed8;
 }
 
 /* Validation Required Modal */
@@ -1544,118 +1289,6 @@ onUnmounted(() => {
   text-align: center;
 }
 
-/* Assign Lineman Modal */
-.assign-modal-card {
-  background: white;
-  border-radius: 8px;
-  width: 600px;
-  padding: 20px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-.assign-modal-card h3 {
-  margin: 0 0 4px 0;
-  font-size: 1.1rem;
-  color: #1e1b4b;
-}
-.assign-modal-card p {
-  margin: 0 0 16px 0;
-  font-size: 0.8rem;
-  color: #64748b;
-}
-.assign-search-row {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.search-input-wrapper {
-  position: relative;
-  flex: 1;
-}
-.search-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-}
-.assign-search-input {
-  width: 100%;
-  padding: 8px 10px 8px 32px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  box-sizing: border-box;
-}
-.assign-filter-btn {
-  padding: 8px 12px;
-  background: white;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #475569;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-.table-scroll-wrapper {
-  max-height: 220px;
-  overflow-y: auto;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-}
-.lineman-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.lineman-table th {
-  position: sticky;
-  top: 0;
-  background: #f8fafc;
-  text-align: left;
-  font-size: 0.65rem;
-  color: #64748b;
-  padding: 10px;
-  border-bottom: 1px solid #e2e8f0;
-  z-index: 10;
-}
-.lineman-table td {
-  padding: 10px;
-  font-size: 0.8rem;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: middle;
-}
-.lineman-status {
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 0.65rem;
-  font-weight: 600;
-}
-.status-available {
-  background: #dcfce7;
-  color: #166534;
-}
-.status-on-job {
-  background: #fee2e2;
-  color: #991b1b;
-}
-.assign-action-btn {
-  background: #2563eb;
-  color: white;
-  border: none;
-  padding: 5px 12px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-.assign-action-btn:disabled {
-  background: #e2e8f0;
-  color: #94a3b8;
-  cursor: not-allowed;
-}
-
 /* Common Modal Footer */
 .modal-footer {
   padding: 12px 20px;
@@ -1687,15 +1320,5 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-.btn-close-modal {
-  background: #1e1b4b;
-  color: white;
-  border: none;
-  padding: 8px 20px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.8rem;
-  cursor: pointer;
 }
 </style>
