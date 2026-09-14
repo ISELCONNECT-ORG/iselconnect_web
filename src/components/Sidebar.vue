@@ -29,7 +29,6 @@
         <div class="dropdown-label"><Users :size="20" /> Lineman Monitoring</div>
       </router-link>
 
-      <!-- NEW: Create Lineman Team Link added here -->
       <router-link to="/admin/create-lineman-team" class="nav-link" active-class="active">
         <div class="dropdown-label"><UserPlus :size="20" /> Create Lineman Team</div>
       </router-link>
@@ -54,8 +53,8 @@
           </div>
         </button>
 
-        <!-- Flyout Menu Overlay -->
-        <div v-if="activeMenu === 'reports'" class="flyout-menu dark-theme top-aligned">
+        <!-- Flyout Menu Overlay (Fixed: bottom-aligned to prevent cutoff) -->
+        <div v-if="activeMenu === 'reports'" class="flyout-menu dark-theme bottom-aligned">
           <div class="flyout-header">
             <div class="flyout-icon-box"><Printer :size="20" /></div>
             <div class="flyout-titles">
@@ -63,9 +62,17 @@
               <span class="flyout-subtitle">Export & Analytics</span>
             </div>
           </div>
-          <div class="flyout-links">
+          <!-- Fixed: Added 'scrollable' class to match User Management -->
+          <div class="flyout-links scrollable">
             <router-link to="/admin/reports" class="flyout-link" active-class="active">
               <FileText :size="16" /> System Reports
+            </router-link>
+            <router-link
+              to="/admin/reports/response-time"
+              class="flyout-link"
+              active-class="active"
+            >
+              <Clock :size="16" /> Response Time Report
             </router-link>
             <router-link
               to="/admin/reports/power-advisory"
@@ -211,6 +218,7 @@ import {
   ChevronRight,
   Printer,
   Award,
+  Clock,
 } from 'lucide-vue-next'
 import { supabase } from '@/services/supabase'
 import { useRouter } from 'vue-router'

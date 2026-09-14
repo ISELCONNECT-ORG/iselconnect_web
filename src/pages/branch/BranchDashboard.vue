@@ -69,6 +69,79 @@
             </section>
           </div>
 
+          <!-- AVERAGE RESPONSE TIME ANALYTICS (GRAPH VIEW) -->
+          <div class="art-dashboard-grid">
+            <!-- Filter Header -->
+            <div class="art-header-row">
+              <h3 class="section-title">RESPONSE TIME ANALYTICS</h3>
+              <div class="period-toggle-group">
+                <button
+                  v-for="p in ['Day', 'Week', 'Month', 'Year']"
+                  :key="p"
+                  :class="{ 'active-period': artPeriod === p }"
+                  @click="setArtPeriod(p)"
+                  class="period-btn"
+                >
+                  {{ p }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Branch ART Graph (Scanned to Current Branch) -->
+            <section class="chart-container art-container">
+              <h3><Clock :size="16" class="icon-inline" /> AVG RESPONSE TIME (MY BRANCH)</h3>
+              <div
+                v-if="branchART.length === 0"
+                class="muted-text text-center"
+                style="margin-top: 40px"
+              >
+                No data for this period.
+              </div>
+              <div v-else class="art-graph-container">
+                <div v-for="branch in branchART" :key="branch.id" class="art-bar-group">
+                  <div class="art-v-bar-bg">
+                    <span class="art-v-bar-value" :class="{ 'text-red': branch.minutes > 60 }">
+                      {{ branch.minutes }}m
+                    </span>
+                    <div
+                      class="art-v-bar-fill"
+                      :class="branch.minutes <= 60 ? 'bg-success' : 'bg-danger'"
+                      :style="{ height: Math.min((branch.minutes / 120) * 100, 100) + '%' }"
+                    ></div>
+                  </div>
+                  <span class="art-v-bar-label" :title="branch.fullName">{{ branch.name }}</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- Lineman Team ART Graph (Scanned to Current Branch) -->
+            <section class="chart-container art-container">
+              <h3><Users :size="16" class="icon-inline" /> AVG RESPONSE TIME (MY TEAMS)</h3>
+              <div
+                v-if="linemanART.length === 0"
+                class="muted-text text-center"
+                style="margin-top: 40px"
+              >
+                No data for this period.
+              </div>
+              <div v-else class="art-graph-container">
+                <div v-for="team in linemanART" :key="team.id" class="art-bar-group">
+                  <div class="art-v-bar-bg">
+                    <span class="art-v-bar-value" :class="{ 'text-red': team.minutes > 60 }">
+                      {{ team.minutes }}m
+                    </span>
+                    <div
+                      class="art-v-bar-fill"
+                      :class="team.minutes <= 60 ? 'bg-success' : 'bg-danger'"
+                      :style="{ height: Math.min((team.minutes / 120) * 100, 100) + '%' }"
+                    ></div>
+                  </div>
+                  <span class="art-v-bar-label" :title="team.name">{{ team.name }}</span>
+                </div>
+              </div>
+            </section>
+          </div>
+
           <!-- SYSTEM LOAD & CONSUMPTION -->
           <IncidentChart :branchId="branchId" />
 
@@ -358,7 +431,7 @@ import OutageStatusPie from '@/components/analytics/OutageStatusPie.vue'
 import { supabase } from '@/services/supabase'
 import { useSystemAlerts } from '@/composables/useSystemAlerts'
 
-import '@/assets/style/Dashboard.css'
+import '@/assets/style/BranchDashboard.css'
 
 const router = useRouter()
 const { addAlert } = useSystemAlerts()
@@ -397,6 +470,16 @@ const selectedTypeObj = ref(null)
 
 const now = ref(new Date())
 let timerInterval = null
+
+// Average Response Time Variables
+const branchART = ref([])
+const linemanART = ref([])
+const artPeriod = ref('Month') // Default filter
+
+const setArtPeriod = (period) => {
+  artPeriod.value = period
+  loadAverageResponseTimes()
+}
 
 // Synchronized Dispatch Window Logic (8:00 AM to 5:00 PM exactly)
 const isBranchPhase = computed(() => {
@@ -480,6 +563,122 @@ const fetchCurrentBranch = async () => {
     loadRecentActivity()
     fetchLinemenStats()
     fetchDropdownData()
+    loadAverageResponseTimes() // Initialize branch-specific ART
+  }
+}
+
+const loadAverageResponseTimes = async () => {
+  if (!branchId.value) return
+
+  try {
+    const currentDate = new Date()
+    let startDate = new Date()
+
+    if (artPeriod.value === 'Day') {
+      startDate.setHours(0, 0, 0, 0)
+    } else if (artPeriod.value === 'Week') {
+      startDate.setDate(currentDate.getDate() - 7)
+    } else if (artPeriod.value === 'Month') {
+      startDate.setMonth(currentDate.getMonth() - 1)
+    } else if (artPeriod.value === 'Year') {
+      startDate.setFullYear(currentDate.getFullYear() - 1)
+    }
+    const isoStart = startDate.toISOString()
+
+    // 1. Fetch only reports matching this branch ID
+    const { data: reportsData, error: reportsErr } = await supabase
+      .from('reports')
+      .select(
+        `
+        id,
+        branch_id,
+        resolution_time,
+        created_at,
+        assignments ( lineman_id )
+      `,
+      )
+      .eq('branch_id', branchId.value)
+      .not('resolution_time', 'is', null)
+      .gte('created_at', isoStart)
+
+    if (reportsErr) throw reportsErr
+
+    // 2. Fetch Teams
+    const { data: teamsData, error: teamsErr } = await supabase.from('lineman_teams').select('*')
+
+    if (teamsErr) throw teamsErr
+
+    const parseTime = (timeStr) => {
+      if (!timeStr) return 0
+      let m = 0
+      const hours = timeStr.match(/(\d+)h/)
+      const mins = timeStr.match(/(\d+)m/)
+      const secs = timeStr.match(/(\d+)s/)
+
+      if (hours) m += parseInt(hours[1], 10) * 60
+      if (mins) m += parseInt(mins[1], 10)
+      if (!hours && !mins && secs && parseInt(secs[1], 10) > 0) m = 1
+      return m
+    }
+
+    const bStats = { [branchId.value]: { total: 0, count: 0 } }
+    const tStats = {}
+
+    ;(reportsData || []).forEach((r) => {
+      const mins = parseTime(r.resolution_time)
+
+      // Track Branch Average
+      if (bStats[branchId.value]) {
+        bStats[branchId.value].total += mins
+        bStats[branchId.value].count += 1
+      }
+
+      // Track Team Average
+      if (r.assignments && r.assignments.length > 0 && teamsData) {
+        const linemanId = r.assignments[0].lineman_id
+        const team = teamsData.find((t) => t.team_members && t.team_members.includes(linemanId))
+
+        if (team) {
+          const tName = team.team_name || `Team ${team.id}`
+          if (!tStats[tName]) tStats[tName] = { total: 0, count: 0 }
+          tStats[tName].total += mins
+          tStats[tName].count += 1
+        }
+      }
+    })
+
+    // Setup UI for My Branch
+    if (bStats[branchId.value].count > 0) {
+      let shortName = branchName.value
+        .replace(' Branch Office', '')
+        .replace(' Sub Office', '')
+        .replace(' Sub-Office', '')
+        .replace(' Office', '')
+        .replace('ISELCO-1 ', '')
+
+      branchART.value = [
+        {
+          id: branchId.value,
+          fullName: branchName.value,
+          name: shortName,
+          minutes: Math.round(bStats[branchId.value].total / bStats[branchId.value].count),
+        },
+      ]
+    } else {
+      branchART.value = []
+    }
+
+    // Setup UI for My Teams (Top 5)
+    linemanART.value = Object.keys(tStats)
+      .map((name, index) => ({
+        id: index,
+        name,
+        minutes: Math.round(tStats[name].total / tStats[name].count),
+      }))
+      .sort((a, b) => b.minutes - a.minutes)
+      .slice(0, 5)
+  } catch (err) {
+    console.error('Error loading Average Response Times:', err)
   }
 }
 

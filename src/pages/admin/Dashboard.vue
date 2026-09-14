@@ -69,6 +69,71 @@
             </section>
           </div>
 
+          <!-- AVERAGE RESPONSE TIME ANALYTICS (GRAPH VIEW) -->
+          <div class="art-dashboard-grid">
+            <!-- Filter Header -->
+            <div class="art-header-row">
+              <h3 class="section-title">RESPONSE TIME ANALYTICS</h3>
+              <div class="period-toggle-group">
+                <button
+                  v-for="p in ['Day', 'Week', 'Month', 'Year']"
+                  :key="p"
+                  :class="{ 'active-period': artPeriod === p }"
+                  @click="setArtPeriod(p)"
+                  class="period-btn"
+                >
+                  {{ p }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Branch ART Graph -->
+            <section class="chart-container art-container">
+              <h3><Clock :size="16" class="icon-inline" /> AVG RESPONSE TIME (PER BRANCH)</h3>
+              <div v-if="branchART.length === 0" class="muted-text text-center">
+                No data for this period.
+              </div>
+              <div v-else class="art-graph-container">
+                <div v-for="branch in branchART" :key="branch.id" class="art-bar-group">
+                  <div class="art-v-bar-bg">
+                    <span class="art-v-bar-value" :class="{ 'text-red': branch.minutes > 60 }">
+                      {{ branch.minutes }}m
+                    </span>
+                    <div
+                      class="art-v-bar-fill"
+                      :class="branch.minutes <= 60 ? 'bg-success' : 'bg-danger'"
+                      :style="{ height: Math.min((branch.minutes / 120) * 100, 100) + '%' }"
+                    ></div>
+                  </div>
+                  <span class="art-v-bar-label" :title="branch.fullName">{{ branch.name }}</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- Lineman Team ART Graph -->
+            <section class="chart-container art-container">
+              <h3><Users :size="16" class="icon-inline" /> AVG RESPONSE TIME (PER TEAM)</h3>
+              <div v-if="linemanART.length === 0" class="muted-text text-center">
+                No data for this period.
+              </div>
+              <div v-else class="art-graph-container">
+                <div v-for="team in linemanART" :key="team.id" class="art-bar-group">
+                  <div class="art-v-bar-bg">
+                    <span class="art-v-bar-value" :class="{ 'text-red': team.minutes > 60 }">
+                      {{ team.minutes }}m
+                    </span>
+                    <div
+                      class="art-v-bar-fill"
+                      :class="team.minutes <= 60 ? 'bg-success' : 'bg-danger'"
+                      :style="{ height: Math.min((team.minutes / 120) * 100, 100) + '%' }"
+                    ></div>
+                  </div>
+                  <span class="art-v-bar-label" :title="team.name">{{ team.name }}</span>
+                </div>
+              </div>
+            </section>
+          </div>
+
           <!-- SYSTEM LOAD & CONSUMPTION -->
           <IncidentChart :branchId="branchId" />
 
@@ -397,6 +462,16 @@ const selectedTypeObj = ref(null)
 const now = ref(new Date())
 let timerInterval = null
 
+// Average Response Time Variables
+const branchART = ref([])
+const linemanART = ref([])
+const artPeriod = ref('Month') // Default filter
+
+const setArtPeriod = (period) => {
+  artPeriod.value = period
+  loadAverageResponseTimes()
+}
+
 const isBranchPhase = computed(() => {
   const hour = now.value.getHours()
   const minute = now.value.getMinutes()
@@ -516,6 +591,128 @@ const fetchDropdownData = async () => {
     ...b,
     municipalities: { name: muniMap[b.municipality_id] || 'Unknown' },
   }))
+}
+
+const loadAverageResponseTimes = async () => {
+  try {
+    // Determine the date threshold based on selected filter
+    const currentDate = new Date()
+    let startDate = new Date()
+
+    if (artPeriod.value === 'Day') {
+      startDate.setHours(0, 0, 0, 0)
+    } else if (artPeriod.value === 'Week') {
+      startDate.setDate(currentDate.getDate() - 7)
+    } else if (artPeriod.value === 'Month') {
+      startDate.setMonth(currentDate.getMonth() - 1)
+    } else if (artPeriod.value === 'Year') {
+      startDate.setFullYear(currentDate.getFullYear() - 1)
+    }
+    const isoStart = startDate.toISOString()
+
+    const { data: reportsData, error: reportsErr } = await supabase
+      .from('reports')
+      .select(
+        `
+        id,
+        branch_id,
+        resolution_time,
+        created_at,
+        assignments ( lineman_id )
+      `,
+      )
+      .not('resolution_time', 'is', null)
+      .gte('created_at', isoStart) // Apply date filter to query
+
+    if (reportsErr) throw reportsErr
+
+    const { data: teamsData, error: teamsErr } = await supabase.from('lineman_teams').select('*')
+
+    if (teamsErr) throw teamsErr
+
+    const { data: branchesData, error: branchesErr } = await supabase
+      .from('iselco_branch')
+      .select('branch_id, branch_name')
+
+    if (branchesErr) throw branchesErr
+
+    const parseTime = (timeStr) => {
+      if (!timeStr) return 0
+      let m = 0
+      const hours = timeStr.match(/(\d+)h/)
+      const mins = timeStr.match(/(\d+)m/)
+      const secs = timeStr.match(/(\d+)s/)
+
+      if (hours) m += parseInt(hours[1], 10) * 60
+      if (mins) m += parseInt(mins[1], 10)
+      if (!hours && !mins && secs && parseInt(secs[1], 10) > 0) m = 1
+
+      return m
+    }
+
+    const bStats = {}
+    const tStats = {}
+
+    ;(reportsData || []).forEach((r) => {
+      const mins = parseTime(r.resolution_time)
+
+      const bId = r.branch_id
+      if (bId !== null && bId !== undefined) {
+        if (!bStats[bId]) bStats[bId] = { total: 0, count: 0 }
+        bStats[bId].total += mins
+        bStats[bId].count += 1
+      }
+
+      if (r.assignments && r.assignments.length > 0 && teamsData) {
+        const linemanId = r.assignments[0].lineman_id
+        const team = teamsData.find((t) => t.team_members && t.team_members.includes(linemanId))
+
+        if (team) {
+          const tName = team.team_name || `Team ${team.id}`
+          if (!tStats[tName]) tStats[tName] = { total: 0, count: 0 }
+          tStats[tName].total += mins
+          tStats[tName].count += 1
+        }
+      }
+    })
+
+    branchART.value = Object.keys(bStats)
+      .map((id) => {
+        let fullName = `Branch ${id}`
+        let shortName = fullName
+
+        if (branchesData) {
+          const b = branchesData.find((x) => String(x.branch_id) === String(id))
+          if (b && b.branch_name) {
+            fullName = b.branch_name
+            shortName = fullName
+              .replace(' Branch Office', '')
+              .replace(' Sub Office', '')
+              .replace(' Sub-Office', '')
+              .replace(' Office', '')
+              .replace('ISELCO-1 ', '')
+          }
+        }
+        return {
+          id,
+          fullName: fullName,
+          name: shortName,
+          minutes: Math.round(bStats[id].total / bStats[id].count),
+        }
+      })
+      .sort((a, b) => b.minutes - a.minutes)
+
+    linemanART.value = Object.keys(tStats)
+      .map((name, index) => ({
+        id: index,
+        name,
+        minutes: Math.round(tStats[name].total / tStats[name].count),
+      }))
+      .sort((a, b) => b.minutes - a.minutes)
+      .slice(0, 5)
+  } catch (err) {
+    console.error('Error loading Average Response Times:', err)
+  }
 }
 
 const timeAgo = (dateString) => {
@@ -650,6 +847,7 @@ onMounted(() => {
   loadRecentActivity()
   fetchLinemenStats()
   fetchDropdownData()
+  loadAverageResponseTimes()
   timerInterval = setInterval(() => (now.value = new Date()), 1000)
 })
 

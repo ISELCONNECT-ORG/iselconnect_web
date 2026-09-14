@@ -1,3 +1,4 @@
+<!-- Reports.vue -->
 <template>
   <div class="layout-wrapper">
     <!-- SIDEBAR -->
@@ -43,7 +44,18 @@
               </select>
             </div>
 
-            <!-- 3. Conditional Filters -->
+            <!-- 3. Status Filter (Applies to detailed views) -->
+            <div v-if="reportView === 'category' || reportView === 'barangay'" class="filter-group">
+              <label>Filter by Status</label>
+              <select v-model="selectedStatus" class="input-field">
+                <option value="">-- All Statuses --</option>
+                <option v-for="status in reportStatuses" :key="status.id" :value="status.id">
+                  {{ status.name }}
+                </option>
+              </select>
+            </div>
+
+            <!-- 4. Conditional Filters -->
             <div v-if="reportView === 'category'" class="filter-group">
               <label>Select Specific Category</label>
               <select v-model="selectedCategory" class="input-field">
@@ -74,19 +86,28 @@
 
         <!-- PRINT ZONE: Generated Reports -->
         <div class="printable-report">
-          <div class="print-header only-print">
-            <h2>ISELCONNECT System Report</h2>
-            <p v-if="dateFrom || dateTo">
-              Period: {{ dateFrom ? dateFrom : 'Beginning' }} to {{ dateTo ? dateTo : 'Present' }}
-            </p>
+          <!-- PROFESSIONAL PRINT HEADER (Matches ResponseTimeReport) -->
+          <div class="doc-header only-print">
+            <img
+              src="@/assets/Background/iselconnectlogo.png"
+              alt="ISELCONNECT Logo"
+              class="print-logo"
+            />
+            <div class="doc-titles">
+              <h1>SYSTEM REPORTS</h1>
+              <p v-if="dateFrom || dateTo">
+                Period: {{ dateFrom ? dateFrom : 'Beginning' }} to {{ dateTo ? dateTo : 'Present' }}
+              </p>
+              <p>Generated on: {{ currentDateTime }}</p>
+            </div>
           </div>
 
           <!-- VIEW A: Category Summary Report -->
           <div v-if="reportView === 'summary'" class="report-section">
-            <h3>Overall Category Summary</h3>
+            <h3 class="section-heading">OVERALL CATEGORY SUMMARY</h3>
             <p class="total-badge">Total Reports: {{ filteredReports.length }}</p>
 
-            <table class="data-table">
+            <table class="data-table print-table">
               <thead>
                 <tr>
                   <th>REPORT CATEGORY</th>
@@ -99,7 +120,9 @@
                   <td>{{ count }}</td>
                 </tr>
                 <tr v-if="Object.keys(categorySummaryData).length === 0">
-                  <td colspan="2" class="empty-state">No data available for this period.</td>
+                  <td colspan="2" class="empty-state text-center">
+                    No data available for this period.
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -107,10 +130,10 @@
 
           <!-- VIEW B: Report by Municipality (Summary) -->
           <div v-if="reportView === 'municipality'" class="report-section">
-            <h3>Municipality / Town Breakdown</h3>
+            <h3 class="section-heading">MUNICIPALITY / TOWN BREAKDOWN</h3>
             <p class="total-badge">Total Reports: {{ filteredReports.length }}</p>
 
-            <table class="data-table">
+            <table class="data-table print-table">
               <thead>
                 <tr>
                   <th>MUNICIPALITY / TOWN</th>
@@ -123,7 +146,9 @@
                   <td>{{ count }}</td>
                 </tr>
                 <tr v-if="Object.keys(municipalitySummaryData).length === 0">
-                  <td colspan="2" class="empty-state">No data available for this period.</td>
+                  <td colspan="2" class="empty-state text-center">
+                    No data available for this period.
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -131,15 +156,15 @@
 
           <!-- VIEW C & D: Detailed Table -->
           <div v-if="reportView === 'category' || reportView === 'barangay'" class="report-section">
-            <h3 v-if="reportView === 'category'">
-              Detailed Reports
-              {{ selectedCategory ? '(Filtered by Category)' : '(All Categories)' }}
+            <h3 class="section-heading" v-if="reportView === 'category'">
+              DETAILED REPORTS
+              {{ selectedCategory ? '(FILTERED BY CATEGORY)' : '(ALL CATEGORIES)' }}
             </h3>
-            <h3 v-if="reportView === 'barangay'">
-              Detailed Reports {{ selectedBarangay ? '(Filtered by Barangay)' : '(All Barangays)' }}
+            <h3 class="section-heading" v-if="reportView === 'barangay'">
+              DETAILED REPORTS {{ selectedBarangay ? '(FILTERED BY BARANGAY)' : '(ALL BARANGAYS)' }}
             </h3>
 
-            <table class="data-table">
+            <table class="data-table print-table">
               <thead>
                 <tr>
                   <th>REPORT ID</th>
@@ -177,7 +202,9 @@
                   </td>
                 </tr>
                 <tr v-if="detailedReports.length === 0">
-                  <td colspan="6" class="empty-state">No reports match your current filters.</td>
+                  <td colspan="6" class="empty-state text-center">
+                    No reports match your current filters.
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -193,13 +220,16 @@ import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/services/supabase'
 import { Printer } from 'lucide-vue-next'
 
-// Import Layout Components (Adjust paths to match your project structure)
+// Import Layout Components
 import Sidebar from '@/components/Sidebar.vue'
+import Topbar from '@/components/Topbar.vue'
 
 // --- State Variables ---
 const rawReports = ref([])
 const reportTypes = ref([])
 const barangays = ref([])
+const reportStatuses = ref([])
+const currentDateTime = ref(new Date().toLocaleString())
 
 // Filters
 const dateFrom = ref('')
@@ -207,15 +237,19 @@ const dateTo = ref('')
 const reportView = ref('category')
 const selectedCategory = ref('')
 const selectedBarangay = ref('')
+const selectedStatus = ref('')
 
 // --- Data Fetching ---
 const fetchData = async () => {
-  const [typesRes, brgysRes] = await Promise.all([
+  const [typesRes, brgysRes, statusRes] = await Promise.all([
     supabase.from('report_types').select('*'),
     supabase.from('barangays').select('*'),
+    supabase.from('report_statuses').select('*'),
   ])
+
   if (typesRes.data) reportTypes.value = typesRes.data
   if (brgysRes.data) barangays.value = brgysRes.data
+  if (statusRes.data) reportStatuses.value = statusRes.data
 
   const { data, error } = await supabase
     .from('reports')
@@ -239,6 +273,8 @@ const fetchData = async () => {
 
 onMounted(() => {
   fetchData()
+  // Update timestamp when mounted just in case it was left open
+  currentDateTime.value = new Date().toLocaleString()
 })
 
 // --- Computed & Logic ---
@@ -247,6 +283,7 @@ const filteredReports = computed(() => {
     let isValid = true
     const reportDate = new Date(report.created_at)
 
+    // Global Date Filter
     if (dateFrom.value) {
       isValid = isValid && reportDate >= new Date(dateFrom.value)
     }
@@ -255,6 +292,7 @@ const filteredReports = computed(() => {
       toDate.setHours(23, 59, 59, 999)
       isValid = isValid && reportDate <= toDate
     }
+
     return isValid
   })
 })
@@ -287,11 +325,19 @@ const municipalitySummaryData = computed(() => {
 const detailedReports = computed(() => {
   let list = filteredReports.value
 
+  // Apply Specific Category Filter
   if (reportView.value === 'category' && selectedCategory.value) {
     list = list.filter((r) => r.report_type_id === selectedCategory.value)
   }
+
+  // Apply Specific Barangay Filter
   if (reportView.value === 'barangay' && selectedBarangay.value) {
     list = list.filter((r) => r.barangay_id === selectedBarangay.value)
+  }
+
+  // Apply Global Status Filter
+  if (selectedStatus.value) {
+    list = list.filter((r) => r.status_id === selectedStatus.value)
   }
 
   return list
@@ -310,6 +356,7 @@ const formatDate = (dateString) => {
 }
 
 const printReport = () => {
+  currentDateTime.value = new Date().toLocaleString() // refresh the date before print
   window.print()
 }
 </script>
@@ -458,11 +505,17 @@ const printReport = () => {
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
-.report-section h3 {
-  color: #1e293b;
+/* Updated Section Headings to match ResponseTimeReport */
+.section-heading {
+  font-size: 1.1rem;
+  font-weight: 800;
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-left: 4px solid #facc15;
   margin-top: 0;
-  margin-bottom: 8px;
-  font-size: 1.15rem;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  color: #1e1b4b;
 }
 
 .total-badge {
@@ -510,6 +563,10 @@ const printReport = () => {
   font-style: italic;
 }
 
+.text-center {
+  text-align: center !important;
+}
+
 .status-pill {
   background: #e0e7ff;
   color: #3730a3;
@@ -520,13 +577,51 @@ const printReport = () => {
   display: inline-block;
 }
 
+/* Shared Print Header Styles */
 .only-print {
   display: none;
+}
+.doc-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 2px solid #1e1b4b;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+.print-logo {
+  height: 60px;
+  object-fit: contain;
+}
+.doc-titles h1 {
+  margin: 0 0 4px 0;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #1e1b4b;
+  text-transform: uppercase;
+}
+.doc-titles p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
 }
 
 /* PRINT STYLES */
 @media print {
-  .no-print {
+  @page {
+    size: A4 portrait;
+    margin: 1cm;
+  }
+
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print,
+  .sidebar,
+  .topbar-container {
     display: none !important;
   }
 
@@ -535,47 +630,55 @@ const printReport = () => {
     background: white;
   }
 
+  .main-content {
+    display: block;
+  }
+
   .reports-dashboard {
     background: white;
     padding: 0;
     overflow: visible;
   }
 
+  .printable-report {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    max-width: 100% !important;
+  }
+
   .report-section {
-    box-shadow: none;
-    border: none;
-    padding: 0;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    page-break-inside: avoid;
+  }
+
+  .only-print {
+    display: flex !important;
+  }
+
+  .section-heading {
+    border-left: 4px solid #000 !important; /* Forces visible border on B&W printers */
+    background: #f8fafc !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-table th {
+    background-color: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .data-table th,
   .data-table td {
-    border: 1px solid #cbd5e1;
+    border: 1px solid #cbd5e1 !important;
+    padding: 10px 12px;
   }
   .data-table tr:last-child td {
-    border-bottom: 1px solid #cbd5e1;
-  }
-
-  .only-print {
-    display: block;
-    margin-bottom: 20px;
-    border-bottom: 2px solid #1e1b4b;
-    padding-bottom: 10px;
-  }
-
-  .only-print h2 {
-    color: #1e1b4b;
-    margin: 0 0 5px 0;
-  }
-
-  .only-print p {
-    margin: 0;
-    color: #64748b;
-  }
-
-  .data-table th {
-    background-color: #f1f5f9 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    border-bottom: 1px solid #cbd5e1 !important;
   }
 }
 </style>

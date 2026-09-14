@@ -297,6 +297,12 @@ const router = createRouter({
       component: () => import('@/pages/admin/CreateLinemanTeam.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin/reports/response-time',
+      name: 'ResponseTimeReport',
+      component: () => import('@/pages/printables/ResponseTimeReport.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

@@ -560,7 +560,7 @@ td {
   color: #1e40af !important;
 }
 
-/* Existing Modals and Custom Dropdowns remained untouched... */
+/* Existing Modals and Custom Dropdowns */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -886,4 +886,147 @@ td {
 .muted-text {
   color: #94a3b8;
   font-style: italic;
+}
+
+/* ========================================================
+   AVERAGE RESPONSE TIME WIDGETS (VERTICAL GRAPH)
+   ======================================================== */
+.art-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+}
+
+.art-header-row {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding: 0 4px;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.period-toggle-group {
+  display: flex;
+  background: #e2e8f0;
+  border-radius: 99px;
+  padding: 4px;
+}
+
+.period-btn {
+  background: transparent;
+  border: none;
+  padding: 4px 14px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 99px;
+  transition: all 0.2s;
+}
+
+.period-btn.active-period {
+  background: #fbbf24;
+  color: #1e1b4b;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.art-container h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #283593 !important;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.icon-inline {
+  color: #fbbf24;
+}
+
+/* Vertical Graph Layout */
+.art-graph-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  height: 220px;
+  gap: 16px;
+  padding: 30px 10px 10px 10px;
+  overflow-x: auto;
+}
+
+/* Scrollbar for overflow on branches */
+.art-graph-container::-webkit-scrollbar {
+  height: 6px;
+}
+.art-graph-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.art-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 50px;
+  max-width: 80px;
+  height: 100%;
+}
+
+.art-v-bar-bg {
+  width: 36px;
+  height: 100%;
+  background: #f1f5f9;
+  border-radius: 6px 6px 0 0;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+}
+
+.art-v-bar-fill {
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+  transition: height 0.6s ease-out;
+}
+
+.art-v-bar-value {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.art-v-bar-label {
+  margin-top: 10px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  cursor: default;
+}
+
+.bg-success {
+  background: #2563eb;
+}
+
+.bg-danger {
+  background: #ef4444;
 }

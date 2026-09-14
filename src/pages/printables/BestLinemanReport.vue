@@ -1,3 +1,4 @@
+<!-- BestLinemanReport.vue -->
 <template>
   <div class="dashboard-layout">
     <!-- Sidebar Component -->
@@ -5,6 +6,9 @@
 
     <!-- Main Content Area -->
     <div class="main-content">
+      <!-- TOPBAR -->
+      <Topbar class="no-print" />
+
       <!-- Top Banner Matching Design -->
       <div class="banner-container no-print">
         <div class="banner-text">
@@ -20,10 +24,18 @@
       <div class="print-layout">
         <!-- Printable Paper Sheet -->
         <div class="sheet">
-          <div class="header">
-            <h1>ISELCO ELECTRIC COOPERATIVE</h1>
-            <h2>Lineman Performance & Resolution Time Ranking</h2>
-            <div class="meta">Generated: {{ generatedDate }}</div>
+          <!-- PROFESSIONAL PRINT HEADER (Matched Design) -->
+          <div class="doc-header">
+            <img
+              src="@/assets/Background/iselconnectlogo.png"
+              alt="ISELCONNECT Logo"
+              class="print-logo"
+            />
+            <div class="doc-titles">
+              <h1>BEST LINEMAN REPORT</h1>
+              <p>Lineman Performance & Resolution Time Ranking</p>
+              <p>Generated on: {{ generatedDate }}</p>
+            </div>
           </div>
 
           <div v-if="loading" class="loading-state">Loading data from database...</div>
@@ -113,6 +125,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/services/supabase'
 import Sidebar from '@/components/Sidebar.vue'
+import Topbar from '@/components/Topbar.vue'
 import { Printer, Trophy } from 'lucide-vue-next'
 
 const loading = ref(true)
@@ -125,6 +138,7 @@ const topPerformer = computed(() => {
 })
 
 const printPage = () => {
+  generatedDate.value = new Date().toLocaleString() // Update timestamp right before print
   window.print()
 }
 
@@ -149,7 +163,6 @@ const formatSeconds = (seconds) => {
 
 const fetchData = async () => {
   try {
-    // Robust query starting from 'assignments' to avoid join ambiguity and 400 errors
     const { data: assignments, error } = await supabase
       .from('assignments')
       .select(
@@ -214,6 +227,7 @@ const fetchData = async () => {
 
 onMounted(() => {
   fetchData()
+  generatedDate.value = new Date().toLocaleString()
 })
 </script>
 
@@ -228,6 +242,7 @@ onMounted(() => {
 .main-content {
   flex-grow: 1;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Matching Banner Style */
@@ -297,7 +312,7 @@ onMounted(() => {
 }
 
 .sheet {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
   background: white;
   padding: 45px;
@@ -306,29 +321,32 @@ onMounted(() => {
   border: 1px solid #e5e7eb;
 }
 
-.header {
-  text-align: center;
-  border-bottom: 1px solid #e5e7eb;
+/* ========================================================
+   PROFESSIONAL PRINT HEADER STYLES
+   ======================================================== */
+.doc-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 2px solid #1e1b4b;
   padding-bottom: 20px;
   margin-bottom: 30px;
 }
-.header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 800;
+.print-logo {
+  height: 60px;
+  object-fit: contain;
+}
+.doc-titles h1 {
+  margin: 0 0 4px 0;
+  font-size: 1.8rem;
+  font-weight: 900;
   color: #1e1b4b;
-  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
-.header h2 {
-  margin: 6px 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #4b5563;
-}
-.meta {
-  font-size: 12px;
-  color: #9ca3af;
-  margin-top: 6px;
+.doc-titles p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
 }
 
 /* Top Performer Badge Card */
@@ -386,9 +404,9 @@ td {
   font-size: 13px;
 }
 th {
-  background-color: #1e1b4b !important;
-  color: white !important;
-  font-weight: 600;
+  background-color: #f1f5f9 !important;
+  color: #1e1b4b !important;
+  font-weight: 700;
   text-transform: uppercase;
   font-size: 11px;
   letter-spacing: 0.5px;
@@ -427,22 +445,36 @@ tr:nth-child(even) {
 
 /* ================= PRINT MEDIA QUERY ================= */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm;
+  }
+
+  body {
+    background: white !important;
+  }
+
   .no-print {
     display: none !important;
   }
+
   .dashboard-layout {
     background: none;
     display: block;
   }
+
   .main-content {
     overflow: visible;
     width: 100%;
+    padding: 0 !important;
   }
+
   .print-layout {
     background: none;
     padding: 0;
     margin: 0;
   }
+
   .sheet {
     box-shadow: none;
     padding: 0;
@@ -450,18 +482,17 @@ tr:nth-child(even) {
     max-width: 100%;
     border: none;
   }
+
   th {
-    background-color: #1e1b4b !important;
-    color: white !important;
+    background-color: #f1f5f9 !important;
+    color: #1e1b4b !important;
   }
+
   .top-badge-card {
     border: 1px solid #d1d5db;
     background-color: #f8fafc !important;
-  }
-
-  @page {
-    size: A4 portrait;
-    margin: 1.5cm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 </style>
