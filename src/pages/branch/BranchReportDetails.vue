@@ -406,6 +406,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
+import { notifyLineman } from '@/services/smsService'
 import BranchSidebar from '@/components/BranchSidebar.vue'
 import { CheckCircle, ImageOff, ShieldCheck, UserPlus, Search, Info, Users } from 'lucide-vue-next'
 import { useSystemAlerts } from '@/composables/useSystemAlerts'
@@ -857,7 +858,6 @@ const fetchResolvedPhoto = async (fieldValue) => {
 const handleVerifyClick = () => {
   if (!report.value || !resolvedPhotoUrl.value) return
 
-  // TIME WINDOW RESTRICTION CHECK (Branch: 8:00 AM to 5:00 PM)
   const currentHour = new Date().getHours()
   const isBranchWindow = currentHour >= 8 && currentHour < 17
 
@@ -868,7 +868,6 @@ const handleVerifyClick = () => {
     return
   }
 
-  // If validation passes, show the custom modal
   showVerifyModal.value = true
 }
 
@@ -959,8 +958,6 @@ const formatTime = (dateStr) => {
     hour12: true,
   })
 }
-
-// --- Assign Modals & Logic ---
 
 const filteredLinemen = computed(() => {
   if (!assignSearchQuery.value) return availableLinemen.value
@@ -1058,6 +1055,25 @@ const assignSingleLineman = async (uid) => {
   if (!error) {
     sendNotification('System: Dispatch Update', `Assigned to report ${report.value.id}`, uid)
 
+    const { data: userData } = await supabase
+      .from('users')
+      .select('mobile_number')
+      .eq('id', uid)
+      .single()
+
+    if (userData && userData.mobile_number) {
+      let phone = userData.mobile_number
+      if (phone.startsWith('0')) {
+        phone = '+63' + phone.substring(1)
+      }
+
+      const issueType = getReportTypeName(report.value.report_type_id)
+      const location = getBarangayName(report.value.barangay_id)
+      const taskDescription = `${issueType} at ${location}`
+
+      await notifyLineman(phone, taskDescription)
+    }
+
     addAlert({
       title: 'Lineman Dispatched',
       message: 'The selected lineman has been successfully assigned to the incident.',
@@ -1091,9 +1107,27 @@ const assignTeam = async (team) => {
   const { error } = await supabase.from('assignments').insert(inserts)
 
   if (!error) {
-    uniqueMembers.forEach((uid) => {
+    const issueType = getReportTypeName(report.value.report_type_id)
+    const location = getBarangayName(report.value.barangay_id)
+    const taskDescription = `${issueType} at ${location} (Team: ${team.team_name})`
+
+    for (const uid of uniqueMembers) {
       sendNotification('System: Dispatch Update', `Assigned to report ${report.value.id}`, uid)
-    })
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('mobile_number')
+        .eq('id', uid)
+        .single()
+
+      if (userData && userData.mobile_number) {
+        let phone = userData.mobile_number
+        if (phone.startsWith('0')) {
+          phone = '+63' + phone.substring(1)
+        }
+        await notifyLineman(phone, taskDescription)
+      }
+    }
 
     addAlert({
       title: 'Team Dispatched',

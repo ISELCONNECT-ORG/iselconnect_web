@@ -8,6 +8,23 @@
       </div>
 
       <div class="topbar-right">
+        <!-- SMS Dispatch Toggle Button -->
+        <div class="sms-toggle-wrapper">
+          <button
+            type="button"
+            class="sms-toggle-btn"
+            :class="{ 'is-active': smsEnabled }"
+            @click.stop="promptToggleSms"
+            :title="smsEnabled ? 'Click to disable SMS dispatch' : 'Click to enable SMS dispatch'"
+          >
+            <MessageSquare :size="16" class="sms-icon" />
+            <span class="sms-text">SMS Dispatch</span>
+            <span class="mini-switch" :class="{ 'switch-on': smsEnabled }">
+              <span class="mini-thumb" :class="{ 'thumb-on': smsEnabled }"></span>
+            </span>
+          </button>
+        </div>
+
         <!-- Notification Button -->
         <div class="notification-bell-wrapper" @click.stop="toggleNotifications">
           <button class="bell-btn" title="Notifications">
@@ -69,22 +86,93 @@
         </div>
       </div>
     </div>
+
+    <!-- Custom SMS Confirmation Modal -->
+    <div v-if="showConfirmModal" class="custom-modal-overlay" @click.stop="cancelToggle">
+      <div class="custom-confirm-modal" @click.stop>
+        <div class="modal-icon-container">
+          <AlertTriangle :size="24" class="modal-alert-icon" />
+        </div>
+        <h3 class="modal-title">Confirm Action</h3>
+        <p class="modal-desc">
+          Are you sure you want to {{ smsEnabled ? 'disable' : 'enable' }} the automated SkySMS
+          dispatch?
+        </p>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="cancelToggle">Cancel</button>
+          <button class="btn-ok" @click="confirmToggle">OK</button>
+        </div>
+      </div>
+    </div>
   </header>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase } from '@/services/supabase'
-import { AlertTriangle, Zap, CheckCircle2, Truck, Info, Bell } from 'lucide-vue-next'
+import { AlertTriangle, Zap, CheckCircle2, Truck, Info, Bell, MessageSquare } from 'lucide-vue-next'
 
 const showNotifications = ref(false)
 const notifications = ref([])
 const selectedFilter = ref('All')
 
+// SMS toggle state
+const smsEnabled = ref(false)
+const showConfirmModal = ref(false)
+let pendingNextState = null
+
 // State to track unread notifications
 const hasUnreadNotifications = ref(false)
 let knownTotal = 0
 let pollingInterval = null
+
+// Fetch the current SMS dispatch setting from app_settings
+const fetchSmsSetting = async () => {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'sms_enabled')
+    .single()
+
+  if (!error && data) {
+    smsEnabled.value = data.value === 'true'
+  }
+}
+
+// Open custom confirmation modal instead of window.confirm
+const promptToggleSms = () => {
+  pendingNextState = !smsEnabled.value
+  showConfirmModal.value = true
+  closeDropdown()
+}
+
+// Cancel action and close modal
+const cancelToggle = () => {
+  showConfirmModal.value = false
+  pendingNextState = null
+}
+
+// Execute the database update upon confirmation
+const confirmToggle = async () => {
+  showConfirmModal.value = false
+  if (pendingNextState === null) return
+
+  const nextState = pendingNextState
+  smsEnabled.value = nextState // Optimistic UI update
+
+  const { error } = await supabase
+    .from('app_settings')
+    .update({ value: String(nextState) })
+    .eq('key', 'sms_enabled')
+
+  if (error) {
+    console.error('Failed to update SMS setting:', error)
+    alert('Failed to update the setting. Please check your connection.')
+    smsEnabled.value = !nextState // Revert the UI switch if the database update fails
+  }
+
+  pendingNextState = null
+}
 
 const fetchNotifications = async () => {
   const { data, error } = await supabase
@@ -93,7 +181,6 @@ const fetchNotifications = async () => {
     .order('created_at', { ascending: false })
 
   if (!error && data) {
-    // Filter out duplicate notifications generated for multiple residents
     const uniqueNotifications = data.filter(
       (note, index, self) =>
         index ===
@@ -105,7 +192,6 @@ const fetchNotifications = async () => {
         ),
     )
 
-    // If dropdown is closed and new items arrived, trigger the red dot
     if (!showNotifications.value && uniqueNotifications.length > knownTotal) {
       hasUnreadNotifications.value = true
     }
@@ -115,17 +201,15 @@ const fetchNotifications = async () => {
   }
 }
 
-// Start auto-refresh polling on component mount
 onMounted(() => {
-  fetchNotifications() // Initial fetch
+  fetchSmsSetting()
+  fetchNotifications()
 
-  // Refresh every 3 seconds (3000 ms)
   pollingInterval = setInterval(() => {
     fetchNotifications()
   }, 3000)
 })
 
-// Stop polling when navigating away from the page
 onUnmounted(() => {
   if (pollingInterval) clearInterval(pollingInterval)
 })
@@ -134,7 +218,6 @@ const toggleNotifications = () => {
   showNotifications.value = !showNotifications.value
 
   if (showNotifications.value) {
-    // Remove the red dot when the dropdown is opened
     hasUnreadNotifications.value = false
     fetchNotifications()
   }
@@ -151,7 +234,7 @@ const formatTimeAgo = (dateString) => {
   if (seconds < 60) return 'Just now'
   const minutes = Math.floor(seconds / 60)
   if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
+  const hours = Math.floor(seconds / 60)
   if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
   return `${days}d ago`
@@ -259,8 +342,66 @@ const filteredGroupedNotifications = computed(() => {
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
+
+/* SMS Toggle Button Styles */
+.sms-toggle-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.sms-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 5px 12px 5px 14px;
+  border-radius: 999px;
+  transition: all 0.2s ease;
+}
+.sms-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.sms-toggle-btn.is-active {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.sms-icon {
+  color: #ffffff;
+}
+.mini-switch {
+  width: 28px;
+  height: 16px;
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  position: relative;
+  transition: background-color 0.2s ease;
+  display: inline-block;
+}
+.mini-switch.switch-on {
+  background-color: #22c55e;
+}
+.mini-thumb {
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.mini-thumb.thumb-on {
+  transform: translateX(12px);
+}
+
 .notification-bell-wrapper {
   position: relative;
 }
@@ -434,5 +575,80 @@ const filteredGroupedNotifications = computed(() => {
   text-align: center;
   color: #94a3b8;
   font-size: 0.85rem;
+}
+
+/* Custom Modal UI */
+.custom-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5); /* Dim backdrop */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+}
+.custom-confirm-modal {
+  background: white;
+  width: 360px;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  text-align: center;
+}
+.modal-icon-container {
+  width: 54px;
+  height: 54px;
+  background: #eff6ff; /* Light blue circle */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px auto;
+}
+.modal-alert-icon {
+  color: #3b82f6; /* Blue icon matching image */
+}
+.modal-title {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.modal-desc {
+  margin: 0 0 24px 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+.btn-cancel {
+  background: white;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-weight: 600;
+  padding: 8px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-cancel:hover {
+  background: #f8fafc;
+}
+.btn-ok {
+  background: #3b82f6; /* Blue OK button */
+  border: none;
+  color: white;
+  font-weight: 600;
+  padding: 8px 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-ok:hover {
+  background: #2563eb;
 }
 </style>

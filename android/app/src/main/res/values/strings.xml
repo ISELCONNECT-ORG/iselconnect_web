@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ISEL Connect</string>
+    <string name="title_activity_main">ISEL Connect</string>
+    <string name="package_name">com.iselconnect.app</string>
+    <string name="custom_url_scheme">com.iselconnect.app</string>
+</resources>
