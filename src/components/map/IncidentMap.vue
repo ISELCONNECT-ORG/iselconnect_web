@@ -33,8 +33,6 @@ let map = null
 let markersById = {} // Store marker references by Report ID
 let heatLayer = null
 
-const LOCATIONIQ_TOKEN = import.meta.env.VITE_LOCATIONIQ_TOKEN
-
 // Dynamically load the leaflet-heat script from cdnjs to avoid Unpkg tracking prevention blocks
 const loadHeatmapScript = () => {
   return new Promise((resolve, reject) => {
@@ -53,21 +51,11 @@ const loadHeatmapScript = () => {
 onMounted(() => {
   map = L.map('map').setView([16.716173, 121.678825], 13) // Centered over Echague
 
-  // Use LocationIQ tiles for reliable loading, fallback to OSM
-  if (LOCATIONIQ_TOKEN) {
-    L.tileLayer(
-      `https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_TOKEN}`,
-      {
-        maxZoom: 19,
-        attribution: '© LocationIQ, OpenStreetMap contributors',
-      },
-    ).addTo(map)
-  } else {
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap contributors',
-    }).addTo(map)
-  }
+  // Force the use of free OpenStreetMap tiles to fix the grey screen issue
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap contributors',
+  }).addTo(map)
 
   // Force map to recalculate its size after rendering to prevent gray tiles
   setTimeout(() => {
