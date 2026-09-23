@@ -303,6 +303,18 @@ const router = createRouter({
       component: () => import('@/pages/printables/ResponseTimeReport.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin/reports/detailed-report',
+      name: 'DetailedReport',
+      component: () => import('@/pages/printables/DetailedReport.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/incident-list/:id',
+      name: 'IncidentListReportDetails',
+      component: () => import('@/pages/admin/IncidentListReportDetails.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

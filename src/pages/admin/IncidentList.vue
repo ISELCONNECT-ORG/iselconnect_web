@@ -23,9 +23,8 @@
                 <th>Priority</th>
                 <th>Report Details</th>
                 <th>Location</th>
-                <th>Description</th>
                 <th>Date</th>
-                <th>Actions</th>
+                <th>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -58,9 +57,13 @@
                     Barangay: {{ report.barangays?.name ?? 'Unknown Barangay' }}
                   </div>
                 </td>
+                <td style="color: #64748b; font-size: 0.8rem">
+                  {{ formatDateTime(report.created_at) }}
+                </td>
                 <td>
+                  <!-- Route updated to point to the new IncidentListReportDetails page -->
                   <router-link
-                    :to="`/admin/reports/${report.id}`"
+                    :to="`/admin/incident-list/${report.id}`"
                     style="
                       background-color: #f8fafc;
                       color: #3b82f6;
@@ -77,39 +80,10 @@
                     View Details
                   </router-link>
                 </td>
-                <td style="color: #64748b; font-size: 0.8rem">
-                  {{ formatDateTime(report.created_at) }}
-                </td>
-                <td>
-                  <div class="table-action-buttons">
-                    <button class="btn-accept" @click="promptAccept(report)">Accept</button>
-                    <button class="btn-reject" @click="rejectReport(report)">Reject</button>
-                  </div>
-                </td>
               </tr>
             </tbody>
           </table>
         </section>
-      </div>
-    </div>
-
-    <!-- Confirmation Modal -->
-    <div v-if="showConfirmModal" class="modal-overlay">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3>Confirm Approval</h3>
-        </div>
-        <div class="modal-body">
-          <p><strong>Are you sure you want to accept this report?</strong></p>
-          <p>
-            This action will officially accept the report and move it to the "On Queue" status for
-            dispatching.
-          </p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" @click="showConfirmModal = false">Cancel</button>
-          <button class="btn-approve" @click="confirmAccept">Approve</button>
-        </div>
       </div>
     </div>
   </div>
@@ -120,13 +94,9 @@ import { ref, onMounted } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import { supabase } from '@/services/supabase'
-import { useSystemAlerts } from '@/composables/useSystemAlerts'
 import '@/assets/style/Dashboard.css'
 
-const { addAlert } = useSystemAlerts()
 const incidentReports = ref([])
-const showConfirmModal = ref(false)
-const selectedReport = ref(null)
 
 const loadIncidentReports = async () => {
   const { data, error } = await supabase
@@ -142,47 +112,6 @@ const loadIncidentReports = async () => {
 
 const formatDateTime = (dateString) => (dateString ? new Date(dateString).toLocaleDateString() : '')
 
-const promptAccept = (report) => {
-  selectedReport.value = report
-  showConfirmModal.value = true
-}
-
-const confirmAccept = async () => {
-  if (!selectedReport.value) return
-
-  // Update status to 7 (On Queue)
-  const { error } = await supabase
-    .from('reports')
-    .update({ status_id: 7 })
-    .eq('id', selectedReport.value.id)
-
-  if (!error) {
-    addAlert({
-      title: 'System Confirmation',
-      message: `Report in ${selectedReport.value.barangays?.name || 'the area'} accepted and moved to On Queue.`,
-      severity: 'low',
-    })
-  }
-
-  showConfirmModal.value = false
-  selectedReport.value = null
-  loadIncidentReports()
-}
-
-const rejectReport = async (report) => {
-  const { error } = await supabase.from('reports').update({ status_id: 5 }).eq('id', report.id)
-
-  if (!error) {
-    addAlert({
-      title: 'System Confirmation',
-      message: 'Report was rejected and removed from pending.',
-      severity: 'low',
-    })
-  }
-
-  loadIncidentReports()
-}
-
 onMounted(() => {
   loadIncidentReports()
 })
@@ -194,65 +123,5 @@ onMounted(() => {
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
-}
-
-.modal-card {
-  background: white;
-  width: 420px;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-.modal-header h3 {
-  margin: 0 0 12px 0;
-  font-size: 1.1rem;
-  color: #1e293b;
-}
-
-.modal-body p {
-  margin: 0 0 8px 0;
-  font-size: 0.9rem;
-  color: #475569;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.btn-cancel {
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-  padding: 6px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.btn-approve {
-  background: #1e1b4b;
-  border: none;
-  color: white;
-  padding: 6px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
 }
 </style>

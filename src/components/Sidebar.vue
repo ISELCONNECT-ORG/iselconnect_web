@@ -30,7 +30,7 @@
       </router-link>
 
       <router-link to="/admin/create-lineman-team" class="nav-link" active-class="active">
-        <div class="dropdown-label"><UserPlus :size="20" /> Create Lineman Team</div>
+        <div class="dropdown-label"><UserPlus :size="20" /> Lineman Team</div>
       </router-link>
 
       <router-link to="/admin/advisory" class="nav-link" active-class="active">
@@ -64,6 +64,13 @@
           </div>
           <!-- Fixed: Added 'scrollable' class to match User Management -->
           <div class="flyout-links scrollable">
+            <router-link
+              to="/admin/reports/detailed-report"
+              class="flyout-link"
+              active-class="active"
+            >
+              <ClipboardList :size="16" /> Detailed System Reports
+            </router-link>
             <router-link to="/admin/reports" class="flyout-link" active-class="active">
               <FileText :size="16" /> System Reports
             </router-link>
