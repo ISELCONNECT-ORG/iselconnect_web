@@ -17,11 +17,19 @@
         </div>
       </header>
 
-      <div class="dashboard-content-grid">
+      <!-- Unified Loading State to prevent CSS Grid Collapse -->
+      <div v-if="!branchId" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading Dashboard Data...</p>
+      </div>
+
+      <!-- Main Grid ONLY renders when data is perfectly ready -->
+      <div v-else class="dashboard-content-grid">
         <div class="left-column">
+          <!-- Cast branchId to String to satisfy Vue Prop validation -->
           <MetricSummaryCards
             :period="currentPeriod"
-            :branchId="branchId"
+            :branchId="String(branchId)"
             @update:period="currentPeriod = $event"
             @metricsUpdated="handleMetricsUpdate"
           />
@@ -143,10 +151,10 @@
           </div>
 
           <!-- SYSTEM LOAD & CONSUMPTION -->
-          <IncidentChart :branchId="branchId" />
+          <IncidentChart :branchId="String(branchId)" />
 
           <!-- TOP BARANGAYS -->
-          <TopBarangaysChart :branchId="branchId" />
+          <TopBarangaysChart :branchId="String(branchId)" />
         </div>
 
         <aside class="right-sidebar">
@@ -431,7 +439,8 @@ import OutageStatusPie from '@/components/analytics/OutageStatusPie.vue'
 import { supabase } from '@/services/supabase'
 import { useSystemAlerts } from '@/composables/useSystemAlerts'
 
-import '@/assets/style/BranchDashboard.css'
+// FIX: Changed this to match the Admin Dashboard stylesheet explicitly to guarantee layout matches
+import '@/assets/style/Dashboard.css'
 
 const router = useRouter()
 const { addAlert } = useSystemAlerts()
@@ -530,15 +539,15 @@ const greeting = computed(() => {
 })
 
 const gridEfficiency = computed(() => {
-  const total = globalMetrics.value.totalReports
-  const resolved = globalMetrics.value.totalResolved
+  const total = globalMetrics.value.totalReports || 0
+  const resolved = globalMetrics.value.totalResolved || 0
   if (total === 0) return '100.0'
   return ((resolved / total) * 100).toFixed(1)
 })
 
 const handleMetricsUpdate = (newMetrics) => {
-  globalMetrics.value = newMetrics
-  stats.value[0].value = newMetrics.totalReports.toString()
+  globalMetrics.value = newMetrics || { totalReports: 0, totalResolved: 0 }
+  stats.value[0].value = (globalMetrics.value.totalReports || 0).toString()
 }
 
 const fetchCurrentBranch = async () => {
@@ -548,22 +557,25 @@ const fetchCurrentBranch = async () => {
   } = await supabase.auth.getUser()
   if (userError || !user) return
 
+  // Use 'id' instead of 'email' for better auth safety
   const { data: userData } = await supabase
     .from('users')
     .select('branch_id, iselco_branch(branch_name)')
-    .eq('email', user.email)
+    .eq('id', user.id)
     .single()
 
   branchId.value = userData?.branch_id ?? null
   branchName.value = userData?.iselco_branch?.branch_name || 'Branch'
 
   if (branchId.value) {
-    loadActiveIncidents()
-    loadSystemAlerts()
-    loadRecentActivity()
-    fetchLinemenStats()
-    fetchDropdownData()
-    loadAverageResponseTimes() // Initialize branch-specific ART
+    await Promise.all([
+      loadActiveIncidents(),
+      loadSystemAlerts(),
+      loadRecentActivity(),
+      fetchLinemenStats(),
+      fetchDropdownData(),
+      loadAverageResponseTimes(),
+    ])
   }
 }
 
@@ -888,288 +900,34 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.validation-modal-card {
-  background: white;
-  border-radius: 16px;
-  border: 1px solid #a5b4fc;
-  width: 360px;
-  padding: 24px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+/* Loading State Styles */
+.loading-state {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-.validation-content {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-}
-.validation-icon-wrapper {
-  background: #f1f5f9;
-  padding: 12px;
-  border-radius: 12px;
-  display: flex;
   align-items: center;
   justify-content: center;
+  height: 60vh;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 1.1rem;
 }
-.validation-icon {
-  background: #1e1b4b;
-  color: white;
-  width: 24px;
-  height: 24px;
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 14px;
-}
-.validation-text {
-  flex: 1;
-}
-.validation-text h3 {
-  margin: 0 0 8px 0;
-  font-size: 1.15rem;
-  color: #0f172a;
-  font-weight: 700;
-}
-.validation-text p {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #475569;
-  line-height: 1.4;
-}
-.validation-footer {
-  display: flex;
-  justify-content: flex-end;
-}
-.btn-ok {
-  background: #1e1b4b;
-  color: white;
-  border: none;
-  padding: 10px 28px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-.btn-ok:hover {
-  opacity: 0.9;
+  border-left-color: #2563eb;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
 }
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.manual-modal-card {
-  background: white;
-  border-radius: 8px;
-  width: 460px;
-  overflow: visible;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-.manual-modal-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
-}
-.manual-modal-header h2 {
-  margin: 0 0 4px 0;
-  font-size: 1.15rem;
-  color: #1e1b4b;
-  font-weight: 700;
-}
-.manual-modal-header p {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #64748b;
-}
-.manual-modal-body {
-  padding: 20px;
-}
-.section-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #1e1b4b;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-  border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 6px;
-}
-.section-label .icon {
-  color: #d97706;
-  width: 14px;
-  height: 14px;
-}
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.input-group label {
-  display: block;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #0f172a;
-  margin-bottom: 4px;
-}
-.input-group label span.req {
-  color: #ef4444;
-}
-.std-input {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  color: #0f172a;
-  background: white;
-  box-sizing: border-box;
-}
-.std-textarea {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  color: #0f172a;
-  min-height: 70px;
-  resize: vertical;
-  box-sizing: border-box;
-}
-
-/* CUSTOM DROPDOWN STYLES */
-.custom-dropdown-container {
-  position: relative;
-  width: 100%;
-}
-.dropdown-trigger-btn {
-  width: 100%;
-  background: white;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 8px 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  box-sizing: border-box;
-}
-.dropdown-trigger-btn span {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: #0f172a;
-}
-.dropdown-trigger-btn span.muted-trigger {
-  color: #94a3b8;
-}
-.dropdown-chevron {
-  color: #64748b;
-}
-.dropdown-popover {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 4px;
-  background: white;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 6px;
-  z-index: 1050;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-.popover-search-box {
-  position: relative;
-  margin-bottom: 6px;
-}
-.search-input {
-  width: 100%;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  padding: 6px 8px 6px 28px;
-  font-size: 0.75rem;
-  outline: none;
-  box-sizing: border-box;
-}
-.search-input-icon {
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-}
-.popover-scroll-list {
-  max-height: 180px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-.group-header-label {
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  margin: 4px 0 2px 4px;
-}
-.group-option-box {
-  padding: 6px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #0f172a;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.group-option-box:hover {
-  background: #f1f5f9;
-}
-.no-result-text {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  padding: 6px;
-  text-align: center;
-}
-
-.modal-footer {
-  padding: 12px 20px;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-.btn-cancel {
-  background: white;
-  border: 1px solid #cbd5e1;
-  color: #1e1b4b;
-  padding: 6px 14px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-.btn-submit {
-  background: #1e1b4b;
-  color: white;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.8rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>
