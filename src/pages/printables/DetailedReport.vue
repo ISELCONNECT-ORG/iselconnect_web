@@ -92,6 +92,7 @@
                   <th>CATEGORY & STATUS</th>
                   <th>LOCATION INFO</th>
                   <th>INCIDENT DETAILS</th>
+                  <th>ASSIGNED LINEMAN</th>
                   <th>RESOLUTION LOG</th>
                 </tr>
               </thead>
@@ -160,6 +161,25 @@
                     >
                   </td>
 
+                  <!-- ASSIGNED LINEMAN (Updated to Map Names accurately via UUID) -->
+                  <td>
+                    <template v-if="report.assignments && report.assignments.length > 0">
+                      <div
+                        v-for="assignment in report.assignments"
+                        :key="assignment.id"
+                        class="mb-2"
+                      >
+                        <span class="text-xs block">
+                          <strong>{{ assignment.employeeName }}</strong>
+                        </span>
+                        <span class="text-xs text-muted block" v-if="assignment.employees">
+                          {{ assignment.employees.designation || 'Lineman' }}
+                        </span>
+                      </div>
+                    </template>
+                    <span class="text-xs text-muted" v-else> Unassigned </span>
+                  </td>
+
                   <!-- RESOLUTION LOG -->
                   <td>
                     <span class="text-xs"
@@ -174,7 +194,7 @@
                   </td>
                 </tr>
                 <tr v-if="filteredReports.length === 0">
-                  <td colspan="5" class="empty-state text-center">
+                  <td colspan="6" class="empty-state text-center">
                     No detailed reports match your current filters.
                   </td>
                 </tr>
@@ -210,31 +230,91 @@ const selectedCategory = ref('')
 
 // --- Data Fetching ---
 const fetchData = async () => {
-  const [statusRes, typesRes] = await Promise.all([
-    supabase.from('report_statuses').select('*'),
-    supabase.from('report_types').select('*'),
-  ])
+  try {
+    // 1. Fetch dictionaries, assignments, employees, and users tables independently
+    const [statusRes, typesRes, assignmentsRes, employeesRes, usersRes] = await Promise.all([
+      supabase.from('report_statuses').select('*'),
+      supabase.from('report_types').select('*'),
+      supabase.from('assignments').select('*'),
+      supabase.from('employees').select('*'),
+      supabase.from('users').select('*'),
+    ])
 
-  if (statusRes.data) reportStatuses.value = statusRes.data
-  if (typesRes.data) reportTypes.value = typesRes.data
+    if (statusRes.data) reportStatuses.value = statusRes.data
+    if (typesRes.data) reportTypes.value = typesRes.data
 
-  const { data, error } = await supabase
-    .from('reports')
-    .select(
-      `
-      *,
-      report_types (*),
-      municipalities (*),
-      barangays (*),
-      report_statuses (*)
-    `,
-    )
-    .order('created_at', { ascending: false })
+    // 2. Fetch primary reports
+    const { data: reportsData, error: reportsError } = await supabase
+      .from('reports')
+      .select(
+        `
+        *,
+        report_types (*),
+        municipalities (*),
+        barangays (*),
+        report_statuses (*)
+      `,
+      )
+      .order('created_at', { ascending: false })
 
-  if (error) {
-    console.error('Error fetching comprehensive reports:', error)
-  } else {
-    rawReports.value = data
+    if (reportsError) {
+      console.error('Error fetching reports:', reportsError)
+      return
+    }
+
+    // 3. Manually map the data together using the correct UUID foreign keys
+    const allAssignments = assignmentsRes?.data || []
+    const allEmployees = employeesRes?.data || []
+    const allUsers = usersRes?.data || []
+
+    rawReports.value = (reportsData || []).map((report) => {
+      // Find assignments connected to this specific report_id
+      const linkedAssignments = allAssignments
+        .filter((a) => a.report_id === report.id)
+        .map((assignment) => {
+          // assignment.lineman_id is a UUID, so we match it to employee.user_id
+          const matchedEmployee = allEmployees.find((e) => e.user_id === assignment.lineman_id)
+
+          // Match assignment.lineman_id directly to the users table to get the name
+          const matchedUser = allUsers.find(
+            (u) => u.id === assignment.lineman_id || u.user_id === assignment.lineman_id,
+          )
+
+          let employeeName = 'Unknown Lineman'
+
+          if (matchedUser) {
+            const fName = matchedUser.first_name || ''
+            const lName = matchedUser.last_name || ''
+            employeeName =
+              matchedUser.full_name ||
+              matchedUser.name ||
+              `${fName} ${lName}`.trim() ||
+              'No Name Provided'
+          } else if (matchedEmployee) {
+            // Fallback if user table doesn't have it, but employees table does
+            const fName = matchedEmployee.first_name || ''
+            const lName = matchedEmployee.last_name || ''
+            employeeName =
+              matchedEmployee.full_name ||
+              matchedEmployee.name ||
+              `${fName} ${lName}`.trim() ||
+              'No Name Provided'
+          }
+
+          return {
+            ...assignment,
+            employees: matchedEmployee || null,
+            employeeName: employeeName,
+          }
+        })
+
+      return {
+        ...report,
+        assignments: linkedAssignments,
+      }
+    })
+  } catch (err) {
+    console.error('Unexpected error fetching comprehensive reports:', err)
   }
 }
 
@@ -494,6 +574,9 @@ const printReport = () => {
 }
 .block {
   display: block;
+}
+.mb-2 {
+  margin-bottom: 8px;
 }
 
 .status-pill {
