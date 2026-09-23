@@ -157,11 +157,11 @@
                       {{ report.description || 'No description provided' }}</span
                     ><br />
                     <span class="text-xs text-muted"
-                      >Reporter ID: {{ report.residents_id || 'N/A' }}</span
+                      >Reporter: {{ report.reporterName || 'N/A' }}</span
                     >
                   </td>
 
-                  <!-- ASSIGNED LINEMAN (Updated to Map Names accurately via UUID) -->
+                  <!-- ASSIGNED LINEMAN -->
                   <td>
                     <template v-if="report.assignments && report.assignments.length > 0">
                       <div
@@ -308,9 +308,26 @@ const fetchData = async () => {
           }
         })
 
+      // --- MAP THE REPORTER'S NAME ---
+      let mappedReporterName = report.residents_id // Fallback to ID if no match is found
+      const matchedResident = allUsers.find(
+        (u) => u.id === report.residents_id || u.user_id === report.residents_id,
+      )
+
+      if (matchedResident) {
+        const fName = matchedResident.first_name || ''
+        const lName = matchedResident.last_name || ''
+        mappedReporterName =
+          matchedResident.full_name ||
+          matchedResident.name ||
+          `${fName} ${lName}`.trim() ||
+          report.residents_id
+      }
+
       return {
         ...report,
         assignments: linkedAssignments,
+        reporterName: mappedReporterName, // Attach mapped name to the report object
       }
     })
   } catch (err) {
