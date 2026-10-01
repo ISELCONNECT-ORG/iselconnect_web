@@ -48,7 +48,7 @@
           <Timer :size="24" class="icon" />
           <span>AVG. RESOLUTION</span>
         </div>
-        <span class="value">0</span>
+        <span class="value">{{ metrics.avgResolution }}</span>
       </div>
     </div>
   </div>
@@ -67,7 +67,13 @@ const props = defineProps({
 const emit = defineEmits(['update:period', 'metricsUpdated'])
 
 const localPeriod = ref(props.period.toUpperCase())
-const metrics = ref({ pending: 0, ongoing: 0, totalReports: 0, totalResolved: 0 })
+const metrics = ref({
+  pending: 0,
+  ongoing: 0,
+  totalReports: 0,
+  totalResolved: 0,
+  avgResolution: '0m',
+})
 
 const getStartDate = (filter) => {
   const now = new Date()
@@ -98,7 +104,32 @@ const fetchMetrics = async () => {
     metrics.value.pending = data.filter((i) => i.status_id === 1).length
     metrics.value.ongoing = data.filter((i) => i.status_id === 2).length
     metrics.value.totalReports = data.length
-    metrics.value.totalResolved = data.filter((i) => i.status_id === 3 || i.status_id === 6).length
+
+    const resolved = data.filter((i) => i.status_id === 3 || i.status_id === 6)
+    metrics.value.totalResolved = resolved.length
+
+    // Calculate Average Resolution Time
+    if (resolved.length > 0) {
+      const totalMs = resolved.reduce((acc, report) => {
+        const start = new Date(report.created_at).getTime()
+        const end = new Date(report.updated_at).getTime()
+        return acc + (end - start)
+      }, 0)
+
+      const avgMs = totalMs / resolved.length
+      const days = Math.floor(avgMs / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((avgMs / (1000 * 60 * 60)) % 24)
+      const minutes = Math.floor((avgMs / (1000 * 60)) % 60)
+
+      let formattedAvg = ''
+      if (days > 0) formattedAvg += `${days}d `
+      if (hours > 0) formattedAvg += `${hours}h `
+      formattedAvg += `${minutes}m`
+
+      metrics.value.avgResolution = formattedAvg.trim() || '0m'
+    } else {
+      metrics.value.avgResolution = '0m'
+    }
 
     emit('metricsUpdated', metrics.value)
   }

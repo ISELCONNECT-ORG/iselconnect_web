@@ -375,6 +375,9 @@ const filteredGroupedNotifications = computed(() => {
 .sms-icon {
   color: #ffffff;
 }
+.sms-text {
+  color: #ffffff !important;
+}
 .mini-switch {
   width: 28px;
   height: 16px;
