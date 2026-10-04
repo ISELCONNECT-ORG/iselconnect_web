@@ -223,6 +223,24 @@ const setupSupabaseNotifications = () => {
         })
       },
     )
+    // 2. NEW listener for the 'system_logs' table (specifically USER_SIGNUP)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'system_logs' },
+      (payload) => {
+        const newLog = payload.new
+
+        // Only trigger an alert if the action is a signup
+        if (newLog && newLog.action_type === 'USER_SIGNUP') {
+          addAlert({
+            id: `log-${newLog.id}`, // Custom ID
+            title: 'Account Created',
+            message: newLog.action_details || 'A new user has registered.',
+            severity: 'normal',
+          })
+        }
+      },
+    )
     .subscribe()
 }
 

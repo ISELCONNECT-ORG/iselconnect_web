@@ -91,6 +91,13 @@
             <router-link to="/admin/reports/best-lineman" class="flyout-link" active-class="active">
               <Award :size="16" /> Best Lineman
             </router-link>
+            <router-link
+              to="/admin/reports/report-ratings"
+              class="flyout-link"
+              active-class="active"
+            >
+              <Star :size="16" /> Report Ratings
+            </router-link>
           </div>
         </div>
       </div>
@@ -226,6 +233,7 @@ import {
   Printer,
   Award,
   Clock,
+  Star,
 } from 'lucide-vue-next'
 import { supabase } from '@/services/supabase'
 import { useRouter } from 'vue-router'
@@ -632,3 +640,4 @@ const cancelLogout = () => {
   background-color: #151336;
 }
 </style>
+```[cite: 5]

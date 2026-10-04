@@ -246,31 +246,6 @@
       </div>
     </div>
 
-    <!-- DISPATCH TIME VALIDATION MODAL (ADMIN LOCK) -->
-    <div
-      v-if="showTimeLockModal"
-      class="modal-overlay"
-      style="z-index: 1050"
-      @click.self="showTimeLockModal = false"
-    >
-      <div class="time-lock-card">
-        <div class="time-lock-header">
-          <Info class="info-icon" :size="20" />
-          <h3>Dispatch Time</h3>
-        </div>
-        <div class="time-lock-body">
-          <p>
-            Admin assigning is locked right now. 8:00 AM to 5:00 PM is reserved for Branch Only to
-            dispatch.
-          </p>
-          <p>Please wait for the Admin dispatch window (5:01 PM - 7:59 AM).</p>
-        </div>
-        <div class="time-lock-footer">
-          <button @click="showTimeLockModal = false" class="btn-primary-ok">OK</button>
-        </div>
-      </div>
-    </div>
-
     <!-- ASSIGN MODAL (TEAMS & LINEMEN) -->
     <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
       <div class="assign-modal-card">
@@ -399,7 +374,7 @@ import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import { notifyLineman } from '@/services/smsService'
 import Sidebar from '@/components/Sidebar.vue'
-import { CheckCircle, ImageOff, ShieldCheck, UserPlus, Search, Info, Users } from 'lucide-vue-next'
+import { CheckCircle, ImageOff, ShieldCheck, UserPlus, Search, Users } from 'lucide-vue-next'
 import { useSystemAlerts } from '@/composables/useSystemAlerts'
 import { sendNotification } from '@/utils/notifications.js'
 
@@ -421,7 +396,6 @@ const showVerifyModal = ref(false)
 
 // --- Assign State variables ---
 const showAssignModal = ref(false)
-const showTimeLockModal = ref(false)
 const assignTab = ref('teams')
 const availableLinemen = ref([])
 const availableTeams = ref([])
@@ -433,26 +407,13 @@ let issueMarker = null
 let linemanMarker = null
 let routePolyline = null
 let refreshInterval = null
+let pageRefreshInterval = null // Auto-refresh for 3 seconds
 let realtimeChannel = null
 
 // Live timer for calculation
 const nowTime = ref(Date.now())
 let timerIntervalSec = null
 const frozenResolutionTime = ref(null)
-
-const isAdminPhase = computed(() => {
-  const current = new Date(nowTime.value)
-  const hour = current.getHours()
-  const minute = current.getMinutes()
-
-  if (hour >= 8 && hour < 17) {
-    return false
-  }
-  if (hour === 17 && minute === 0) {
-    return false
-  }
-  return true
-})
 
 // --- Format assigned linemen for the new box ---
 const assignedLinemenDisplay = computed(() => {
@@ -467,10 +428,10 @@ const assignedLinemenDisplay = computed(() => {
   return [...new Set(names)].join(', ')
 })
 
-const fetchReportDetails = async () => {
+const fetchReportDetails = async (isInitial = true) => {
   const reportId = route.params.id
   if (!reportId) {
-    loading.value = false
+    if (isInitial) loading.value = false
     return
   }
 
@@ -479,38 +440,49 @@ const fetchReportDetails = async () => {
   if (error) {
     console.error('Error fetching details:', error.message)
   } else {
-    report.value = data
+    // FIX: Store the new data in a temporary variable first to prevent UI blinking
+    const fetchedReport = data
+
     const rawEvidence =
-      data.evidence || data.image_url || data.photo_url || data.file_path || data.photo_path
+      fetchedReport.evidence ||
+      fetchedReport.image_url ||
+      fetchedReport.photo_url ||
+      fetchedReport.file_path ||
+      fetchedReport.photo_path
     await fetchEvidenceFiles(rawEvidence)
 
     const resolvedPhotoPath =
-      data.resolved_photo_url || data.resolved_evidence || data.resolved_photo_path
+      fetchedReport.resolved_photo_url ||
+      fetchedReport.resolved_evidence ||
+      fetchedReport.resolved_photo_path
     await fetchResolvedPhoto(resolvedPhotoPath)
-  }
 
-  const { data: allAssigns, error: assignError } = await supabase
-    .from('assignments')
-    .select('*, users!lineman_id(first_name, last_name)')
-    .eq('report_id', reportId)
-    .order('assigned_at', { ascending: false })
+    const { data: allAssigns, error: assignError } = await supabase
+      .from('assignments')
+      .select('*, users!lineman_id(first_name, last_name)')
+      .eq('report_id', reportId)
+      .order('assigned_at', { ascending: false })
 
-  if (!assignError && allAssigns) {
-    report.value.assignments = allAssigns
-    if (allAssigns.length > 0) {
-      assignment.value = allAssigns[0]
+    if (!assignError && allAssigns) {
+      fetchedReport.assignments = allAssigns
+      if (allAssigns.length > 0) {
+        assignment.value = allAssigns[0]
 
-      if (!resolvedPhotoUrl.value) {
-        const assignPhotoPath =
-          assignment.value.resolved_photo_url ||
-          assignment.value.resolved_evidence ||
-          assignment.value.photo_url
-        if (assignPhotoPath) await fetchResolvedPhoto(assignPhotoPath)
+        if (!resolvedPhotoUrl.value) {
+          const assignPhotoPath =
+            assignment.value.resolved_photo_url ||
+            assignment.value.resolved_evidence ||
+            assignment.value.photo_url
+          if (assignPhotoPath) await fetchResolvedPhoto(assignPhotoPath)
+        }
       }
     }
+
+    // FIX: Update the reactive state all at once
+    report.value = fetchedReport
   }
 
-  loading.value = false
+  if (isInitial) loading.value = false
   await nextTick()
   initLiveMap()
   setupRealtimeTracking()
@@ -573,43 +545,56 @@ const refreshLinemanLocation = async () => {
         .bindPopup('<b>Lineman Location</b>')
     }
 
+    // FIX: Using OSRM Public Routing API for reliable, free road snapping
     try {
       if (linemanLat === reportLat && linemanLon === reportLon) throw new Error('Same coordinates')
+
       const response = await fetch(
-        `https://us1.locationiq.com/v1/directions/driving/${linemanLon},${linemanLat};${reportLon},${reportLat}?key=${LOCATIONIQ_TOKEN}&geometries=geojson`,
+        `https://router.project-osrm.org/route/v1/driving/${linemanLon},${linemanLat};${reportLon},${reportLat}?geometries=geojson&overview=full`,
       )
+
+      if (!response.ok) throw new Error('Routing API failed')
+
       const data = await response.json()
-      if (data.routes && data.routes[0]) {
+      if (data.routes && data.routes.length > 0) {
         const routeCoords = data.routes[0].geometry.coordinates.map((c) => [c[1], c[0]])
-        if (routePolyline) routePolyline.setLatLngs(routeCoords)
-        else
+        if (routePolyline) {
+          routePolyline.setLatLngs(routeCoords)
+          routePolyline.setStyle({ dashArray: null, color: '#2563eb', weight: 4, opacity: 0.8 }) // Reset to solid if recovered
+        } else {
           routePolyline = L.polyline(routeCoords, {
             color: '#2563eb',
             weight: 4,
             opacity: 0.8,
           }).addTo(mapInstance)
+        }
       } else {
-        throw new Error('No route')
+        throw new Error('No route found')
       }
     } catch (err) {
       const fallbackCoords = [
         [linemanLat, linemanLon],
         [reportLat, reportLon],
       ]
-      if (routePolyline) routePolyline.setLatLngs(fallbackCoords)
-      else
+      if (routePolyline) {
+        routePolyline.setLatLngs(fallbackCoords)
+        routePolyline.setStyle({ dashArray: '5, 5' }) // Fallback dashed styling
+      } else {
         routePolyline = L.polyline(fallbackCoords, {
           color: '#2563eb',
           weight: 4,
           dashArray: '5, 5',
           opacity: 0.8,
         }).addTo(mapInstance)
+      }
     }
   }
 }
 
 const setupRealtimeTracking = () => {
   if (!assignment.value?.id) return
+  if (realtimeChannel) return // Prevent multiple subscriptions during auto-refresh
+
   const assignmentId = assignment.value.id
 
   realtimeChannel = supabase
@@ -637,10 +622,15 @@ const initLiveMap = async () => {
       [reportLat, reportLon],
       16,
     )
-    L.tileLayer(
-      `https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_TOKEN}`,
-      { maxZoom: 19 },
-    ).addTo(mapInstance)
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors',
+    }).addTo(mapInstance)
+
+    setTimeout(() => {
+      if (mapInstance) mapInstance.invalidateSize()
+    }, 250)
 
     const issueIcon = L.divIcon({
       className: 'custom-leaflet-marker',
@@ -787,17 +777,21 @@ const resolutionDuration = computed(() => {
 
 const fetchEvidenceFiles = async (fieldValue) => {
   if (!fieldValue) return
-  evidenceUrls.value = []
+
+  const tempUrls = []
   const paths = Array.isArray(fieldValue) ? fieldValue : [fieldValue]
+
   for (const item of paths) {
     if (typeof item === 'string' && item.trim() !== '') {
-      if (item.startsWith('http')) evidenceUrls.value.push(item)
+      if (item.startsWith('http')) tempUrls.push(item)
       else {
         const { data } = supabase.storage.from('report_photos').getPublicUrl(item)
-        if (data?.publicUrl) evidenceUrls.value.push(data.publicUrl)
+        if (data?.publicUrl) tempUrls.push(data.publicUrl)
       }
     }
   }
+
+  evidenceUrls.value = tempUrls
 }
 
 const fetchResolvedPhoto = async (fieldValue) => {
@@ -815,17 +809,6 @@ const fetchResolvedPhoto = async (fieldValue) => {
 
 const handleVerifyClick = () => {
   if (!report.value || !resolvedPhotoUrl.value) return
-
-  const currentHour = new Date().getHours()
-  const isAdminWindow = currentHour >= 17 || currentHour < 8
-
-  if (!isAdminWindow) {
-    alert(
-      'Admin validation is locked.\n\n5:00 PM to 8:00 AM is reserved for Admin validation. (8:00 AM to 5:00 PM is Branch only).',
-    )
-    return
-  }
-
   showVerifyModal.value = true
 }
 
@@ -950,11 +933,6 @@ const isTeamAssigned = (team) => {
 }
 
 const openAssign = async () => {
-  if (!isAdminPhase.value) {
-    showTimeLockModal.value = true
-    return
-  }
-
   assignSearchQuery.value = ''
   assignTab.value = 'teams'
 
@@ -1030,7 +1008,7 @@ const assignSingleLineman = async (uid) => {
       severity: 'low',
     })
 
-    fetchReportDetails()
+    fetchReportDetails(false)
   } else {
     alert('Error assigning lineman: ' + error.message)
   }
@@ -1085,7 +1063,7 @@ const assignTeam = async (team) => {
       severity: 'low',
     })
 
-    fetchReportDetails()
+    fetchReportDetails(false)
   } else {
     alert('Error assigning team: ' + error.message)
   }
@@ -1093,17 +1071,28 @@ const assignTeam = async (team) => {
 
 onMounted(() => {
   fetchLookups()
-  fetchReportDetails()
+
+  // Initial fetch
+  fetchReportDetails(true)
+
+  // 3-second auto-refresh for the page data
+  pageRefreshInterval = setInterval(() => {
+    fetchReportDetails(false) // Pass false so the UI doesn't blink with a loading state
+  }, 3000)
+
+  // Location refresh
   refreshInterval = setInterval(() => {
     refreshLinemanLocation()
   }, 5000)
 
+  // Live timer interval
   timerIntervalSec = setInterval(() => {
     nowTime.value = Date.now()
   }, 1000)
 })
 
 onUnmounted(() => {
+  if (pageRefreshInterval) clearInterval(pageRefreshInterval)
   if (refreshInterval) clearInterval(refreshInterval)
   if (timerIntervalSec) clearInterval(timerIntervalSec)
   if (realtimeChannel) supabase.removeChannel(realtimeChannel)
@@ -1591,65 +1580,6 @@ onUnmounted(() => {
 }
 .btn-verify:hover {
   background: #312e81;
-}
-
-/* Dispatch Time Validation Modal */
-.time-lock-card {
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #a5b4fc;
-  width: 460px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-}
-.time-lock-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f1f5f9;
-}
-.time-lock-header .info-icon {
-  color: #2563eb;
-}
-.time-lock-header h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #1e293b;
-  font-weight: 600;
-}
-.time-lock-body {
-  padding: 24px 20px;
-  color: #475569;
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-.time-lock-body p {
-  margin: 0 0 16px 0;
-}
-.time-lock-body p:last-child {
-  margin-bottom: 0;
-}
-.time-lock-footer {
-  padding: 14px 20px;
-  border-top: 1px solid #f1f5f9;
-  display: flex;
-  justify-content: flex-end;
-}
-.btn-primary-ok {
-  background: #2563eb;
-  color: white;
-  border: none;
-  padding: 8px 24px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-primary-ok:hover {
-  background: #1d4ed8;
 }
 
 /* Assign Modal Styles */

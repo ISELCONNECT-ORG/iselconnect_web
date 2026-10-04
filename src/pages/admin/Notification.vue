@@ -93,7 +93,7 @@ import { supabase } from '@/services/supabase'
 
 const notifications = ref([])
 const selectedFilter = ref('All')
-const filterTabs = ['All', 'Incident', 'Advisory', 'Assignment', 'Resolved', 'System']
+const filterTabs = ['All', 'Incident', 'Advisory', 'Assignment', 'Resolved', 'System', 'Signup']
 
 // Time ago formatter
 const formatTimeAgo = (dateString) => {
@@ -111,19 +111,49 @@ const formatTimeAgo = (dateString) => {
 }
 
 const fetchNotifications = async () => {
-  const { data, error } = await supabase
+  // 1. Fetch normal notifications
+  const { data: notesData, error: notesError } = await supabase
     .from('notifications')
     .select('*')
     .order('created_at', { ascending: false })
 
-  if (error) {
-    console.error('Error fetching admin notifications:', error.message)
-  } else {
-    notifications.value = data || []
+  // 2. Fetch USER_SIGNUP actions from system_logs
+  const { data: logsData, error: logsError } = await supabase
+    .from('system_logs')
+    .select('*')
+    .eq('action_type', 'USER_SIGNUP')
+    .order('created_at', { ascending: false })
+
+  let allData = []
+
+  if (!notesError && notesData) {
+    allData = [...notesData]
   }
+
+  if (!logsError && logsData) {
+    // Map system logs into the notification card format
+    const signupLogs = logsData.map((log) => ({
+      id: `log-${log.id}`, // Custom string ID to distinguish from standard notifications
+      title: 'Account Created',
+      message: log.action_details,
+      created_at: log.created_at,
+    }))
+    allData = [...allData, ...signupLogs]
+  }
+
+  // Sort combined array by newest first
+  allData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+
+  notifications.value = allData
 }
 
 const deleteNotification = async (id) => {
+  // If dismissing a system_log, only remove it from the UI (do not delete the audit log)
+  if (typeof id === 'string' && id.startsWith('log-')) {
+    notifications.value = notifications.value.filter((n) => n.id !== id)
+    return
+  }
+
   const { error } = await supabase.from('notifications').delete().eq('id', id)
   if (!error) {
     notifications.value = notifications.value.filter((n) => n.id !== id)
@@ -140,6 +170,8 @@ const handleDecline = (id) => {
 
 const getType = (note) => {
   const t = (note.title || '').toLowerCase()
+  if (t.includes('account created') || t.includes('user_signup') || t.includes('signup'))
+    return 'SIGNUP'
   if (t.includes('resolved') || t.includes('completed')) return 'RESOLVED'
   if (t.includes('system') || t.includes('deployed')) return 'SYSTEM'
   if (t.includes('assign') || t.includes('dispatch') || t.includes('lineman')) return 'ASSIGNMENT'
@@ -151,20 +183,22 @@ const getSeverity = (note) => {
   const type = getType(note)
   if (type === 'INCIDENT') return 'critical'
   if (type === 'ADVISORY') return 'high'
-  if (type === 'ASSIGNMENT') return 'normal'
+  if (type === 'ASSIGNMENT' || type === 'SIGNUP') return 'normal'
   return 'low'
 }
 
 const getIconSymbol = (type) => {
   switch (type) {
     case 'INCIDENT':
-      return '⚠️'
+      return '⚠️️'
     case 'ASSIGNMENT':
       return '🚗'
     case 'ADVISORY':
       return '⚡'
     case 'RESOLVED':
       return '✓'
+    case 'SIGNUP':
+      return '👤'
     default:
       return 'i'
   }
@@ -176,6 +210,7 @@ const getActionText = (note) => {
   if (type === 'ADVISORY') return 'Review Advisory'
   if (type === 'RESOLVED') return 'View Report'
   if (type === 'SYSTEM') return 'Read Release Notes'
+  if (type === 'SIGNUP') return 'Review Account'
   return ''
 }
 
