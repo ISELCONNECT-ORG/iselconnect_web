@@ -257,6 +257,38 @@
       </div>
     </div>
 
+    <!-- Assignment Confirmation Modal -->
+    <div
+      v-if="showConfirmAssignModal"
+      class="modal-overlay"
+      style="z-index: 10000"
+      @click.self="showConfirmAssignModal = false"
+    >
+      <div class="confirm-modal">
+        <div class="modal-header">
+          <UserPlus :size="20" class="header-icon" />
+          <h2>Confirm Dispatch Assignment</h2>
+        </div>
+        <div class="modal-body">
+          <div class="modal-icon-box">
+            <Users v-if="pendingAssignmentType === 'team'" :size="24" class="body-icon" />
+            <UserPlus v-else :size="24" class="body-icon" />
+          </div>
+          <div class="modal-text-content">
+            <h3>Dispatch {{ pendingAssignmentType === 'team' ? 'Team' : 'Lineman' }}?</h3>
+            <p>
+              Are you sure you want to assign <strong>{{ pendingAssignmentName }}</strong> to this
+              incident? This action will immediately notify them and dispatch them to the location.
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="showConfirmAssignModal = false">Cancel</button>
+          <button class="btn-verify" @click="executeAssignment">Confirm Assign</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ASSIGN MODAL (TEAMS & LINEMEN) -->
     <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
       <div class="assign-modal-card">
@@ -307,7 +339,7 @@
                   <button
                     class="assign-action-btn"
                     :disabled="isTeamAssigned(t)"
-                    @click="assignTeam(t)"
+                    @click="initiateAssign('team', t, t.team_name)"
                   >
                     {{ isTeamAssigned(t) ? 'Assigned' : 'Assign Team' }}
                   </button>
@@ -351,7 +383,7 @@
                   <button
                     class="assign-action-btn"
                     :disabled="isAssigned(l.id)"
-                    @click="assignSingleLineman(l.id)"
+                    @click="initiateAssign('lineman', l.id, l.name)"
                   >
                     {{ isAssigned(l.id) ? 'Assigned' : 'Assign' }}
                   </button>
@@ -410,6 +442,12 @@ const assignTab = ref('teams')
 const availableLinemen = ref([])
 const availableTeams = ref([])
 const assignSearchQuery = ref('')
+
+// --- Confirm Assign Modal variables ---
+const showConfirmAssignModal = ref(false)
+const pendingAssignmentTarget = ref(null)
+const pendingAssignmentType = ref('')
+const pendingAssignmentName = ref('')
 
 const LOCATIONIQ_TOKEN = import.meta.env.VITE_LOCATIONIQ_TOKEN
 let mapInstance = null
@@ -1020,6 +1058,24 @@ const openAssign = async () => {
   showAssignModal.value = true
 }
 
+const initiateAssign = (type, target, name) => {
+  pendingAssignmentType.value = type
+  pendingAssignmentTarget.value = target
+  pendingAssignmentName.value = name
+  showConfirmAssignModal.value = true
+}
+
+const executeAssignment = async () => {
+  showConfirmAssignModal.value = false
+  if (pendingAssignmentType.value === 'lineman') {
+    await assignSingleLineman(pendingAssignmentTarget.value)
+  } else if (pendingAssignmentType.value === 'team') {
+    await assignTeam(pendingAssignmentTarget.value)
+  }
+  pendingAssignmentTarget.value = null
+  pendingAssignmentName.value = ''
+}
+
 const assignSingleLineman = async (uid) => {
   if (!report.value) return
 
@@ -1059,6 +1115,7 @@ const assignSingleLineman = async (uid) => {
     })
 
     fetchReportDetails(false)
+    showAssignModal.value = false // Auto-close assignment modal after dispatch
   } else {
     alert('Error assigning lineman: ' + error.message)
   }
@@ -1114,6 +1171,7 @@ const assignTeam = async (team) => {
     })
 
     fetchReportDetails(false)
+    showAssignModal.value = false // Auto-close assignment modal after dispatch
   } else {
     alert('Error assigning team: ' + error.message)
   }
