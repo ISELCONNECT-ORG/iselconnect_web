@@ -113,7 +113,7 @@
               <div class="heatmap-gradient-bar"></div>
               <div class="heatmap-labels">
                 <span>Low (1)</span>
-                <span>High (4+)</span>
+                <span>High (20+)</span>
               </div>
             </div>
 

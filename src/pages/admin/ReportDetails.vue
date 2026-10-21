@@ -71,11 +71,19 @@
             <h3>Reporter Information</h3>
             <div class="data-group" style="margin-bottom: 16px">
               <label>FULL NAME</label>
-              <div class="gray-box">{{ report.customer_name || 'JOHN LLOYD BINUYA' }}</div>
+              <div class="gray-box">
+                {{
+                  report.users?.first_name
+                    ? `${report.users.first_name} ${report.users.last_name}`
+                    : 'Walk-in / Anonymous'
+                }}
+              </div>
             </div>
             <div class="data-group">
               <label>CONTACT NUMBER</label>
-              <div class="gray-box">0917-888-1234</div>
+              <div class="gray-box">
+                {{ report.users?.mobile_number || 'N/A' }}
+              </div>
             </div>
           </div>
 
@@ -473,7 +481,11 @@ const fetchReportDetails = async (isInitial = true) => {
     return
   }
 
-  const { data, error } = await supabase.from('reports').select('*').eq('id', reportId).single()
+  const { data, error } = await supabase
+    .from('reports')
+    .select('*, users:residents_id(first_name, last_name, mobile_number)')
+    .eq('id', reportId)
+    .single()
 
   if (error) {
     console.error('Error fetching details:', error.message)
